@@ -1,0 +1,105 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+
+interface Booking {
+  id: string;
+  practitionerId: number;
+  practitionerName: string;
+  practitionerInitials: string;
+  avatarColor: string[];
+  date: string;
+  time: string;
+  price: number;
+  online: boolean;
+  location: string;
+  confirmedAt: string;
+}
+
+interface AppContextValue {
+  favorites: Set<number>;
+  toggleFavorite: (id: number) => void;
+  bookings: Booking[];
+  addBooking: (booking: Booking) => void;
+  goingEvents: Set<number>;
+  toggleGoingEvent: (id: number) => void;
+  userName: string;
+}
+
+const AppContext = createContext<AppContextValue>({
+  favorites: new Set(),
+  toggleFavorite: () => {},
+  bookings: [],
+  addBooking: () => {},
+  goingEvents: new Set(),
+  toggleGoingEvent: () => {},
+  userName: "Amara",
+});
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [goingEvents, setGoingEvents] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [favStr, bookStr, evStr] = await Promise.all([
+          AsyncStorage.getItem("sr_favorites"),
+          AsyncStorage.getItem("sr_bookings"),
+          AsyncStorage.getItem("sr_going_events"),
+        ]);
+        if (favStr) setFavorites(new Set(JSON.parse(favStr)));
+        if (bookStr) setBookings(JSON.parse(bookStr));
+        if (evStr) setGoingEvents(new Set(JSON.parse(evStr)));
+      } catch {}
+    })();
+  }, []);
+
+  const toggleFavorite = useCallback((id: number) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      AsyncStorage.setItem("sr_favorites", JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  const addBooking = useCallback((booking: Booking) => {
+    setBookings((prev) => {
+      const next = [booking, ...prev];
+      AsyncStorage.setItem("sr_bookings", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const toggleGoingEvent = useCallback((id: number) => {
+    setGoingEvents((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      AsyncStorage.setItem("sr_going_events", JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  return (
+    <AppContext.Provider
+      value={{
+        favorites,
+        toggleFavorite,
+        bookings,
+        addBooking,
+        goingEvents,
+        toggleGoingEvent,
+        userName: "Amara",
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp() {
+  return useContext(AppContext);
+}
