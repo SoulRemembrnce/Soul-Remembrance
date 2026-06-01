@@ -2,8 +2,9 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -14,9 +15,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BOOKING_DATES, BOOKING_TIMES, PRACTITIONERS, REVIEWS, Review } from "@/constants/data";
+import { PRACTITIONERS, REVIEWS, Review } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import {
+  FSAvailabilitySlot,
+  markSlotBooked,
+  subscribeAvailability,
+} from "@/lib/firestore";
 import { scheduleBookingReminders, ReminderResult } from "@/utils/notifications";
 
 type Screen = "detail" | "booking" | "confirmed";
@@ -39,6 +45,10 @@ export default function PractitionerScreen() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
 
+  // Availability state
+  const [availSlots, setAvailSlots] = useState<FSAvailabilitySlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(true);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -50,10 +60,43 @@ export default function PractitionerScreen() {
     );
   }
 
+  // ── Availability subscription ────────────────────────────────────────────
+  useEffect(() => {
+    if (!practitioner) return;
+    setLoadingSlots(true);
+    const unsub = subscribeAvailability(practitioner.id, (slots) => {
+      setAvailSlots(slots);
+      setLoadingSlots(false);
+    });
+    return unsub;
+  }, [practitioner?.id]);
+
+  // ── Derived availability ─────────────────────────────────────────────────
+  const availDates = useMemo(() => {
+    const map = new Map<string, { label: string; iso: string; hasOpen: boolean }>();
+    for (const slot of availSlots) {
+      if (!map.has(slot.dateISO)) {
+        map.set(slot.dateISO, { label: slot.date, iso: slot.dateISO, hasOpen: false });
+      }
+      if (!slot.booked) map.get(slot.dateISO)!.hasOpen = true;
+    }
+    return [...map.values()];
+  }, [availSlots]);
+
+  const timesForDate = useMemo((): FSAvailabilitySlot[] => {
+    if (!selectedDate) return [];
+    return availSlots.filter((s) => s.date === selectedDate);
+  }, [availSlots, selectedDate]);
+
   const handleConfirmBooking = async () => {
     if (!selectedDate || !selectedTime) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const bookingId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Mark slot as booked in Firestore
+    const slot = timesForDate.find((s) => s.time === selectedTime);
+    if (slot) markSlotBooked(slot.id, "anon_user").catch(console.warn);
+
     addBooking({
       id: bookingId,
       practitionerId: practitioner.id,
@@ -217,56 +260,83 @@ export default function PractitionerScreen() {
         </LinearGradient>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: bottomPad + 80 }}>
           <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SELECT DATE</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 22 }}>
-            {BOOKING_DATES.map((d) => (
-              <TouchableOpacity
-                key={d}
-                onPress={() => { setSelectedDate(d); Haptics.selectionAsync(); }}
-                style={[
-                  styles.dateChip,
-                  {
-                    backgroundColor: selectedDate === d ? colors.deepIndigo : colors.card,
-                    borderColor: selectedDate === d ? colors.deepIndigo : colors.blush,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dateChipText,
-                    { color: selectedDate === d ? "#fff" : colors.charcoal },
-                  ]}
-                >
-                  {d}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+
+          {loadingSlots ? (
+            <View style={styles.slotsLoader}>
+              <ActivityIndicator size="small" color={colors.deepIndigo} />
+              <Text style={[styles.slotsLoaderText, { color: colors.sage }]}>Loading availability…</Text>
+            </View>
+          ) : availDates.length === 0 ? (
+            <View style={[styles.noSlotsBox, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+              <Text style={[styles.noSlotsText, { color: colors.sage }]}>No availability in the next 3 weeks.</Text>
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 22 }}>
+              {availDates.map((d) => {
+                const isSelected = selectedDate === d.label;
+                const isFull = !d.hasOpen;
+                return (
+                  <TouchableOpacity
+                    key={d.iso}
+                    disabled={isFull}
+                    onPress={() => {
+                      setSelectedDate(d.label);
+                      setSelectedTime(null);
+                      Haptics.selectionAsync();
+                    }}
+                    style={[
+                      styles.dateChip,
+                      {
+                        backgroundColor: isSelected ? colors.deepIndigo : isFull ? colors.cream : colors.card,
+                        borderColor: isSelected ? colors.deepIndigo : isFull ? colors.blush : colors.blush,
+                        opacity: isFull ? 0.55 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.dateChipText, { color: isSelected ? "#fff" : isFull ? colors.sage : colors.charcoal }]}>
+                      {d.label}
+                    </Text>
+                    {isFull && (
+                      <Text style={[styles.dateChipFull, { color: colors.sage }]}>Full</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SELECT TIME</Text>
-          <View style={styles.timesGrid}>
-            {BOOKING_TIMES.map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => { setSelectedTime(t); Haptics.selectionAsync(); }}
-                style={[
-                  styles.timeChip,
-                  {
-                    backgroundColor: selectedTime === t ? colors.deepIndigo : colors.card,
-                    borderColor: selectedTime === t ? colors.deepIndigo : colors.blush,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.timeChipText,
-                    { color: selectedTime === t ? "#fff" : colors.charcoal },
-                  ]}
-                >
-                  {t}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {!selectedDate ? (
+            <Text style={[styles.pickHint, { color: colors.sage }]}>Select a date first to see available times</Text>
+          ) : (
+            <View style={styles.timesGrid}>
+              {timesForDate.map((slot) => {
+                const isSelected = selectedTime === slot.time;
+                return (
+                  <TouchableOpacity
+                    key={slot.id}
+                    disabled={slot.booked}
+                    onPress={() => { setSelectedTime(slot.time); Haptics.selectionAsync(); }}
+                    style={[
+                      styles.timeChip,
+                      {
+                        backgroundColor: isSelected ? colors.deepIndigo : slot.booked ? colors.cream : colors.card,
+                        borderColor: isSelected ? colors.deepIndigo : slot.booked ? colors.blush : colors.blush,
+                        opacity: slot.booked ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.timeChipText, { color: isSelected ? "#fff" : slot.booked ? colors.sage : colors.charcoal }]}>
+                      {slot.time}
+                    </Text>
+                    {slot.booked && (
+                      <Text style={[styles.timeChipBooked, { color: colors.sage }]}>Booked</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           <View style={[styles.summaryBox, { backgroundColor: colors.card, borderColor: colors.cream }]}>
             <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SESSION SUMMARY</Text>
@@ -820,6 +890,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_500Medium",
   },
+  dateChipFull: {
+    fontSize: 9,
+    fontFamily: "Inter_600SemiBold",
+    marginTop: 2,
+  },
+  slotsLoader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 22,
+    paddingVertical: 8,
+  },
+  slotsLoaderText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  noSlotsBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 22,
+    alignItems: "center",
+  },
+  noSlotsText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  pickHint: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 22,
+    paddingVertical: 4,
+  },
   timesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -837,6 +940,11 @@ const styles = StyleSheet.create({
   timeChipText: {
     fontSize: 13,
     fontFamily: "Inter_500Medium",
+  },
+  timeChipBooked: {
+    fontSize: 9,
+    fontFamily: "Inter_600SemiBold",
+    marginTop: 2,
   },
   summaryBox: {
     borderRadius: 16,

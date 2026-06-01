@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 
@@ -224,4 +225,62 @@ export async function removeFavoriteFromFirestore(
   await deleteDoc(
     doc(db, "favorites", `${ANON_USER_ID}_${practitionerId}`)
   );
+}
+
+// ─── Availability ─────────────────────────────────────────────────────────────
+
+export interface FSAvailabilitySlot {
+  id: string;           // "{practitionerId}_{dateISO}_{timeSlug}"
+  practitionerId: number;
+  date: string;         // "Mon 1 Jun"
+  dateISO: string;      // "2026-06-01" (for sorting)
+  time: string;         // "10:00 AM"
+  timeISO: string;      // "10:00" (24h for sorting)
+  booked: boolean;
+  bookedBy?: string;
+}
+
+export function subscribeAvailability(
+  practitionerId: number,
+  cb: (slots: FSAvailabilitySlot[]) => void
+): () => void {
+  const q = query(
+    collection(db, "availability"),
+    where("practitionerId", "==", practitionerId)
+  );
+  return onSnapshot(q, (snap) => {
+    const slots = snap.docs.map((d) => d.data() as FSAvailabilitySlot);
+    slots.sort((a, b) =>
+      a.dateISO !== b.dateISO
+        ? a.dateISO.localeCompare(b.dateISO)
+        : a.timeISO.localeCompare(b.timeISO)
+    );
+    cb(slots);
+  });
+}
+
+export async function seedAvailability(
+  slots: FSAvailabilitySlot[]
+): Promise<void> {
+  const snap = await getDocs(collection(db, "availability"));
+  if (!snap.empty) return;
+  // Batch in groups of 50 to stay within Firestore limits
+  const CHUNK = 50;
+  for (let i = 0; i < slots.length; i += CHUNK) {
+    await Promise.all(
+      slots.slice(i, i + CHUNK).map((s) =>
+        setDoc(doc(db, "availability", s.id), s)
+      )
+    );
+  }
+}
+
+export async function markSlotBooked(
+  slotId: string,
+  userId: string
+): Promise<void> {
+  await updateDoc(doc(db, "availability", slotId), {
+    booked: true,
+    bookedBy: userId,
+  });
 }
