@@ -918,10 +918,11 @@ export default function ProfileScreen() {
               paddingVertical: 14,
             },
           ]}
-          onPress={async () => {
+          onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            const { Linking } = await import("react-native");
-            Linking.openSettings();
+            if (Platform.OS !== "web") {
+              Linking.openSettings();
+            }
           }}
         >
           <Feather
