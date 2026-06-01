@@ -40,7 +40,7 @@ import { usePaymentSheet } from "@/hooks/usePaymentSheet";
 import { uploadAvatar } from "@/lib/storage";
 
 const MENU_ITEMS = [
-  { icon: "credit-card", label: "Payment Methods", route: null },
+  { icon: "credit-card", label: "Payment Methods", route: "/payment-methods" },
   { icon: "settings", label: "Settings", route: null },
   { icon: "help-circle", label: "Help & Support", route: null },
   { icon: "shield", label: "Privacy Policy", route: "/privacy" },
