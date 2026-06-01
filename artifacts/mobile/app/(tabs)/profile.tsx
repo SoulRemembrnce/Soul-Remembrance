@@ -41,8 +41,8 @@ import { uploadAvatar } from "@/lib/storage";
 
 const MENU_ITEMS = [
   { icon: "credit-card", label: "Payment Methods", route: "/payment-methods" },
-  { icon: "settings", label: "Settings", route: null },
-  { icon: "help-circle", label: "Help & Support", route: null },
+  { icon: "settings", label: "Settings", route: "/settings" },
+  { icon: "help-circle", label: "Help & Support", route: "/help" },
   { icon: "shield", label: "Privacy Policy", route: "/privacy" },
 ];
 
