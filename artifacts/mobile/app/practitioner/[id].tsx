@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Practitioner, PRACTITIONERS, REVIEWS, Review } from "@/constants/data";
+import { Practitioner, Review } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -43,7 +43,6 @@ export default function PractitionerScreen() {
   const { userId, email: userEmail, favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
   const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
 
-  const mockPractitioner = PRACTITIONERS.find((p) => String(p.id) === id);
   const [screen, setScreen] = useState<Screen>("detail");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -65,26 +64,25 @@ export default function PractitionerScreen() {
   const [services, setServices] = useState<FSService[]>([]);
   const [selectedService, setSelectedService] = useState<FSService | null>(null);
 
-  // Firestore fallback for real (non-mock) practitioners
-  const [firestorePractitioner, setFirestorePractitioner] = useState<Practitioner | null>(null);
+  // Firestore profile (only real practitioners — no static fallback)
   const [firestoreProfile, setFirestoreProfile] = useState<FSPractitionerProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(!mockPractitioner);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const practitioner = mockPractitioner ?? firestorePractitioner;
+  const practitioner: Practitioner | null = firestoreProfile
+    ? (profileToPractitioner(firestoreProfile) as Practitioner)
+    : null;
 
-  // Load from Firestore if not in mock data
+  // Always load from Firestore
   useEffect(() => {
-    if (mockPractitioner) { setLoadingProfile(false); return; }
     if (!id) return;
     let cancelled = false;
     setLoadingProfile(true);
     getPractitionerProfileByNumericId(Number(id)).then((profile) => {
       if (cancelled) return;
       setFirestoreProfile(profile);
-      setFirestorePractitioner(profile ? (profileToPractitioner(profile) as Practitioner) : null);
       setLoadingProfile(false);
     });
     return () => { cancelled = true; };
@@ -299,9 +297,7 @@ export default function PractitionerScreen() {
   };
 
   // ── Reviews computed values ──────────────────────────────
-  const staticReviews = REVIEWS[practitioner.id] ?? [];
-  const mySubmitted = userReviews.filter((r) => r.practitionerId === practitioner.id);
-  const allReviews: Review[] = [...mySubmitted, ...staticReviews];
+  const allReviews: Review[] = userReviews.filter((r) => r.practitionerId === practitioner.id);
   const avgRating =
     allReviews.length
       ? Math.round((allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length) * 10) / 10

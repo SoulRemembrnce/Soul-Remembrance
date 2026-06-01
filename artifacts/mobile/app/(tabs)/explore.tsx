@@ -21,7 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import PractitionerMap from "@/components/PractitionerMap";
-import { FILTER_MODALITIES, Practitioner, PRACTITIONERS } from "@/constants/data";
+import { FILTER_MODALITIES, Practitioner } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -146,7 +146,7 @@ export default function ExploreScreen() {
   };
 
   const allPractitioners: Practitioner[] = useMemo(
-    () => [...realProfiles.map(profileToPractitioner) as Practitioner[], ...PRACTITIONERS],
+    () => realProfiles.map(profileToPractitioner) as Practitioner[],
     [realProfiles]
   );
 

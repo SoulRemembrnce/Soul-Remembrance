@@ -17,7 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useApp } from "@/contexts/AppContext";
-import { EVENTS, PRACTITIONERS } from "@/constants/data";
+import { EVENTS } from "@/constants/data";
 import { useColors } from "@/hooks/useColors";
 import {
   FSPractitionerProfile,
@@ -67,7 +67,7 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const upcomingEvents = useMemo(getUpcomingEvents, []);
   const featured = upcomingEvents[0] ?? EVENTS[0];
-  const allPractitioners = [...realProfiles.map(profileToPractitioner), ...PRACTITIONERS];
+  const allPractitioners = realProfiles.map(profileToPractitioner);
   const featuredPractitioners = allPractitioners.slice(0, 6);
 
   return (

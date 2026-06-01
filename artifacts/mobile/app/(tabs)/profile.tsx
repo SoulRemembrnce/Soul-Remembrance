@@ -23,12 +23,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PRACTITIONERS } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { Practitioner } from "@/constants/data";
 import {
   FSPractitionerProfile,
+  profileToPractitioner,
   subscribePractitionerProfile,
+  subscribePractitionerProfiles,
   updatePractitionerPhotoURL,
   updatePractitionerStripeAccount,
   updatePractitionerSubscription,
@@ -75,6 +77,7 @@ export default function ProfileScreen() {
 
   const [sessionTab, setSessionTab] = useState<"upcoming" | "past">("upcoming");
   const [myProfile, setMyProfile] = useState<FSPractitionerProfile | null>(null);
+  const [allProfiles, setAllProfiles] = useState<FSPractitionerProfile[]>([]);
   const [connectLoading, setConnectLoading] = useState(false);
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const pendingSessionIdRef = useRef<string | null>(null);
@@ -122,6 +125,11 @@ export default function ProfileScreen() {
     if (!userId) return;
     return subscribePractitionerProfile(userId, setMyProfile);
   }, [userId]);
+
+  // Subscribe to all active practitioners (for saved/favourites display)
+  useEffect(() => {
+    return subscribePractitionerProfiles(setAllProfiles);
+  }, []);
 
   // When the app returns to foreground, check if the Stripe subscription was completed
   useEffect(() => {
@@ -245,7 +253,9 @@ export default function ProfileScreen() {
   };
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const favPractitioners = PRACTITIONERS.filter((p) => favorites.has(p.id));
+  const favPractitioners = (allProfiles.map(profileToPractitioner) as Practitioner[]).filter(
+    (p) => favorites.has(p.id)
+  );
   const upcomingBookings = bookings.filter((b) => isUpcoming(b.date));
   const pastBookings = bookings.filter((b) => !isUpcoming(b.date));
   const shownBookings = sessionTab === "upcoming" ? upcomingBookings : pastBookings;
