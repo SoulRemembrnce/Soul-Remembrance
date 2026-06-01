@@ -326,6 +326,30 @@ export default function ProfileScreen() {
 
             <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
 
+            {/* Manage services */}
+            <TouchableOpacity
+              style={[styles.availabilityBtn, { borderColor: colors.deepIndigo }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push({
+                  pathname: "/manage-services",
+                  params: {
+                    numericId: String(myProfile.numericId),
+                    practitionerName: myProfile.name,
+                  },
+                });
+              }}
+              activeOpacity={0.85}
+            >
+              <Feather name="briefcase" size={16} color={colors.deepIndigo} />
+              <Text style={[styles.availabilityBtnText, { color: colors.deepIndigo }]}>
+                Manage Services
+              </Text>
+              <Feather name="chevron-right" size={14} color={colors.deepIndigo} />
+            </TouchableOpacity>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
             {/* Manage availability */}
             <TouchableOpacity
               style={[styles.availabilityBtn, { borderColor: colors.deepIndigo }]}
@@ -472,12 +496,28 @@ export default function ProfileScreen() {
                     <Text style={[styles.sessionMeta, { color: colors.sage }]}>{b.time}</Text>
                   </View>
                   <View style={styles.sessionTagRow}>
+                    {b.serviceName ? (
+                      <View style={[styles.sessionTag, { backgroundColor: `${colors.purpleMid}18` }]}>
+                        <Feather name="briefcase" size={9} color={colors.purpleMid} />
+                        <Text style={[styles.sessionTagText, { color: colors.purpleMid }]}>
+                          {b.serviceName}
+                        </Text>
+                      </View>
+                    ) : null}
                     <View style={[styles.sessionTag, { backgroundColor: b.online ? `${colors.deepIndigo}14` : `${colors.warmGold}18` }]}>
                       <Feather name={b.online ? "video" : "map-pin"} size={9} color={b.online ? colors.deepIndigo : colors.warmGold} />
                       <Text style={[styles.sessionTagText, { color: b.online ? colors.deepIndigo : colors.warmGold }]}>
                         {b.online ? "Online" : b.location}
                       </Text>
                     </View>
+                    {b.serviceDuration ? (
+                      <View style={[styles.sessionTag, { backgroundColor: `${colors.deepIndigo}14` }]}>
+                        <Feather name="clock" size={9} color={colors.deepIndigo} />
+                        <Text style={[styles.sessionTagText, { color: colors.deepIndigo }]}>
+                          {b.serviceDuration < 60 ? `${b.serviceDuration}m` : `${b.serviceDuration / 60}h`}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                   {upcoming && b.videoLink ? (
                     <TouchableOpacity

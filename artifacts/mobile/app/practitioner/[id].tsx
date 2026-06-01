@@ -21,11 +21,13 @@ import { useColors } from "@/hooks/useColors";
 import {
   FSAvailabilitySlot,
   FSPractitionerProfile,
+  FSService,
   createConversation,
   getPractitionerProfileByNumericId,
   markSlotBooked,
   profileToPractitioner,
   subscribeAvailability,
+  subscribeServices,
 } from "@/lib/firestore";
 import { usePaymentSheet } from "@/hooks/usePaymentSheet";
 import { scheduleBookingReminders, ReminderResult } from "@/utils/notifications";
@@ -56,6 +58,10 @@ export default function PractitionerScreen() {
   // Availability state
   const [availSlots, setAvailSlots] = useState<FSAvailabilitySlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
+
+  // Services state
+  const [services, setServices] = useState<FSService[]>([]);
+  const [selectedService, setSelectedService] = useState<FSService | null>(null);
 
   // Firestore fallback for real (non-mock) practitioners
   const [firestorePractitioner, setFirestorePractitioner] = useState<Practitioner | null>(null);
@@ -91,6 +97,18 @@ export default function PractitionerScreen() {
       setLoadingSlots(false);
     });
     return unsub;
+  }, [practitioner?.id]);
+
+  // ── Services subscription ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!practitioner) return;
+    return subscribeServices(practitioner.id, (svcs) => {
+      setServices(svcs);
+      setSelectedService((prev) => {
+        if (!prev) return null;
+        return svcs.find((s) => s.id === prev.id) ?? null;
+      });
+    });
   }, [practitioner?.id]);
 
   if (loadingProfile) {
@@ -138,9 +156,9 @@ export default function PractitionerScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: practitioner.price * 100,
+          amount: (selectedService?.price ?? practitioner.price) * 100,
           currency: "gbp",
-          description: `Soul Remembrance · Session with ${practitioner.name}`,
+          description: `Soul Remembrance · ${selectedService?.name ?? "Session"} with ${practitioner.name}`,
           practitionerId: practitioner.id,
           practitionerName: practitioner.name,
           ...(firestoreProfile?.stripeAccountId
@@ -199,10 +217,12 @@ export default function PractitionerScreen() {
         avatarColor: practitioner.avatarColor,
         date: selectedDate,
         time: selectedTime,
-        price: practitioner.price,
-        online: practitioner.online,
+        price: selectedService?.price ?? practitioner.price,
+        online: selectedService ? selectedService.online : practitioner.online,
         location: practitioner.location,
         confirmedAt: new Date().toISOString(),
+        serviceName: selectedService?.name,
+        serviceDuration: selectedService?.durationMinutes,
       });
 
       // ── Step 5: Create messaging conversation ───────────────────────────
@@ -349,7 +369,11 @@ export default function PractitionerScreen() {
   }
 
   if (screen === "booking") {
-    const canConfirm = !!selectedDate && !!selectedTime;
+    const effectivePrice = selectedService?.price ?? practitioner.price;
+    const canConfirm =
+      !!selectedDate &&
+      !!selectedTime &&
+      (services.length === 0 || !!selectedService);
     return (
       <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
         <LinearGradient
@@ -370,6 +394,81 @@ export default function PractitionerScreen() {
           </View>
         </LinearGradient>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: bottomPad + 80 }}>
+          {services.length > 0 && (
+            <>
+              <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SELECT SERVICE</Text>
+              {services.map((svc) => {
+                const active = selectedService?.id === svc.id;
+                return (
+                  <TouchableOpacity
+                    key={svc.id}
+                    style={[
+                      styles.serviceCard,
+                      {
+                        backgroundColor: active ? colors.deepIndigo : colors.card,
+                        borderColor: active ? colors.deepIndigo : colors.blush,
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedService(active ? null : svc);
+                      Haptics.selectionAsync();
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.svcName, { color: active ? "#fff" : colors.charcoal }]}>
+                        {svc.name}
+                      </Text>
+                      {svc.description ? (
+                        <Text
+                          style={[styles.svcDesc, { color: active ? "rgba(255,255,255,0.7)" : colors.sage }]}
+                          numberOfLines={2}
+                        >
+                          {svc.description}
+                        </Text>
+                      ) : null}
+                      <View style={styles.svcTagRow}>
+                        <View
+                          style={[
+                            styles.svcTag,
+                            { backgroundColor: active ? "rgba(255,255,255,0.2)" : `${colors.deepIndigo}14` },
+                          ]}
+                        >
+                          <Feather name="clock" size={10} color={active ? "rgba(255,255,255,0.8)" : colors.deepIndigo} />
+                          <Text style={[styles.svcTagText, { color: active ? "rgba(255,255,255,0.8)" : colors.deepIndigo }]}>
+                            {svc.durationMinutes < 60
+                              ? `${svc.durationMinutes} min`
+                              : svc.durationMinutes === 60
+                              ? "1 hour"
+                              : `${svc.durationMinutes / 60}h`}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.svcTag,
+                            { backgroundColor: active ? "rgba(255,255,255,0.2)" : `${colors.deepIndigo}14` },
+                          ]}
+                        >
+                          <Feather
+                            name={svc.online ? "video" : "map-pin"}
+                            size={10}
+                            color={active ? "rgba(255,255,255,0.8)" : colors.deepIndigo}
+                          />
+                          <Text style={[styles.svcTagText, { color: active ? "rgba(255,255,255,0.8)" : colors.deepIndigo }]}>
+                            {svc.online ? "Online" : "In-person"}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <Text style={[styles.svcPrice, { color: active ? "#fff" : colors.deepIndigo }]}>
+                      £{svc.price % 1 === 0 ? svc.price : svc.price.toFixed(2)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
+
           <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SELECT DATE</Text>
 
           {loadingSlots ? (
@@ -453,17 +552,40 @@ export default function PractitionerScreen() {
             <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SESSION SUMMARY</Text>
             {[
               { label: "Practitioner", value: practitioner.name },
+              ...(selectedService
+                ? [
+                    { label: "Service", value: selectedService.name },
+                    {
+                      label: "Duration",
+                      value:
+                        selectedService.durationMinutes < 60
+                          ? `${selectedService.durationMinutes} min`
+                          : selectedService.durationMinutes === 60
+                          ? "1 hour"
+                          : `${selectedService.durationMinutes / 60}h`,
+                    },
+                  ]
+                : []),
               { label: "Date", value: selectedDate || "—" },
               { label: "Time", value: selectedTime || "—" },
-              { label: "Format", value: practitioner.online ? "Online via Zoom" : practitioner.location },
-              { label: "Total", value: `£${practitioner.price}` },
-            ].map((row, i) => (
+              {
+                label: "Format",
+                value: selectedService
+                  ? selectedService.online
+                    ? "Online"
+                    : "In-person"
+                  : practitioner.online
+                  ? "Online"
+                  : practitioner.location,
+              },
+              { label: "Total", value: `£${effectivePrice}` },
+            ].map((row, i, arr) => (
               <View
                 key={row.label}
                 style={[
                   styles.summaryRow,
                   { borderBottomColor: colors.cream },
-                  i === 4 && { borderBottomWidth: 0 },
+                  i === arr.length - 1 && { borderBottomWidth: 0 },
                 ]}
               >
                 <Text style={[styles.summaryRowLabel, { color: colors.sage }]}>{row.label}</Text>
@@ -488,7 +610,7 @@ export default function PractitionerScreen() {
             {paymentLoading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.confirmBtnText}>Pay £{practitioner.price} · Confirm Booking</Text>
+              <Text style={styles.confirmBtnText}>Pay £{effectivePrice} · Confirm Booking</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -779,7 +901,9 @@ export default function PractitionerScreen() {
           }}
         >
           <Feather name="calendar" size={18} color="#fff" />
-          <Text style={styles.bookBtnText}>Book a Session · £{practitioner.price}</Text>
+          <Text style={styles.bookBtnText}>
+            Book a Session{services.length === 0 ? ` · £${practitioner.price}` : ""}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -867,6 +991,48 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.85)",
     fontSize: 12,
     fontFamily: "Inter_500Medium",
+  },
+  serviceCard: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  svcName: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 3,
+  },
+  svcDesc: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 7,
+    lineHeight: 17,
+  },
+  svcTagRow: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  svcTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  svcTagText: {
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
+  },
+  svcPrice: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    flexShrink: 0,
   },
   priceRow: {
     flexDirection: "row",

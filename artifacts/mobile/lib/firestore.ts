@@ -82,6 +82,63 @@ export interface FSBooking {
   cancelled?: boolean;
   cancelledAt?: Timestamp;
   videoLink?: string;
+  serviceName?: string;
+  serviceDuration?: number;
+}
+
+// ─── Services ─────────────────────────────────────────────────────────────────
+
+export interface FSService {
+  id: string;
+  practitionerId: number;
+  name: string;
+  description: string;
+  durationMinutes: number;
+  price: number;
+  online: boolean;
+  active: boolean;
+  createdAt?: Timestamp;
+}
+
+export function subscribeServices(
+  practitionerId: number,
+  cb: (services: FSService[]) => void
+): () => void {
+  const q = query(
+    collection(db, "services"),
+    where("practitionerId", "==", practitionerId),
+    where("active", "==", true)
+  );
+  return onSnapshot(q, (snap) => {
+    const docs = snap.docs.map((d) => d.data() as FSService);
+    docs.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
+    cb(docs);
+  });
+}
+
+export async function addService(
+  practitionerId: number,
+  data: Omit<FSService, "id" | "practitionerId" | "active" | "createdAt">
+): Promise<void> {
+  const id = `${practitionerId}_${Date.now()}`;
+  await setDoc(doc(db, "services", id), {
+    id,
+    practitionerId,
+    ...data,
+    active: true,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function updateService(
+  id: string,
+  data: Partial<Omit<FSService, "id" | "practitionerId" | "createdAt">>
+): Promise<void> {
+  await updateDoc(doc(db, "services", id), data);
+}
+
+export async function deleteService(id: string): Promise<void> {
+  await updateDoc(doc(db, "services", id), { active: false });
 }
 
 // ─── Practitioners ────────────────────────────────────────────────────────────
