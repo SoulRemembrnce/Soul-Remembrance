@@ -416,3 +416,174 @@ export const CIRCLES = [
 
 export const BOOKING_DATES = ["Today", "Thu 5 Jun", "Fri 6 Jun", "Sat 7 Jun", "Sun 8 Jun", "Mon 9 Jun"];
 export const BOOKING_TIMES = ["9:00 AM", "10:00 AM", "11:00 AM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"];
+
+export interface Review {
+  id: string;
+  practitionerId: number;
+  authorName: string;
+  authorInitials: string;
+  avatarColor: [string, string];
+  rating: number;
+  text: string;
+  date: string;
+  verified: boolean;
+}
+
+export const REVIEWS: Record<number, Review[]> = {
+  1: [
+    {
+      id: "r1-1", practitionerId: 1,
+      authorName: "Sarah K.", authorInitials: "SK",
+      avatarColor: ["#6B4FA8", "#9B7FD4"],
+      rating: 5,
+      text: "Luna's sound bath completely shifted my energy. The crystal bowls resonated in my bones and I left feeling lighter than I had in years. Already booked my next session.",
+      date: "29 May 2026", verified: true,
+    },
+    {
+      id: "r1-2", practitionerId: 1,
+      authorName: "Oliver P.", authorInitials: "OP",
+      avatarColor: ["#1A4D2E", "#3A8C5C"],
+      rating: 5,
+      text: "My first Reiki session with Luna was transformative. She has an incredible gift for sensing where energy is blocked. Walked out feeling genuinely realigned.",
+      date: "18 May 2026", verified: true,
+    },
+    {
+      id: "r1-3", practitionerId: 1,
+      authorName: "Mia C.", authorInitials: "MC",
+      avatarColor: ["#0D3B6E", "#1A6EAD"],
+      rating: 4,
+      text: "Beautifully held session. Luna created a safe, sacred space and her intuition is remarkable. One of the most peaceful experiences I've had in a long time.",
+      date: "3 May 2026", verified: false,
+    },
+  ],
+  2: [
+    {
+      id: "r2-1", practitionerId: 2,
+      authorName: "Jake R.", authorInitials: "JR",
+      avatarColor: ["#2D1B69", "#7B5EA7"],
+      rating: 5,
+      text: "Marcus helped me understand how trauma lives in the body in a way no talk therapist ever did. His breathwork session unlocked something deep I'd been holding for years.",
+      date: "25 May 2026", verified: true,
+    },
+    {
+      id: "r2-2", practitionerId: 2,
+      authorName: "Priti S.", authorInitials: "PS",
+      avatarColor: ["#6B1F6B", "#A855A8"],
+      rating: 5,
+      text: "Incredibly skilled and compassionate. The somatic work was gentle but powerful. I felt completely held throughout. Marcus is a rare find.",
+      date: "14 May 2026", verified: true,
+    },
+    {
+      id: "r2-3", practitionerId: 2,
+      authorName: "Dan W.", authorInitials: "DW",
+      avatarColor: ["#1A0F3D", "#4A2080"],
+      rating: 4,
+      text: "Thoughtful, professional, and genuinely caring. The breathwork techniques Marcus taught me have become part of my daily practice. Highly recommend.",
+      date: "28 Apr 2026", verified: false,
+    },
+  ],
+  3: [
+    {
+      id: "r3-1", practitionerId: 3,
+      authorName: "Rachel M.", authorInitials: "RM",
+      avatarColor: ["#7C3D3D", "#C06060"],
+      rating: 5,
+      text: "Priya's Ayurvedic consultation was the most thorough health conversation I've ever had. The herbal protocol she designed has transformed my digestion and sleep quality.",
+      date: "27 May 2026", verified: true,
+    },
+    {
+      id: "r3-2", practitionerId: 3,
+      authorName: "Tom B.", authorInitials: "TB",
+      avatarColor: ["#1A4D2E", "#3A8C5C"],
+      rating: 5,
+      text: "I've tried Ayurveda before but never with someone as knowledgeable as Priya. She made everything feel accessible and practical rather than overwhelming.",
+      date: "10 May 2026", verified: true,
+    },
+    {
+      id: "r3-3", practitionerId: 3,
+      authorName: "Lisa J.", authorInitials: "LJ",
+      avatarColor: ["#6B4FA8", "#9B7FD4"],
+      rating: 5,
+      text: "Three months on and I'm still following Priya's recommendations. My energy, mood and focus have stabilised completely. Absolutely life-changing consultation.",
+      date: "21 Apr 2026", verified: true,
+    },
+  ],
+  4: [
+    {
+      id: "r4-1", practitionerId: 4,
+      authorName: "Emma S.", authorInitials: "ES",
+      avatarColor: ["#2D1B69", "#7B5EA7"],
+      rating: 5,
+      text: "Ayla's soul retrieval work was the most profound healing I've ever experienced. I feel more whole and grounded than I have in years. A true gift to the world.",
+      date: "26 May 2026", verified: true,
+    },
+    {
+      id: "r4-2", practitionerId: 4,
+      authorName: "Ben T.", authorInitials: "BT",
+      avatarColor: ["#0D3B6E", "#1A6EAD"],
+      rating: 5,
+      text: "Ayla holds space beautifully for deep shamanic work. Her connection to earth and ancestral lineages is palpable and deeply respectful. An exceptional healer.",
+      date: "15 May 2026", verified: true,
+    },
+    {
+      id: "r4-3", practitionerId: 4,
+      authorName: "Claire W.", authorInitials: "CW",
+      avatarColor: ["#6B1F6B", "#A855A8"],
+      rating: 4,
+      text: "The energy clearing session with Ayla shifted something that had been stuck for years. Powerful, gentle, and completely safe. I left feeling profoundly lighter.",
+      date: "4 May 2026", verified: false,
+    },
+  ],
+  5: [
+    {
+      id: "r5-1", practitionerId: 5,
+      authorName: "Anna K.", authorInitials: "AK",
+      avatarColor: ["#7C3D3D", "#C06060"],
+      rating: 5,
+      text: "James' EFT sessions have genuinely reduced my anxiety. He's patient, insightful, and knows exactly which points to work on. I use the techniques independently every day now.",
+      date: "30 May 2026", verified: true,
+    },
+    {
+      id: "r5-2", practitionerId: 5,
+      authorName: "Patrick M.", authorInitials: "PM",
+      avatarColor: ["#1A4D2E", "#3A8C5C"],
+      rating: 5,
+      text: "I was sceptical about EFT but James made it feel completely natural. Within two sessions I was using it on my own. He's an exceptional teacher with a calming presence.",
+      date: "20 May 2026", verified: true,
+    },
+    {
+      id: "r5-3", practitionerId: 5,
+      authorName: "Sophie H.", authorInitials: "SH",
+      avatarColor: ["#1A0F3D", "#4A2080"],
+      rating: 5,
+      text: "James' guided meditations are beautiful and the EFT work feels like practical magic. My relationship with stress has completely changed since working with him.",
+      date: "8 May 2026", verified: false,
+    },
+  ],
+  6: [
+    {
+      id: "r6-1", practitionerId: 6,
+      authorName: "Jade P.", authorInitials: "JP",
+      avatarColor: ["#6B4FA8", "#9B7FD4"],
+      rating: 5,
+      text: "Rosa's crystal healing session was stunning — both the visual beauty of the layout and the energetic shift I felt afterwards. She has a truly intuitive gift.",
+      date: "28 May 2026", verified: true,
+    },
+    {
+      id: "r6-2", practitionerId: 6,
+      authorName: "Natalie K.", authorInitials: "NK",
+      avatarColor: ["#2D1B69", "#7B5EA7"],
+      rating: 4,
+      text: "Gentle, warm, and deeply intuitive. Rosa's chakra balancing session left me feeling completely aligned. Her explanation of each crystal's purpose was fascinating.",
+      date: "16 May 2026", verified: true,
+    },
+    {
+      id: "r6-3", practitionerId: 6,
+      authorName: "Alice B.", authorInitials: "AB",
+      avatarColor: ["#0D3B6E", "#1A6EAD"],
+      rating: 5,
+      text: "Rosa helped me choose my first crystal collection and explained the purpose of each one beautifully. Now I feel supported and grounded in my home and at work.",
+      date: "2 May 2026", verified: false,
+    },
+  ],
+};

@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BOOKING_DATES, BOOKING_TIMES, PRACTITIONERS } from "@/constants/data";
+import { BOOKING_DATES, BOOKING_TIMES, PRACTITIONERS, REVIEWS, Review } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { scheduleBookingReminders, ReminderResult } from "@/utils/notifications";
@@ -25,13 +25,19 @@ export default function PractitionerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { favorites, toggleFavorite, addBooking } = useApp();
+  const { favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
 
   const practitioner = PRACTITIONERS.find((p) => String(p.id) === id);
   const [screen, setScreen] = useState<Screen>("detail");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [reminders, setReminders] = useState<ReminderResult | null>(null);
+
+  // Reviews state
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [writeReviewOpen, setWriteReviewOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -69,6 +75,37 @@ export default function PractitionerScreen() {
     );
     setReminders(result);
     setScreen("confirmed");
+  };
+
+  // ── Reviews computed values ──────────────────────────────
+  const staticReviews = REVIEWS[practitioner.id] ?? [];
+  const mySubmitted = userReviews.filter((r) => r.practitionerId === practitioner.id);
+  const allReviews: Review[] = [...mySubmitted, ...staticReviews];
+  const avgRating =
+    allReviews.length
+      ? Math.round((allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length) * 10) / 10
+      : practitioner.rating;
+  const visibleReviews = showAllReviews ? allReviews : allReviews.slice(0, 3);
+
+  const handleSubmitReview = () => {
+    if (!reviewRating || !reviewText.trim()) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const today = new Date();
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    addReview({
+      id: `ur-${Date.now()}`,
+      practitionerId: practitioner.id,
+      authorName: userName,
+      authorInitials: userName.slice(0, 2).toUpperCase(),
+      avatarColor: [colors.deepIndigo, colors.lavenderMid] as [string, string],
+      rating: reviewRating,
+      text: reviewText.trim(),
+      date: `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`,
+      verified: bookings.some((b) => b.practitionerId === practitioner.id),
+    });
+    setReviewRating(0);
+    setReviewText("");
+    setWriteReviewOpen(false);
   };
 
   if (screen === "confirmed") {
@@ -359,6 +396,188 @@ export default function PractitionerScreen() {
               </View>
             ))}
           </View>
+        </View>
+
+        {/* ── REVIEWS SECTION ───────────────────────────────── */}
+        <View style={styles.reviewsSection}>
+          {/* Header */}
+          <View style={styles.reviewsSectionHeader}>
+            <Text style={[styles.bioLabel, { color: colors.warmGold }]}>REVIEWS</Text>
+            <Text style={[styles.reviewCountLabel, { color: colors.sage }]}>
+              {allReviews.length} review{allReviews.length !== 1 ? "s" : ""}
+            </Text>
+          </View>
+
+          {/* Rating summary card */}
+          <View style={[styles.ratingSummaryCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+            <View style={styles.ratingLeft}>
+              <Text style={[styles.ratingBigNum, { color: colors.charcoal }]}>{avgRating.toFixed(1)}</Text>
+              <View style={styles.ratingStarsRow}>
+                {[1,2,3,4,5].map((s) => (
+                  <Feather
+                    key={s}
+                    name="star"
+                    size={13}
+                    color={s <= Math.round(avgRating) ? colors.gold : colors.blush}
+                  />
+                ))}
+              </View>
+              <Text style={[styles.ratingTotalLabel, { color: colors.sage }]}>
+                {allReviews.length} total
+              </Text>
+            </View>
+            <View style={styles.ratingBarsCol}>
+              {([5,4,3,2,1] as const).map((star) => {
+                const cnt = allReviews.filter((r) => r.rating === star).length;
+                const pct = allReviews.length ? cnt / allReviews.length : 0;
+                return (
+                  <View key={star} style={styles.ratingBarRow}>
+                    <Text style={[styles.ratingBarStar, { color: colors.sage }]}>{star}★</Text>
+                    <View style={[styles.ratingBarTrack, { backgroundColor: colors.cream }]}>
+                      <View
+                        style={[
+                          styles.ratingBarFill,
+                          { backgroundColor: colors.gold, width: `${Math.round(pct * 100)}%` as any },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.ratingBarCnt, { color: colors.sage }]}>{cnt}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Review cards */}
+          {visibleReviews.map((review) => (
+            <View
+              key={review.id}
+              style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
+            >
+              <View style={styles.reviewCardHeader}>
+                <LinearGradient colors={review.avatarColor} style={styles.reviewAvatar}>
+                  <Text style={styles.reviewAvatarText}>{review.authorInitials}</Text>
+                </LinearGradient>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.reviewNameRow}>
+                    <Text style={[styles.reviewAuthor, { color: colors.charcoal }]}>{review.authorName}</Text>
+                    {review.verified && (
+                      <View style={[styles.verifiedSmall, { backgroundColor: `${colors.deepIndigo}18` }]}>
+                        <Feather name="check" size={9} color={colors.deepIndigo} />
+                        <Text style={[styles.verifiedSmallText, { color: colors.deepIndigo }]}>Verified</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.reviewMeta}>
+                    <View style={styles.reviewStars}>
+                      {[1,2,3,4,5].map((s) => (
+                        <Feather
+                          key={s}
+                          name="star"
+                          size={11}
+                          color={s <= review.rating ? colors.gold : colors.blush}
+                        />
+                      ))}
+                    </View>
+                    <Text style={[styles.reviewDate, { color: colors.sage }]}>{review.date}</Text>
+                  </View>
+                </View>
+              </View>
+              <Text style={[styles.reviewText, { color: colors.charcoal }]}>{review.text}</Text>
+            </View>
+          ))}
+
+          {/* Show all / collapse */}
+          {allReviews.length > 3 && (
+            <TouchableOpacity
+              onPress={() => { setShowAllReviews((v) => !v); Haptics.selectionAsync(); }}
+              style={[styles.seeAllBtn, { borderColor: colors.blush }]}
+            >
+              <Text style={[styles.seeAllText, { color: colors.deepIndigo }]}>
+                {showAllReviews ? "Show fewer reviews" : `See all ${allReviews.length} reviews`}
+              </Text>
+              <Feather
+                name={showAllReviews ? "chevron-up" : "chevron-down"}
+                size={14}
+                color={colors.deepIndigo}
+              />
+            </TouchableOpacity>
+          )}
+
+          {/* Write a review */}
+          {!writeReviewOpen ? (
+            <TouchableOpacity
+              onPress={() => { setWriteReviewOpen(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              style={[styles.writeReviewBtn, { borderColor: colors.blush, backgroundColor: colors.cream }]}
+            >
+              <Feather name="edit-2" size={14} color={colors.deepIndigo} />
+              <Text style={[styles.writeReviewBtnText, { color: colors.deepIndigo }]}>Write a Review</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.reviewForm, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+              <Text style={[styles.reviewFormTitle, { color: colors.charcoal }]}>Your Review</Text>
+
+              {/* Star picker */}
+              <View style={styles.starPicker}>
+                {[1,2,3,4,5].map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={() => { setReviewRating(s); Haptics.selectionAsync(); }}
+                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  >
+                    <Feather
+                      name="star"
+                      size={34}
+                      color={s <= reviewRating ? colors.gold : colors.blush}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {reviewRating > 0 && (
+                <Text style={[styles.ratingHint, { color: colors.sage }]}>
+                  {["","Not for me","It was okay","Good session","Really helpful","Absolutely transformative"][reviewRating]}
+                </Text>
+              )}
+
+              {/* Text input */}
+              <TextInput
+                value={reviewText}
+                onChangeText={setReviewText}
+                multiline
+                numberOfLines={4}
+                placeholder="Share your experience with this practitioner…"
+                placeholderTextColor={colors.sage}
+                style={[
+                  styles.reviewInput,
+                  { color: colors.charcoal, borderColor: colors.blush, backgroundColor: colors.softWhite },
+                ]}
+                textAlignVertical="top"
+              />
+
+              {/* Actions */}
+              <View style={styles.reviewFormActions}>
+                <TouchableOpacity
+                  onPress={() => { setWriteReviewOpen(false); setReviewRating(0); setReviewText(""); }}
+                  style={[styles.reviewCancelBtn, { borderColor: colors.blush }]}
+                >
+                  <Text style={[styles.reviewCancelText, { color: colors.sage }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSubmitReview}
+                  disabled={!reviewRating || !reviewText.trim()}
+                  style={[
+                    styles.reviewSubmitBtn,
+                    {
+                      backgroundColor:
+                        reviewRating && reviewText.trim() ? colors.deepIndigo : colors.blush,
+                    },
+                  ]}
+                >
+                  <Text style={styles.reviewSubmitText}>Submit Review</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -759,6 +978,234 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     color: "#fff",
     fontSize: 15,
+    fontFamily: "Inter_700Bold",
+  },
+
+  // ── Reviews ───────────────────────────────────────────
+  reviewsSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  reviewsSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  reviewCountLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+  ratingSummaryCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 14,
+  },
+  ratingLeft: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 72,
+  },
+  ratingBigNum: {
+    fontSize: 40,
+    fontFamily: "Inter_700Bold",
+    lineHeight: 44,
+  },
+  ratingStarsRow: {
+    flexDirection: "row",
+    gap: 2,
+    marginTop: 4,
+  },
+  ratingTotalLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 4,
+  },
+  ratingBarsCol: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 5,
+  },
+  ratingBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  ratingBarStar: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    width: 22,
+  },
+  ratingBarTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  ratingBarFill: {
+    height: 6,
+    borderRadius: 3,
+  },
+  ratingBarCnt: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    width: 14,
+    textAlign: "right",
+  },
+  reviewCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 10,
+  },
+  reviewCardHeader: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  reviewAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  reviewAvatarText: {
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+  },
+  reviewNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+    marginBottom: 3,
+  },
+  reviewAuthor: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  verifiedSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  verifiedSmallText: {
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
+  },
+  reviewMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  reviewStars: {
+    flexDirection: "row",
+    gap: 2,
+  },
+  reviewDate: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+  },
+  reviewText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 19,
+  },
+  seeAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 12,
+  },
+  seeAllText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
+  writeReviewBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 13,
+    marginTop: 2,
+  },
+  writeReviewBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
+  reviewForm: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    marginTop: 2,
+  },
+  reviewFormTitle: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 14,
+  },
+  starPicker: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 8,
+    justifyContent: "center",
+  },
+  ratingHint: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  reviewInput: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    minHeight: 96,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  reviewFormActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  reviewCancelBtn: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    alignItems: "center",
+  },
+  reviewCancelText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  reviewSubmitBtn: {
+    flex: 2,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+  },
+  reviewSubmitText: {
+    color: "#fff",
+    fontSize: 14,
     fontFamily: "Inter_700Bold",
   },
 });

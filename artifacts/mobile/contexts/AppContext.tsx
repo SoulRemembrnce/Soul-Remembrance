@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
+import { Review } from "@/constants/data";
 import { requestNotificationPermission } from "@/utils/notifications";
 
 interface Booking {
@@ -26,6 +27,8 @@ interface AppContextValue {
   toggleGoingEvent: (id: number) => void;
   userName: string;
   notificationsGranted: boolean;
+  userReviews: Review[];
+  addReview: (review: Review) => void;
 }
 
 const AppContext = createContext<AppContextValue>({
@@ -37,6 +40,8 @@ const AppContext = createContext<AppContextValue>({
   toggleGoingEvent: () => {},
   userName: "Amara",
   notificationsGranted: false,
+  userReviews: [],
+  addReview: () => {},
 });
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -44,21 +49,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [goingEvents, setGoingEvents] = useState<Set<number>>(new Set());
   const [notificationsGranted, setNotificationsGranted] = useState(false);
+  const [userReviews, setUserReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const [favStr, bookStr, evStr] = await Promise.all([
+        const [favStr, bookStr, evStr, reviewStr] = await Promise.all([
           AsyncStorage.getItem("sr_favorites"),
           AsyncStorage.getItem("sr_bookings"),
           AsyncStorage.getItem("sr_going_events"),
+          AsyncStorage.getItem("sr_user_reviews"),
         ]);
         if (favStr) setFavorites(new Set(JSON.parse(favStr)));
         if (bookStr) setBookings(JSON.parse(bookStr));
         if (evStr) setGoingEvents(new Set(JSON.parse(evStr)));
+        if (reviewStr) setUserReviews(JSON.parse(reviewStr));
       } catch {}
 
-      // Request notification permission silently on app start
       const granted = await requestNotificationPermission();
       setNotificationsGranted(granted);
     })();
@@ -92,6 +99,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const addReview = useCallback((review: Review) => {
+    setUserReviews((prev) => {
+      const next = [review, ...prev];
+      AsyncStorage.setItem("sr_user_reviews", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -103,6 +118,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toggleGoingEvent,
         userName: "Amara",
         notificationsGranted,
+        userReviews,
+        addReview,
       }}
     >
       {children}
