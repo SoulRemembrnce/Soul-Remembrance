@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ── Public read-only collections ───────────────────────────────────────
+    match /practitioners/{id} {
+      allow read: if true;
+      allow write: if false; // managed by admins only
+    }
+
+    match /events/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /reviews/{id} {
+      allow read: if true;
+      // Only the author can create; no updates or deletes
+      allow create: if isSignedIn()
+        && request.resource.data.authorName is string
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update, delete: if false;
+    }
+
+    match /availability/{id} {
+      allow read: if true;
+      // Only authenticated users can mark a slot booked, and only if it isn't already
+      allow update: if isSignedIn()
+        && resource.data.booked == false
+        && request.resource.data.booked == true
+        && request.resource.data.bookedBy == request.auth.uid;
+      allow create, delete: if false;
+    }
+
+    // ── Per-user private collections ───────────────────────────────────────
+    match /bookings/{id} {
+      allow read, create: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /favorites/{id} {
+      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn()
+        && isOwner(resource.data.userId);
+      allow update: if false;
+    }
+  }
+}

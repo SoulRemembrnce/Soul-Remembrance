@@ -1,6 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged, signInAnonymously, User } from "firebase/auth";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { Review } from "@/constants/data";
+import { auth } from "@/lib/firebase";
 import {
   addBookingToFirestore,
   addFavoriteToFirestore,
@@ -28,6 +30,7 @@ interface Booking {
 }
 
 interface AppContextValue {
+  userId: string | null;
   favorites: Set<number>;
   toggleFavorite: (id: number) => void;
   bookings: Booking[];
@@ -42,6 +45,7 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue>({
+  userId: null,
   favorites: new Set(),
   toggleFavorite: () => {},
   bookings: [],
@@ -56,6 +60,7 @@ const AppContext = createContext<AppContextValue>({
 });
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [goingEvents, setGoingEvents] = useState<Set<number>>(new Set());
@@ -63,72 +68,105 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [userReviews, setUserReviews] = useState<Review[]>([]);
   const [dbReady, setDbReady] = useState(false);
 
-  // ── Bootstrap: seed + subscribe ───────────────────────────────────────────
+  const dataUnsubsRef = useRef<Array<() => void>>([]);
+
+  // ── Step 1: Seed database on first app launch ──────────────────────────
   useEffect(() => {
-    let unsubs: Array<() => void> = [];
+    seedDatabaseIfEmpty()
+      .then(() => setDbReady(true))
+      .catch((e) => {
+        console.warn("[AppContext] Seed failed:", e);
+        setDbReady(true); // still mark ready so app doesn't hang
+      });
 
-    (async () => {
-      // Seed Firestore collections if empty (runs once, no-ops after)
-      await seedDatabaseIfEmpty();
-      setDbReady(true);
-
-      // Subscribe to bookings live
-      unsubs.push(
-        subscribeBookings((bs) => {
-          setBookings(
-            bs.map((b) => ({
-              id: b.id,
-              practitionerId: b.practitionerId,
-              practitionerName: b.practitionerName,
-              practitionerInitials: b.practitionerInitials,
-              avatarColor: b.avatarColor,
-              date: b.date,
-              time: b.time,
-              price: b.price,
-              online: b.online,
-              location: b.location,
-              confirmedAt: b.confirmedAt,
-            }))
-          );
-        })
-      );
-
-      // Subscribe to favorites live
-      unsubs.push(
-        subscribeFavorites((ids) => {
-          setFavorites(new Set(ids));
-        })
-      );
-
-      // Notification permission
-      const granted = await requestNotificationPermission();
-      setNotificationsGranted(granted);
-    })();
-
-    return () => unsubs.forEach((u) => u());
+    requestNotificationPermission().then(setNotificationsGranted);
   }, []);
+
+  // ── Step 2: Auth — sign in anonymously if not already signed in ─────────
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+      } else {
+        try {
+          const cred = await signInAnonymously(auth);
+          setUser(cred.user);
+        } catch (e) {
+          console.warn("[AppContext] Anonymous sign-in failed:", e);
+        }
+      }
+    });
+    return unsubAuth;
+  }, []);
+
+  // ── Step 3: Subscribe to user data once we have a UID ──────────────────
+  useEffect(() => {
+    if (!user) return;
+
+    // Tear down any previous subscriptions before starting new ones
+    dataUnsubsRef.current.forEach((u) => u());
+    dataUnsubsRef.current = [];
+
+    dataUnsubsRef.current.push(
+      subscribeBookings(user.uid, (bs) => {
+        setBookings(
+          bs.map((b) => ({
+            id: b.id,
+            practitionerId: b.practitionerId,
+            practitionerName: b.practitionerName,
+            practitionerInitials: b.practitionerInitials,
+            avatarColor: b.avatarColor,
+            date: b.date,
+            time: b.time,
+            price: b.price,
+            online: b.online,
+            location: b.location,
+            confirmedAt: b.confirmedAt,
+          }))
+        );
+      })
+    );
+
+    dataUnsubsRef.current.push(
+      subscribeFavorites(user.uid, (ids) => {
+        setFavorites(new Set(ids));
+      })
+    );
+
+    return () => {
+      dataUnsubsRef.current.forEach((u) => u());
+      dataUnsubsRef.current = [];
+    };
+  }, [user?.uid]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  const toggleFavorite = useCallback((id: number) => {
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        removeFavoriteFromFirestore(id).catch(console.warn);
-      } else {
-        next.add(id);
-        addFavoriteToFirestore(id).catch(console.warn);
-      }
-      return next;
-    });
-  }, []);
+  const toggleFavorite = useCallback(
+    (id: number) => {
+      if (!user) return;
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+          removeFavoriteFromFirestore(user.uid, id).catch(console.warn);
+        } else {
+          next.add(id);
+          addFavoriteToFirestore(user.uid, id).catch(console.warn);
+        }
+        return next;
+      });
+    },
+    [user]
+  );
 
-  const addBooking = useCallback((booking: Booking) => {
-    // Optimistic local update — Firestore subscription will confirm
-    setBookings((prev) => [booking, ...prev]);
-    addBookingToFirestore(booking).catch(console.warn);
-  }, []);
+  const addBooking = useCallback(
+    (booking: Booking) => {
+      if (!user) return;
+      setBookings((prev) => [booking, ...prev]);
+      addBookingToFirestore(user.uid, booking).catch(console.warn);
+    },
+    [user]
+  );
 
   const toggleGoingEvent = useCallback((id: number) => {
     setGoingEvents((prev) => {
@@ -147,6 +185,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
+        userId: user?.uid ?? null,
         favorites,
         toggleFavorite,
         bookings,

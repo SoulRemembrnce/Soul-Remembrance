@@ -169,29 +169,28 @@ export async function seedReviews(
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 
-const ANON_USER_ID = "anon_user";
-
 export function subscribeBookings(
+  userId: string,
   cb: (bs: FSBooking[]) => void
 ): () => void {
   const q = query(
     collection(db, "bookings"),
-    where("userId", "==", ANON_USER_ID)
+    where("userId", "==", userId)
   );
   return onSnapshot(q, (snap) => {
     const docs = snap.docs.map((d) => d.data() as FSBooking);
-    // Sort newest first client-side (avoids composite index requirement)
     docs.sort((a, b) => b.confirmedAt.localeCompare(a.confirmedAt));
     cb(docs);
   });
 }
 
 export async function addBookingToFirestore(
+  userId: string,
   booking: Omit<FSBooking, "userId" | "createdAt">
 ): Promise<void> {
   await setDoc(doc(db, "bookings", booking.id), {
     ...booking,
-    userId: ANON_USER_ID,
+    userId,
     createdAt: serverTimestamp(),
   });
 }
@@ -199,11 +198,12 @@ export async function addBookingToFirestore(
 // ─── Favorites ────────────────────────────────────────────────────────────────
 
 export function subscribeFavorites(
+  userId: string,
   cb: (ids: number[]) => void
 ): () => void {
   const q = query(
     collection(db, "favorites"),
-    where("userId", "==", ANON_USER_ID)
+    where("userId", "==", userId)
   );
   return onSnapshot(q, (snap) => {
     cb(snap.docs.map((d) => (d.data() as { practitionerId: number }).practitionerId));
@@ -211,19 +211,21 @@ export function subscribeFavorites(
 }
 
 export async function addFavoriteToFirestore(
+  userId: string,
   practitionerId: number
 ): Promise<void> {
   await setDoc(
-    doc(db, "favorites", `${ANON_USER_ID}_${practitionerId}`),
-    { userId: ANON_USER_ID, practitionerId }
+    doc(db, "favorites", `${userId}_${practitionerId}`),
+    { userId, practitionerId }
   );
 }
 
 export async function removeFavoriteFromFirestore(
+  userId: string,
   practitionerId: number
 ): Promise<void> {
   await deleteDoc(
-    doc(db, "favorites", `${ANON_USER_ID}_${practitionerId}`)
+    doc(db, "favorites", `${userId}_${practitionerId}`)
   );
 }
 

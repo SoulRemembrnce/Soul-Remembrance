@@ -31,7 +31,7 @@ export default function PractitionerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
+  const { userId, favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
 
   const practitioner = PRACTITIONERS.find((p) => String(p.id) === id);
   const [screen, setScreen] = useState<Screen>("detail");
@@ -95,7 +95,7 @@ export default function PractitionerScreen() {
 
     // Mark slot as booked in Firestore
     const slot = timesForDate.find((s) => s.time === selectedTime);
-    if (slot) markSlotBooked(slot.id, "anon_user").catch(console.warn);
+    if (slot && userId) markSlotBooked(slot.id, userId).catch(console.warn);
 
     addBooking({
       id: bookingId,
