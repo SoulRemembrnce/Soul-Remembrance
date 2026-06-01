@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
+import { requestNotificationPermission } from "@/utils/notifications";
+
 interface Booking {
   id: string;
   practitionerId: number;
@@ -23,6 +25,7 @@ interface AppContextValue {
   goingEvents: Set<number>;
   toggleGoingEvent: (id: number) => void;
   userName: string;
+  notificationsGranted: boolean;
 }
 
 const AppContext = createContext<AppContextValue>({
@@ -33,12 +36,14 @@ const AppContext = createContext<AppContextValue>({
   goingEvents: new Set(),
   toggleGoingEvent: () => {},
   userName: "Amara",
+  notificationsGranted: false,
 });
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [goingEvents, setGoingEvents] = useState<Set<number>>(new Set());
+  const [notificationsGranted, setNotificationsGranted] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -52,6 +57,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (bookStr) setBookings(JSON.parse(bookStr));
         if (evStr) setGoingEvents(new Set(JSON.parse(evStr)));
       } catch {}
+
+      // Request notification permission silently on app start
+      const granted = await requestNotificationPermission();
+      setNotificationsGranted(granted);
     })();
   }, []);
 
@@ -93,6 +102,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         goingEvents,
         toggleGoingEvent,
         userName: "Amara",
+        notificationsGranted,
       }}
     >
       {children}

@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BOOKING_DATES, BOOKING_TIMES, PRACTITIONERS } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { scheduleBookingReminders, ReminderResult } from "@/utils/notifications";
 
 type Screen = "detail" | "booking" | "confirmed";
 
@@ -30,6 +31,7 @@ export default function PractitionerScreen() {
   const [screen, setScreen] = useState<Screen>("detail");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [reminders, setReminders] = useState<ReminderResult | null>(null);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -42,11 +44,12 @@ export default function PractitionerScreen() {
     );
   }
 
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = async () => {
     if (!selectedDate || !selectedTime) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const bookingId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     addBooking({
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: bookingId,
       practitionerId: practitioner.id,
       practitionerName: practitioner.name,
       practitionerInitials: practitioner.initials,
@@ -58,6 +61,13 @@ export default function PractitionerScreen() {
       location: practitioner.location,
       confirmedAt: new Date().toISOString(),
     });
+    const result = await scheduleBookingReminders(
+      bookingId,
+      practitioner.name,
+      selectedDate,
+      selectedTime
+    );
+    setReminders(result);
     setScreen("confirmed");
   };
 
@@ -107,12 +117,35 @@ export default function PractitionerScreen() {
               </View>
             ))}
           </View>
-          <View style={[styles.noticeBanner, { backgroundColor: "#EEE5FF" }]}>
-            <Feather name="mail" size={18} color={colors.deepIndigo} />
-            <Text style={[styles.noticeText, { color: colors.deepIndigo }]}>
-              A confirmation email has been sent. You'll receive a Zoom link 1 hour before your session.
-            </Text>
-          </View>
+          {/* Reminders banner */}
+          {reminders && (reminders.dayBefore || reminders.hourBefore) ? (
+            <View style={[styles.noticeBanner, { backgroundColor: `${colors.deepIndigo}12`, borderColor: `${colors.deepIndigo}30`, borderWidth: 1 }]}>
+              <View style={[styles.reminderIconWrap, { backgroundColor: colors.deepIndigo }]}>
+                <Feather name="bell" size={16} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.reminderTitle, { color: colors.deepIndigo }]}>
+                  Reminders set ✓
+                </Text>
+                <Text style={[styles.noticeText, { color: colors.sage }]}>
+                  {reminders.dayBefore && reminders.hourBefore
+                    ? "You'll be notified the day before at 9 AM, and again 1 hour before your session."
+                    : reminders.hourBefore
+                    ? "You'll be notified 1 hour before your session starts."
+                    : "You'll be notified the day before your session at 9 AM."}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.noticeBanner, { backgroundColor: "#EEE5FF" }]}>
+              <Feather name="mail" size={18} color={colors.deepIndigo} />
+              <Text style={[styles.noticeText, { color: colors.deepIndigo }]}>
+                {practitioner.online
+                  ? "You'll receive a Zoom link 1 hour before your session."
+                  : `Your session is at ${practitioner.location}. See you there.`}
+              </Text>
+            </View>
+          )}
           <TouchableOpacity
             style={[styles.primaryBtn, { backgroundColor: colors.deepIndigo }]}
             onPress={() => { setScreen("detail"); router.back(); }}
@@ -695,8 +728,22 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     flexDirection: "row",
-    gap: 10,
+    alignItems: "flex-start",
+    gap: 12,
     marginBottom: 16,
+  },
+  reminderIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  reminderTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 3,
   },
   noticeText: {
     flex: 1,
