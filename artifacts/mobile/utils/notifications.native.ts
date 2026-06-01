@@ -1,16 +1,22 @@
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  } as Notifications.NotificationBehavior),
-});
+// setNotificationHandler must be called at module level, but crashes on Android Expo Go.
+// Wrap in try/catch so the rest of the app still loads.
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    } as Notifications.NotificationBehavior),
+  });
+} catch {
+  // Android Expo Go: push notifications removed in SDK 53 — safe to ignore
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
   try {
@@ -28,7 +34,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 export async function registerPushToken(): Promise<string | null> {
   try {
-    if (!Device.isDevice) return null; // simulators don't get real tokens
+    if (!Device.isDevice) return null;
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "Soul Remembrance",
@@ -75,11 +81,15 @@ export async function sendExpoPush(
 export function addNotificationTapListener(
   handler: (data: Record<string, unknown>) => void
 ): () => void {
-  const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-    const data = response.notification.request.content.data ?? {};
-    handler(data as Record<string, unknown>);
-  });
-  return () => sub.remove();
+  try {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data ?? {};
+      handler(data as Record<string, unknown>);
+    });
+    return () => sub.remove();
+  } catch {
+    return () => {};
+  }
 }
 
 // ── Local booking reminders ───────────────────────────────────────────────────

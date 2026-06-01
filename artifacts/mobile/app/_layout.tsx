@@ -50,22 +50,30 @@ function NotificationDeepLink() {
   // Case 1: Cold start — check for a notification that launched the app
   useEffect(() => {
     if (Platform.OS === "web") return;
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response?.notification?.request?.content?.data) {
-        navigate(response.notification.request.content.data as Record<string, unknown>);
-      }
-    });
+    try {
+      Notifications.getLastNotificationResponseAsync().then((response) => {
+        if (response?.notification?.request?.content?.data) {
+          navigate(response.notification.request.content.data as Record<string, unknown>);
+        }
+      }).catch(() => {});
+    } catch {
+      // Android Expo Go: push notifications removed in SDK 53
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Case 2: Background — app already running, user taps notification
   useEffect(() => {
     if (Platform.OS === "web") return;
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response?.notification?.request?.content?.data ?? {};
-      navigate(data as Record<string, unknown>);
-    });
-    return () => sub.remove();
+    try {
+      const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+        const data = response?.notification?.request?.content?.data ?? {};
+        navigate(data as Record<string, unknown>);
+      });
+      return () => sub.remove();
+    } catch {
+      // Android Expo Go: push notifications removed in SDK 53
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
