@@ -102,7 +102,14 @@ export default function NewMessageScreen() {
         </View>
       </LinearGradient>
 
-      {loading ? (
+      {!query.trim() ? (
+        <View style={styles.centred}>
+          <Feather name="search" size={40} color={colors.blush} />
+          <Text style={[styles.emptyText, { color: colors.sage }]}>
+            Search for a practitioner by name, specialty, or location
+          </Text>
+        </View>
+      ) : loading ? (
         <View style={styles.centred}>
           <ActivityIndicator color={colors.deepIndigo} size="large" />
         </View>
@@ -110,7 +117,7 @@ export default function NewMessageScreen() {
         <View style={styles.centred}>
           <Feather name="user-x" size={40} color={colors.blush} />
           <Text style={[styles.emptyText, { color: colors.sage }]}>
-            {query ? "No practitioners match your search" : "No practitioners available"}
+            No practitioners match your search
           </Text>
         </View>
       ) : (
