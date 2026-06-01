@@ -37,6 +37,13 @@
           "color": "#2D1B69",
           "sounds": []
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Soul Remembrance needs calendar access to show your existing events and prevent double-bookings.",
+          "remindersPermission": false
+        }
       ]
     ],
     "experiments": {

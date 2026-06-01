@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import { useColors } from "@/hooks/useColors";
+import { useCalendarSync, type BusySlot, type CalendarInfo } from "@/hooks/useCalendarSync";
 import {
   FSAvailabilitySlot,
   addAvailabilitySlot,
@@ -83,6 +84,48 @@ export default function ManageAvailabilityScreen() {
   const [selectedDateISO, setSelectedDateISO] = useState(dates[0].iso);
   const [slots, setSlots] = useState<FSAvailabilitySlot[]>([]);
   const [toggling, setToggling] = useState<Set<string>>(new Set());
+
+  // Calendar sync
+  const {
+    permission: calPermission,
+    calendars,
+    linkedCalendar,
+    loading: calLoading,
+    requestPermission,
+    linkCalendar,
+    unlinkCalendar,
+    getBusySlotsForDate,
+  } = useCalendarSync();
+
+  const [busySlots, setBusySlots] = useState<BusySlot[]>([]);
+  const [calPickerVisible, setCalPickerVisible] = useState(false);
+
+  // Fetch busy slots whenever date or linked calendar changes
+  useEffect(() => {
+    getBusySlotsForDate(selectedDateISO).then(setBusySlots);
+  }, [selectedDateISO, linkedCalendar, getBusySlotsForDate]);
+
+  const handleLinkCalendarPress = useCallback(async () => {
+    if (calPermission !== "granted") {
+      const ok = await requestPermission();
+      if (!ok) {
+        Alert.alert(
+          "Calendar access required",
+          "Please allow calendar access in your device settings to link a calendar.",
+        );
+        return;
+      }
+    }
+    setCalPickerVisible(true);
+  }, [calPermission, requestPermission]);
+
+  const isBusy = useCallback(
+    (timeISO: string): BusySlot | null => {
+      const [h] = timeISO.split(":").map(Number);
+      return busySlots.find((b) => h >= Math.floor(b.startHour) && h < Math.ceil(b.endHour)) ?? null;
+    },
+    [busySlots]
+  );
 
   // Video link modal
   const [videoModal, setVideoModal] = useState<{
@@ -225,6 +268,60 @@ export default function ManageAvailabilityScreen() {
         </View>
       </View>
 
+      {/* Calendar link banner */}
+      {!calLoading && (
+        <TouchableOpacity
+          style={[
+            styles.calBanner,
+            {
+              backgroundColor: linkedCalendar ? `${colors.deepIndigo}10` : colors.card,
+              borderBottomColor: colors.cream,
+            },
+          ]}
+          onPress={linkedCalendar ? () => setCalPickerVisible(true) : handleLinkCalendarPress}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.calIconWrap, { backgroundColor: linkedCalendar ? `${colors.deepIndigo}18` : colors.cream }]}>
+            <Feather name="calendar" size={16} color={linkedCalendar ? colors.deepIndigo : colors.sage} />
+          </View>
+          <View style={{ flex: 1 }}>
+            {linkedCalendar ? (
+              <>
+                <Text style={[styles.calBannerTitle, { color: colors.deepIndigo }]}>
+                  {linkedCalendar.title}
+                </Text>
+                <Text style={[styles.calBannerSub, { color: colors.sage }]}>
+                  {linkedCalendar.source} · busy times shown in grid
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.calBannerTitle, { color: colors.charcoal }]}>Link your calendar</Text>
+                <Text style={[styles.calBannerSub, { color: colors.sage }]}>
+                  See your Google, Apple or Outlook events to avoid double-bookings
+                </Text>
+              </>
+            )}
+          </View>
+          {linkedCalendar ? (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                Alert.alert("Unlink calendar?", `Disconnect "${linkedCalendar.title}"?`, [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Unlink", style: "destructive", onPress: unlinkCalendar },
+                ]);
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
+            >
+              <Feather name="x" size={16} color={colors.sage} />
+            </TouchableOpacity>
+          ) : (
+            <Feather name="chevron-right" size={16} color={colors.sage} />
+          )}
+        </TouchableOpacity>
+      )}
+
       {/* Date picker */}
       <ScrollView
         horizontal
@@ -285,20 +382,37 @@ export default function ManageAvailabilityScreen() {
             const isBooked = existing?.booked ?? false;
             const isAdded = !!existing;
             const isToggling = toggling.has(slotId);
+            const calBusy = isBusy(timeISO);
 
             const bgColor = isBooked
               ? "#FFF8EE"
               : isAdded
               ? colors.deepIndigo
+              : calBusy
+              ? "#F5F0FF"
               : colors.softWhite;
             const borderColor = isBooked
               ? "#E8A838"
               : isAdded
               ? colors.deepIndigo
+              : calBusy
+              ? colors.lavenderMid
               : colors.blush;
-            const textColor = isBooked ? "#92600A" : isAdded ? "#fff" : colors.charcoal;
-            const icon: "x-circle" | "check" | "plus" = isBooked ? "x-circle" : isAdded ? "check" : "plus";
-            const iconColor = isBooked ? "#E8A838" : isAdded ? "rgba(255,255,255,0.7)" : colors.blush;
+            const textColor = isBooked ? "#92600A" : isAdded ? "#fff" : calBusy ? colors.purpleMid : colors.charcoal;
+            const icon: "x-circle" | "check" | "plus" | "calendar" = isBooked
+              ? "x-circle"
+              : isAdded
+              ? "check"
+              : calBusy
+              ? "calendar"
+              : "plus";
+            const iconColor = isBooked
+              ? "#E8A838"
+              : isAdded
+              ? "rgba(255,255,255,0.7)"
+              : calBusy
+              ? colors.lavenderMid
+              : colors.blush;
 
             return (
               <TouchableOpacity
@@ -315,10 +429,15 @@ export default function ManageAvailabilityScreen() {
                   />
                 ) : (
                   <>
-                    <View>
+                    <View style={{ flex: 1, marginRight: 4 }}>
                       <Text style={[styles.timeText, { color: textColor }]}>{label}</Text>
                       {isBooked && (
                         <Text style={styles.bookedLabel}>Booked · tap to cancel</Text>
+                      )}
+                      {calBusy && !isBooked && !isAdded && (
+                        <Text style={[styles.calBusyLabel, { color: colors.lavenderMid }]} numberOfLines={1}>
+                          {calBusy.title}
+                        </Text>
                       )}
                     </View>
                     <Feather name={icon} size={14} color={iconColor} />
@@ -388,6 +507,68 @@ export default function ManageAvailabilityScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Calendar picker modal ────────────────────────────── */}
+      <Modal
+        visible={calPickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCalPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCalPickerVisible(false)}
+        >
+          <View style={[styles.calPickerCard, { backgroundColor: "#fff" }]}>
+            <View style={styles.calPickerHeader}>
+              <Text style={styles.modalTitle}>Choose a calendar</Text>
+              <TouchableOpacity onPress={() => setCalPickerVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Feather name="x" size={20} color="#7B5EA7" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSub}>
+              Your busy times from this calendar will be highlighted in the availability grid.
+            </Text>
+            {calendars.length === 0 ? (
+              <View style={styles.calEmptyState}>
+                <Feather name="calendar" size={32} color="#DDD0F0" />
+                <Text style={styles.calEmptyText}>
+                  No calendars found. Make sure your Google or Apple Calendar is synced to this device.
+                </Text>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                {calendars.map((cal) => {
+                  const isLinked = linkedCalendar?.id === cal.id;
+                  return (
+                    <TouchableOpacity
+                      key={cal.id}
+                      style={[
+                        styles.calPickerRow,
+                        isLinked && { backgroundColor: "#F5F0FF" },
+                      ]}
+                      onPress={async () => {
+                        await linkCalendar(cal.id);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        setCalPickerVisible(false);
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[styles.calDot, { backgroundColor: cal.color }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.calPickerName}>{cal.title}</Text>
+                        <Text style={styles.calPickerSource}>{cal.source}</Text>
+                      </View>
+                      {isLinked && <Feather name="check" size={16} color="#2D1B69" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -578,5 +759,91 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
     color: "#fff",
+  },
+  // ── Calendar UI ────────────────────────────────────────────
+  calBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+  },
+  calIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calBannerTitle: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    marginBottom: 1,
+  },
+  calBannerSub: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+  },
+  calBusyLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  calPickerCard: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: "75%",
+    marginTop: "auto",
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
+  },
+  calPickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  calPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginBottom: 2,
+  },
+  calDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    flexShrink: 0,
+  },
+  calPickerName: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "#2D1B69",
+    marginBottom: 2,
+  },
+  calPickerSource: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "#7B5EA7",
+  },
+  calEmptyState: {
+    alignItems: "center",
+    padding: 24,
+    gap: 10,
+  },
+  calEmptyText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: "#7B5EA7",
+    textAlign: "center",
+    lineHeight: 20,
   },
 });

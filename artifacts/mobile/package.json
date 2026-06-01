@@ -58,6 +58,7 @@
   "dependencies": {
     "@stripe/stripe-react-native": "^0.66.0",
     "expo-auth-session": "^56.0.13",
+    "expo-calendar": "^56.0.8",
     "expo-crypto": "^56.0.4",
     "expo-notifications": "^56.0.15",
     "firebase": "^12.14.0",
