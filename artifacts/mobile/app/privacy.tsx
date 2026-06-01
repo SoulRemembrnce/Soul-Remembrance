@@ -15,8 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 const LAST_UPDATED = "June 2026";
-const CONTACT_EMAIL = "privacy@soulremembrance.app";
-const CONTROLLER = "Soul Remembrance Ltd";
+const CONTACT_EMAIL = "soulremembrance@outlook.com";
+const CONTROLLER = "Soul Remembrance";
 
 interface Section {
   title: string;
