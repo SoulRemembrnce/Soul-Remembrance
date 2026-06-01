@@ -1,3 +1,4 @@
+import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -231,12 +232,14 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={{ flex: 1, backgroundColor: colors.softWhite }}
-      contentContainerStyle={{ paddingBottom: 100 }}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
+      <AshTreeBackground />
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Profile Header */}
       <LinearGradient
         colors={[colors.deepIndigo, colors.indigo2]}
@@ -723,6 +726,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </View>
   );
 }
 

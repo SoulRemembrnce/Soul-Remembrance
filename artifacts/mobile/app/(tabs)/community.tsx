@@ -1,3 +1,4 @@
+import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -256,6 +257,7 @@ export default function CommunityScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
+      <AshTreeBackground />
       <LinearGradient
         colors={[colors.deepIndigo, colors.indigo2]}
         style={[styles.header, { paddingTop: topPad + 14 }]}

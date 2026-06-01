@@ -1,3 +1,4 @@
+import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -43,11 +44,13 @@ export default function HomeScreen() {
   const featuredPractitioners = allPractitioners.slice(0, 6);
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.softWhite }}
-      contentContainerStyle={{ paddingBottom: 100 }}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
+      <AshTreeBackground />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Header */}
       <LinearGradient
         colors={[colors.deepIndigo, colors.indigo2]}
@@ -236,6 +239,7 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
