@@ -18,6 +18,7 @@ export interface Practitioner {
   modalities: string[];
   nextAvail: string;
   online: boolean;
+  photoURL?: string;
 }
 
 export interface SREvent {

@@ -1,5 +1,7 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
+import { AvatarPicker } from "@/components/AvatarPicker";
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -26,9 +28,11 @@ import { useColors } from "@/hooks/useColors";
 import {
   FSPractitionerProfile,
   subscribePractitionerProfile,
+  updatePractitionerPhotoURL,
   updatePractitionerStripeAccount,
   updatePractitionerSubscription,
 } from "@/lib/firestore";
+import { uploadAvatar } from "@/lib/storage";
 
 const MENU_ITEMS = [
   { icon: "credit-card", label: "Payment Methods", route: null },
@@ -61,7 +65,7 @@ export default function ProfileScreen() {
   const {
     bookings, favorites, userReviews,
     isAnonymous, displayName, email, photoURL,
-    signInWithGoogle, signOut, userId,
+    signInWithGoogle, signOut, userId, updatePhotoURL,
   } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const sessionsY = useRef(0);
@@ -71,6 +75,42 @@ export default function ProfileScreen() {
   const [connectLoading, setConnectLoading] = useState(false);
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const pendingSessionIdRef = useRef<string | null>(null);
+  const [clientPhotoUploading, setClientPhotoUploading] = useState(false);
+
+  const handleChangeClientPhoto = () => {
+    if (Platform.OS === "web") { pickClientPhoto("library"); return; }
+    Alert.alert("Profile Photo", "Choose a photo", [
+      { text: "Take Photo", onPress: () => pickClientPhoto("camera") },
+      { text: "Choose from Library", onPress: () => pickClientPhoto("library") },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const pickClientPhoto = async (source: "camera" | "library") => {
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (source === "camera") {
+        if (Platform.OS !== "web") {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert("Permission needed", "Camera access is required.");
+            return;
+          }
+        }
+        result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      }
+      if (result.canceled || !userId) return;
+      setClientPhotoUploading(true);
+      const url = await uploadAvatar(userId, result.assets[0].uri, "client");
+      await updatePhotoURL(url);
+    } catch {
+      Alert.alert("Upload failed", "Could not upload photo. Please try again.");
+    } finally {
+      setClientPhotoUploading(false);
+    }
+  };
 
   // Subscribe to own practitioner profile (if user is a practitioner)
   useEffect(() => {
@@ -245,7 +285,7 @@ export default function ProfileScreen() {
         colors={[colors.deepIndigo, colors.indigo2]}
         style={[styles.header, { paddingTop: topPad + 16 }]}
       >
-        <View style={styles.avatarWrap}>
+        <TouchableOpacity onPress={handleChangeClientPhoto} style={styles.avatarWrap} activeOpacity={0.85}>
           {photoURL ? (
             <Image
               source={{ uri: photoURL }}
@@ -257,12 +297,21 @@ export default function ProfileScreen() {
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
           )}
+          {clientPhotoUploading ? (
+            <View style={[styles.avatarEditOverlay, { borderRadius: 28 }]}>
+              <ActivityIndicator color="#fff" size="small" />
+            </View>
+          ) : (
+            <View style={[styles.avatarEditBadge, { backgroundColor: "rgba(45,27,105,0.9)" }]}>
+              <Feather name="camera" size={10} color="#fff" />
+            </View>
+          )}
           {!isAnonymous && (
             <View style={[styles.googleBadge, { backgroundColor: "#fff" }]}>
               <GoogleColorIcon size={12} />
             </View>
           )}
-        </View>
+        </TouchableOpacity>
 
         <Text style={styles.profileName}>{profileName}</Text>
         {email ? (
@@ -323,12 +372,17 @@ export default function ProfileScreen() {
           <View style={[styles.dashCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
             {/* Profile row */}
             <View style={styles.dashRow}>
-              <LinearGradient
-                colors={myProfile.avatarColor as [string, string]}
-                style={styles.dashAvatar}
-              >
-                <Text style={styles.dashInitials}>{myProfile.initials}</Text>
-              </LinearGradient>
+              <AvatarPicker
+                userId={userId!}
+                photoURL={myProfile.photoURL}
+                initials={myProfile.initials}
+                avatarColor={myProfile.avatarColor as [string, string]}
+                size={44}
+                role="practitioner"
+                onPhotoChange={(url) => {
+                  updatePractitionerPhotoURL(userId!, url).catch(console.warn);
+                }}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.dashName, { color: colors.charcoal }]}>{myProfile.name}</Text>
                 <Text style={[styles.dashTitle, { color: colors.sage }]}>{myProfile.title}</Text>
@@ -766,6 +820,29 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 3,
     borderColor: "rgba(255,255,255,0.3)",
+  },
+  avatarEditOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 28,
+  },
+  avatarEditBadge: {
+    position: "absolute",
+    bottom: -3,
+    right: -3,
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.5)",
   },
   avatarText: {
     color: "#fff",

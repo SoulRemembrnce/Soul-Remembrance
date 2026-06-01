@@ -624,6 +624,7 @@ export interface FSPractitionerProfile {
   verified: boolean;
   subscriptionActive: boolean;
   email?: string;
+  photoURL?: string;
   stripeAccountId?: string;
   stripeAccountEnabled?: boolean;
   createdAt?: Timestamp;
@@ -650,7 +651,15 @@ export function profileToPractitioner(p: FSPractitionerProfile) {
     modalities: p.modalities,
     nextAvail: "Contact to book",
     online: p.online,
+    ...(p.photoURL && { photoURL: p.photoURL }),
   };
+}
+
+export async function updatePractitionerPhotoURL(
+  userId: string,
+  photoURL: string
+): Promise<void> {
+  await updateDoc(doc(db, "practitionerProfiles", userId), { photoURL });
 }
 
 export async function savePractitionerProfile(

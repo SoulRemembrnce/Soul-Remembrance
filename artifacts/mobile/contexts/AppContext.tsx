@@ -7,6 +7,7 @@ import {
   signInAnonymously,
   signInWithCredential,
   signOut as firebaseSignOut,
+  updateProfile,
   User,
 } from "firebase/auth";
 import React, {
@@ -60,6 +61,7 @@ interface AppContextValue {
   photoURL: string | null;
   signInWithGoogle: () => void;
   signOut: () => Promise<void>;
+  updatePhotoURL: (url: string) => Promise<void>;
   favorites: Set<number>;
   toggleFavorite: (id: number) => void;
   bookings: Booking[];
@@ -81,6 +83,7 @@ const AppContext = createContext<AppContextValue>({
   photoURL: null,
   signInWithGoogle: () => {},
   signOut: async () => {},
+  updatePhotoURL: async () => {},
   favorites: new Set(),
   toggleFavorite: () => {},
   bookings: [],
@@ -101,6 +104,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notificationsGranted, setNotificationsGranted] = useState(false);
   const [userReviews, setUserReviews] = useState<Review[]>([]);
   const [dbReady, setDbReady] = useState(false);
+  const [localPhotoURL, setLocalPhotoURL] = useState<string | null>(null);
 
   const dataUnsubsRef = useRef<Array<() => void>>([]);
 
@@ -250,6 +254,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addReviewToFirestore(review).catch(console.warn);
   }, []);
 
+  const updatePhotoURL = useCallback(async (url: string) => {
+    setLocalPhotoURL(url);
+    if (auth.currentUser) {
+      await updateProfile(auth.currentUser, { photoURL: url }).catch(console.warn);
+    }
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -258,9 +269,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         displayName: user?.displayName ?? null,
         userName: user?.displayName ?? "Friend",
         email: user?.email ?? null,
-        photoURL: user?.photoURL ?? null,
+        photoURL: localPhotoURL ?? user?.photoURL ?? null,
         signInWithGoogle,
         signOut,
+        updatePhotoURL,
         favorites,
         toggleFavorite,
         bookings,

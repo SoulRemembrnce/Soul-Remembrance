@@ -1,6 +1,7 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -513,9 +514,17 @@ export default function ExploreScreen() {
               >
                 <LinearGradient colors={[colors.deepIndigo, colors.lavenderMid]} style={styles.practHeader}>
                   <View style={styles.practHeaderInner}>
-                    <LinearGradient colors={p.avatarColor as [string, string]} style={styles.practAvatar}>
-                      <Text style={styles.practInitials}>{p.initials}</Text>
-                    </LinearGradient>
+                    {p.photoURL ? (
+                      <Image
+                        source={{ uri: p.photoURL }}
+                        style={[styles.practAvatar, { overflow: "hidden" }]}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <LinearGradient colors={p.avatarColor as [string, string]} style={styles.practAvatar}>
+                        <Text style={styles.practInitials}>{p.initials}</Text>
+                      </LinearGradient>
+                    )}
                     <View style={{ flex: 1 }}>
                       <View style={styles.nameRow}>
                         <Text style={styles.practName}>{p.name}</Text>

@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AvatarPicker } from "@/components/AvatarPicker";
 import { MODALITIES } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -33,6 +34,7 @@ interface OnboardingData {
   modalities: string[];
   rate: string;
   agreedTerms: boolean;
+  photoURL: string;
 }
 
 const STEP_LABELS = ["Your Practice", "Modalities", "Credentials", "Membership", "Complete"];
@@ -51,7 +53,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState<Step>(1);
   const [data, setData] = useState<OnboardingData>({
     name: "", title: "", location: "", years: "", bio: "",
-    modalities: [], rate: "", agreedTerms: false,
+    modalities: [], rate: "", agreedTerms: false, photoURL: "",
   });
   const [addedDocs, setAddedDocs] = useState<string[]>([]);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
@@ -129,6 +131,7 @@ export default function OnboardingScreen() {
             online: true,
             verified: false,
             subscriptionActive: true,
+            ...(data.photoURL && { photoURL: data.photoURL }),
             email: email ?? undefined,
           });
         }
@@ -194,6 +197,23 @@ export default function OnboardingScreen() {
         {step === 1 && (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.sage }]}>Tell us about yourself and your healing work</Text>
+            <View style={{ alignItems: "center", marginBottom: 24 }}>
+              <AvatarPicker
+                userId={userId ?? "new"}
+                photoURL={data.photoURL || null}
+                initials={
+                  data.name
+                    ? data.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+                    : "PR"
+                }
+                size={88}
+                role="practitioner"
+                onPhotoChange={(url) => setData((d) => ({ ...d, photoURL: url }))}
+              />
+              <Text style={[styles.stepDesc, { color: colors.sage, marginTop: 8, marginBottom: 0, fontSize: 12 }]}>
+                Tap to add a profile photo
+              </Text>
+            </View>
             {[
               { label: "Full Name", placeholder: "e.g. Luna Ashford", key: "name" as const, icon: "user" as const },
               { label: "Practitioner Title", placeholder: "e.g. Sound Healer & Reiki Master", key: "title" as const, icon: "star" as const },
