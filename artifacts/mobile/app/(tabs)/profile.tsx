@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React from "react";
+import React, { useRef, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -18,24 +18,53 @@ import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 
 const MENU_ITEMS = [
-  { icon: "calendar", label: "My Bookings", route: null },
-  { icon: "heart", label: "Saved Practitioners", route: null },
-  { icon: "star", label: "My Reviews", route: null },
   { icon: "credit-card", label: "Payment Methods", route: null },
   { icon: "settings", label: "Settings", route: null },
   { icon: "help-circle", label: "Help & Support", route: null },
 ];
 
+const MONTH_MAP: Record<string, number> = {
+  Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+  Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+};
+
+function isUpcoming(dateStr: string): boolean {
+  if (dateStr === "Today") return true;
+  const parts = dateStr.split(" ");
+  if (parts.length >= 3) {
+    const day = parseInt(parts[1]);
+    const month = MONTH_MAP[parts[2]];
+    if (!isNaN(day) && month !== undefined) {
+      const sessionDate = new Date(new Date().getFullYear(), month, day);
+      return sessionDate >= new Date(new Date().setHours(0, 0, 0, 0));
+    }
+  }
+  return true;
+}
+
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { bookings, favorites, userName } = useApp();
+  const { bookings, favorites, userReviews, userName } = useApp();
+  const scrollRef = useRef<ScrollView>(null);
+  const sessionsY = useRef(0);
+
+  const [sessionTab, setSessionTab] = useState<"upcoming" | "past">("upcoming");
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const favPractitioners = PRACTITIONERS.filter((p) => favorites.has(p.id));
+  const upcomingBookings = bookings.filter((b) => isUpcoming(b.date));
+  const pastBookings = bookings.filter((b) => !isUpcoming(b.date));
+  const shownBookings = sessionTab === "upcoming" ? upcomingBookings : pastBookings;
+  const myReviewCount = userReviews.length;
+
+  const scrollToSessions = () => {
+    scrollRef.current?.scrollTo({ y: sessionsY.current - 12, animated: true });
+  };
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1, backgroundColor: colors.softWhite }}
       contentContainerStyle={{ paddingBottom: 100 }}
       showsVerticalScrollIndicator={false}
@@ -56,10 +85,10 @@ export default function ProfileScreen() {
         <Text style={styles.profileName}>{userName} Johnson</Text>
         <Text style={styles.profileSub}>Soul Seeker · Member since 2024</Text>
         <View style={styles.statsRow}>
-          <View style={styles.stat}>
+          <TouchableOpacity style={styles.stat} onPress={scrollToSessions}>
             <Text style={styles.statNum}>{bookings.length}</Text>
             <Text style={styles.statLabel}>Sessions</Text>
-          </View>
+          </TouchableOpacity>
           <View style={[styles.statDivider, { backgroundColor: "rgba(255,255,255,0.2)" }]} />
           <View style={styles.stat}>
             <Text style={styles.statNum}>{favorites.size}</Text>
@@ -67,7 +96,7 @@ export default function ProfileScreen() {
           </View>
           <View style={[styles.statDivider, { backgroundColor: "rgba(255,255,255,0.2)" }]} />
           <View style={styles.stat}>
-            <Text style={styles.statNum}>3</Text>
+            <Text style={styles.statNum}>{myReviewCount}</Text>
             <Text style={styles.statLabel}>Reviews</Text>
           </View>
         </View>
@@ -97,31 +126,134 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Recent Bookings */}
-      {bookings.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.warmGold }]}>RECENT BOOKINGS</Text>
-          {bookings.slice(0, 2).map((b) => (
-            <View
-              key={b.id}
-              style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
-            >
-              <LinearGradient colors={b.avatarColor as [string, string]} style={styles.bookingAvatar}>
-                <Text style={styles.bookingInitials}>{b.practitionerInitials}</Text>
-              </LinearGradient>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.bookingName, { color: colors.charcoal }]}>{b.practitionerName}</Text>
-                <Text style={[styles.bookingMeta, { color: colors.sage }]}>
-                  {b.date} at {b.time}
+      {/* ── MY SESSIONS ─────────────────────────────────────── */}
+      <View
+        style={styles.section}
+        onLayout={(e) => { sessionsY.current = e.nativeEvent.layout.y; }}
+      >
+        <Text style={[styles.sectionLabel, { color: colors.warmGold }]}>MY SESSIONS</Text>
+
+        {/* Tabs */}
+        <View style={[styles.tabRow, { backgroundColor: colors.cream }]}>
+          {(["upcoming", "past"] as const).map((tab) => {
+            const active = sessionTab === tab;
+            const count = tab === "upcoming" ? upcomingBookings.length : pastBookings.length;
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[
+                  styles.tabBtn,
+                  active && { backgroundColor: colors.softWhite, shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 1 }, shadowRadius: 4, elevation: 2 },
+                ]}
+                onPress={() => {
+                  setSessionTab(tab);
+                  Haptics.selectionAsync();
+                }}
+              >
+                <Text style={[styles.tabText, { color: active ? colors.deepIndigo : colors.sage }]}>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </Text>
-              </View>
-              <View style={[styles.bookingStatus, { backgroundColor: colors.cream }]}>
-                <Text style={[styles.bookingStatusText, { color: colors.deepIndigo }]}>Confirmed</Text>
-              </View>
-            </View>
-          ))}
+                {count > 0 && (
+                  <View style={[styles.tabBadge, { backgroundColor: active ? colors.deepIndigo : colors.blush }]}>
+                    <Text style={[styles.tabBadgeText, { color: active ? "#fff" : colors.deepIndigo }]}>{count}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
-      )}
+
+        {/* Booking cards */}
+        {shownBookings.length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+            <View style={[styles.emptyIconWrap, { backgroundColor: `${colors.deepIndigo}12` }]}>
+              <Feather name={sessionTab === "upcoming" ? "calendar" : "clock"} size={26} color={colors.deepIndigo} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.charcoal }]}>
+              {sessionTab === "upcoming" ? "No upcoming sessions" : "No past sessions yet"}
+            </Text>
+            <Text style={[styles.emptyBody, { color: colors.sage }]}>
+              {sessionTab === "upcoming"
+                ? "Book a session with a practitioner to get started"
+                : "Completed sessions will appear here"}
+            </Text>
+            {sessionTab === "upcoming" && (
+              <TouchableOpacity
+                onPress={() => { router.push("/(tabs)/explore"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                style={[styles.emptyBtn, { backgroundColor: colors.deepIndigo }]}
+              >
+                <Text style={styles.emptyBtnText}>Find a Practitioner</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          shownBookings.map((b) => {
+            const upcoming = isUpcoming(b.date);
+            return (
+              <TouchableOpacity
+                key={b.id}
+                style={[styles.sessionCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/practitioner/${b.practitionerId}`);
+                }}
+                activeOpacity={0.8}
+              >
+                {/* Left: avatar */}
+                <LinearGradient
+                  colors={b.avatarColor as [string, string]}
+                  style={styles.sessionAvatar}
+                >
+                  <Text style={styles.sessionInitials}>{b.practitionerInitials}</Text>
+                </LinearGradient>
+
+                {/* Middle: info */}
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.sessionName, { color: colors.charcoal }]}>{b.practitionerName}</Text>
+                  <View style={styles.sessionMetaRow}>
+                    <Feather name="calendar" size={11} color={colors.sage} />
+                    <Text style={[styles.sessionMeta, { color: colors.sage }]}>{b.date}</Text>
+                    <Feather name="clock" size={11} color={colors.sage} />
+                    <Text style={[styles.sessionMeta, { color: colors.sage }]}>{b.time}</Text>
+                  </View>
+                  <View style={styles.sessionTagRow}>
+                    <View style={[styles.sessionTag, { backgroundColor: b.online ? `${colors.deepIndigo}14` : `${colors.warmGold}18` }]}>
+                      <Feather name={b.online ? "video" : "map-pin"} size={9} color={b.online ? colors.deepIndigo : colors.warmGold} />
+                      <Text style={[styles.sessionTagText, { color: b.online ? colors.deepIndigo : colors.warmGold }]}>
+                        {b.online ? "Online" : b.location}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Right: price + status */}
+                <View style={styles.sessionRight}>
+                  <Text style={[styles.sessionPrice, { color: colors.deepIndigo }]}>£{b.price}</Text>
+                  <View
+                    style={[
+                      styles.sessionStatus,
+                      {
+                        backgroundColor: upcoming
+                          ? `${colors.deepIndigo}14`
+                          : `${colors.warmGold}18`,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sessionStatusText,
+                        { color: upcoming ? colors.deepIndigo : colors.warmGold },
+                      ]}
+                    >
+                      {upcoming ? "Upcoming" : "Completed"}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </View>
 
       {/* Saved Practitioners */}
       {favPractitioners.length > 0 && (
@@ -130,15 +262,15 @@ export default function ProfileScreen() {
           {favPractitioners.map((p) => (
             <TouchableOpacity
               key={p.id}
-              style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
+              style={[styles.sessionCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
               onPress={() => router.push(`/practitioner/${p.id}`)}
             >
-              <LinearGradient colors={p.avatarColor as [string, string]} style={styles.bookingAvatar}>
-                <Text style={styles.bookingInitials}>{p.initials}</Text>
+              <LinearGradient colors={p.avatarColor as [string, string]} style={styles.sessionAvatar}>
+                <Text style={styles.sessionInitials}>{p.initials}</Text>
               </LinearGradient>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.bookingName, { color: colors.charcoal }]}>{p.name}</Text>
-                <Text style={[styles.bookingMeta, { color: colors.sage }]}>{p.title}</Text>
+                <Text style={[styles.sessionName, { color: colors.charcoal }]}>{p.name}</Text>
+                <Text style={[styles.sessionMeta, { color: colors.sage, marginTop: 3 }]}>{p.title}</Text>
               </View>
               <Feather name="chevron-right" size={16} color={colors.sage} />
             </TouchableOpacity>
@@ -146,7 +278,7 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Menu */}
+      {/* Account Menu */}
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: colors.warmGold }]}>ACCOUNT</Text>
         <View style={[styles.menuCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
@@ -288,7 +420,78 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 12,
   },
-  bookingCard: {
+  // ── Session tabs ──────────────────────────────────────
+  tabRow: {
+    flexDirection: "row",
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 12,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 10,
+    paddingVertical: 9,
+  },
+  tabText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  tabBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    minWidth: 18,
+    alignItems: "center",
+  },
+  tabBadgeText: {
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+  },
+  // ── Empty state ───────────────────────────────────────
+  emptyCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 28,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  emptyIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  emptyBody: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 19,
+    marginBottom: 18,
+  },
+  emptyBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+  },
+  emptyBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  // ── Session card ──────────────────────────────────────
+  sessionCard: {
     borderRadius: 16,
     padding: 14,
     flexDirection: "row",
@@ -302,37 +505,70 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 1,
   },
-  bookingAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
+  sessionAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
-  bookingInitials: {
+  sessionInitials: {
     color: "#fff",
     fontSize: 15,
     fontFamily: "Inter_700Bold",
   },
-  bookingName: {
+  sessionName: {
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
+    marginBottom: 4,
   },
-  bookingMeta: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
+  sessionMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 5,
+    flexWrap: "wrap",
   },
-  bookingStatus: {
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  bookingStatusText: {
+  sessionMeta: {
     fontSize: 11,
+    fontFamily: "Inter_400Regular",
+  },
+  sessionTagRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  sessionTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    borderRadius: 7,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  sessionTagText: {
+    fontSize: 10,
     fontFamily: "Inter_600SemiBold",
   },
+  sessionRight: {
+    alignItems: "flex-end",
+    gap: 6,
+    flexShrink: 0,
+  },
+  sessionPrice: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  sessionStatus: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  sessionStatusText: {
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
+  },
+  // ── Account menu ──────────────────────────────────────
   menuCard: {
     borderRadius: 18,
     borderWidth: 1,
