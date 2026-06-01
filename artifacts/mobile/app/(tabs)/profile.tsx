@@ -68,6 +68,7 @@ export default function ProfileScreen() {
     bookings, favorites, userReviews,
     isAnonymous, displayName, email, photoURL,
     signInWithGoogle, signOut, userId, updatePhotoURL,
+    notificationsGranted,
   } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const sessionsY = useRef(0);
@@ -793,6 +794,54 @@ export default function ProfileScreen() {
       {/* Account Menu */}
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: colors.warmGold }]}>ACCOUNT</Text>
+
+        {/* Notifications status banner */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[
+            styles.menuCard,
+            {
+              backgroundColor: notificationsGranted ? colors.card : "#FFF3E0",
+              borderColor: notificationsGranted ? colors.cream : "#FFB74D",
+              marginBottom: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+            },
+          ]}
+          onPress={async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            const { Linking } = await import("react-native");
+            Linking.openSettings();
+          }}
+        >
+          <Feather
+            name={notificationsGranted ? "bell" : "bell-off"}
+            size={18}
+            color={notificationsGranted ? colors.deepIndigo : "#E65100"}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.menuLabel, { color: colors.charcoal }]}>
+              {notificationsGranted ? "Notifications enabled" : "Notifications disabled"}
+            </Text>
+            {!notificationsGranted && (
+              <Text style={{ fontSize: 12, color: "#E65100", fontFamily: "Inter_400Regular", marginTop: 2 }}>
+                Tap to enable in Settings
+              </Text>
+            )}
+          </View>
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: notificationsGranted ? "#4CAF50" : "#FF5722",
+            }}
+          />
+        </TouchableOpacity>
+
         <View style={[styles.menuCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
           {MENU_ITEMS.map((item, i) => (
             <TouchableOpacity

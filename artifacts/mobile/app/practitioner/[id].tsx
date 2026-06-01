@@ -31,7 +31,8 @@ import {
   subscribeServices,
 } from "@/lib/firestore";
 import { usePaymentSheet } from "@/hooks/usePaymentSheet";
-import { scheduleBookingReminders, ReminderResult } from "@/utils/notifications";
+import { scheduleBookingReminders, ReminderResult, sendExpoPush } from "@/utils/notifications";
+import { getPushTokenForUserId } from "@/lib/firestore";
 
 type Screen = "detail" | "booking" | "confirmed";
 
@@ -264,6 +265,22 @@ export default function PractitionerScreen() {
             bookingRef,
           }),
         }).catch(console.warn);
+      }
+
+      // ── Step 7: Push-notify the practitioner of new booking ─────────────
+      if (firestoreProfile?.userId) {
+        getPushTokenForUserId(firestoreProfile.userId)
+          .then((token) => {
+            if (token) {
+              sendExpoPush(
+                token,
+                "New booking! 📅",
+                `${userName || "A client"} has booked a session with you on ${selectedDate} at ${selectedTime}.`,
+                { router: "/(tabs)/profile", screen: "sessions" }
+              );
+            }
+          })
+          .catch(() => {});
       }
 
       const result = await scheduleBookingReminders(

@@ -668,6 +668,25 @@ export async function savePractitionerProfile(
   await setDoc(doc(db, "practitionerProfiles", profile.userId), profile);
 }
 
+// ─── Push tokens ──────────────────────────────────────────────────────────────
+
+export async function savePushToken(userId: string, token: string): Promise<void> {
+  await setDoc(doc(db, "pushTokens", userId), {
+    token,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function getPushTokenForUserId(userId: string): Promise<string | null> {
+  try {
+    const snap = await getDoc(doc(db, "pushTokens", userId));
+    if (!snap.exists()) return null;
+    return (snap.data().token as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getPractitionerProfileByNumericId(
   numericId: number
 ): Promise<FSPractitionerProfile | null> {

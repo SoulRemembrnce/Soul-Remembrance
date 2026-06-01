@@ -21,10 +21,13 @@ import {
   FSConversation,
   FSMessage,
   getConversation,
+  getPractitionerProfileByNumericId,
+  getPushTokenForUserId,
   markConversationRead,
   sendMessage,
   subscribeMessages,
 } from "@/lib/firestore";
+import { sendExpoPush } from "@/utils/notifications";
 
 function relativeTime(ts: any): string {
   if (!ts) return "";
@@ -74,12 +77,46 @@ export default function ChatScreen() {
   }, [id]);
 
   const handleSend = async () => {
-    if (!input.trim() || !userId || !id) return;
+    if (!input.trim() || !userId || !id || !conv) return;
     const text = input.trim();
     setInput("");
     setSending(true);
     try {
       await sendMessage(id, userId, text);
+
+      // ── Push-notify the other participant ──────────────────────────────
+      const isClient = userId === conv.userId;
+      if (isClient) {
+        // Client sent → notify practitioner
+        getPractitionerProfileByNumericId(conv.practitionerId)
+          .then(async (profile) => {
+            if (!profile?.userId) return;
+            const token = await getPushTokenForUserId(profile.userId);
+            if (token) {
+              await sendExpoPush(
+                token,
+                `New message from ${conv.otherName}`,
+                text.length > 80 ? text.slice(0, 80) + "…" : text,
+                { router: `/chat/${id}` }
+              );
+            }
+          })
+          .catch(() => {});
+      } else {
+        // Practitioner sent → notify client
+        getPushTokenForUserId(conv.userId)
+          .then(async (token) => {
+            if (token) {
+              await sendExpoPush(
+                token,
+                `New message from ${conv.otherName}`,
+                text.length > 80 ? text.slice(0, 80) + "…" : text,
+                { router: `/chat/${id}` }
+              );
+            }
+          })
+          .catch(() => {});
+      }
     } finally {
       setSending(false);
     }

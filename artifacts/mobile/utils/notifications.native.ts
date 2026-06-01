@@ -1,4 +1,6 @@
 import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import { Platform } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -13,7 +15,6 @@ Notifications.setNotificationHandler({
 export async function requestNotificationPermission(): Promise<boolean> {
   try {
     const existing = await Notifications.getPermissionsAsync();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isGranted = (p: unknown) => (p as any)?.granted === true || (p as any)?.status === "granted";
     if (isGranted(existing)) return true;
     const result = await Notifications.requestPermissionsAsync();
@@ -22,6 +23,66 @@ export async function requestNotificationPermission(): Promise<boolean> {
     return false;
   }
 }
+
+// ── Push token registration ───────────────────────────────────────────────────
+
+export async function registerPushToken(): Promise<string | null> {
+  try {
+    if (!Device.isDevice) return null; // simulators don't get real tokens
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "Soul Remembrance",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#6B4FA8",
+      });
+    }
+    const granted = await requestNotificationPermission();
+    if (!granted) return null;
+    const { data } = await Notifications.getExpoPushTokenAsync();
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Send push via Expo Push API (no server needed) ────────────────────────────
+
+export async function sendExpoPush(
+  expoPushToken: string,
+  title: string,
+  body: string,
+  data: Record<string, unknown> = {}
+): Promise<void> {
+  if (!expoPushToken.startsWith("ExponentPushToken")) return;
+  try {
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "accept-encoding": "gzip, deflate",
+      },
+      body: JSON.stringify({ to: expoPushToken, title, body, data, sound: "default" }),
+    });
+  } catch {
+    // Best-effort — never block the UI
+  }
+}
+
+// ── Notification tap listener (deep-link routing) ─────────────────────────────
+
+export function addNotificationTapListener(
+  handler: (data: Record<string, unknown>) => void
+): () => void {
+  const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+    const data = response.notification.request.content.data ?? {};
+    handler(data as Record<string, unknown>);
+  });
+  return () => sub.remove();
+}
+
+// ── Local booking reminders ───────────────────────────────────────────────────
 
 function parseSessionDate(dateStr: string, timeStr: string): Date | null {
   const now = new Date();
@@ -32,7 +93,6 @@ function parseSessionDate(dateStr: string, timeStr: string): Date | null {
   } else if (dateStr === "Tomorrow") {
     base = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   } else {
-    // "Thu 5 Jun" format
     const monthMap: Record<string, number> = {
       Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
       Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
@@ -48,7 +108,6 @@ function parseSessionDate(dateStr: string, timeStr: string): Date | null {
     if (base < now) base.setFullYear(now.getFullYear() + 1);
   }
 
-  // Parse "9:00 AM" / "3:00 PM"
   const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
   if (!match) return null;
   let h = parseInt(match[1]);
@@ -57,7 +116,6 @@ function parseSessionDate(dateStr: string, timeStr: string): Date | null {
   if (period === "PM" && h !== 12) h += 12;
   if (period === "AM" && h === 12) h = 0;
   base.setHours(h, m, 0, 0);
-
   return base;
 }
 
@@ -82,7 +140,6 @@ export async function scheduleBookingReminders(
 
     const now = Date.now();
 
-    // Day-before: 9 AM the day before the session
     const dayBeforeDate = new Date(sessionDate);
     dayBeforeDate.setDate(dayBeforeDate.getDate() - 1);
     dayBeforeDate.setHours(9, 0, 0, 0);
@@ -94,17 +151,14 @@ export async function scheduleBookingReminders(
           title: "Session tomorrow 🔔",
           body: `Your healing session with ${practitionerName} is tomorrow at ${timeStr}. Time to prepare your space.`,
           sound: true,
-          data: { bookingId, type: "day-before" },
+          data: { bookingId, type: "day-before", screen: "sessions" },
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: dayBeforeSecs },
       });
       result.dayBefore = true;
     }
 
-    // 1-hour-before
-    const hourBeforeSecs = Math.floor(
-      (sessionDate.getTime() - 60 * 60 * 1000 - now) / 1000
-    );
+    const hourBeforeSecs = Math.floor((sessionDate.getTime() - 60 * 60 * 1000 - now) / 1000);
     if (hourBeforeSecs > 0) {
       await Notifications.scheduleNotificationAsync({
         identifier: `${bookingId}-hour`,
@@ -112,14 +166,14 @@ export async function scheduleBookingReminders(
           title: "Your session starts soon ✨",
           body: `Your session with ${practitionerName} begins in 1 hour. Find a quiet space and get settled.`,
           sound: true,
-          data: { bookingId, type: "hour-before" },
+          data: { bookingId, type: "hour-before", screen: "sessions" },
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: hourBeforeSecs },
       });
       result.hourBefore = true;
     }
   } catch {
-    // Notifications are best-effort — never block booking flow
+    // Best-effort
   }
   return result;
 }

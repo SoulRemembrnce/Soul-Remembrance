@@ -31,7 +31,12 @@ import {
   subscribeFavorites,
 } from "@/lib/firestore";
 import { seedDatabaseIfEmpty } from "@/lib/seed";
-import { requestNotificationPermission } from "@/utils/notifications";
+import {
+  requestNotificationPermission,
+  registerPushToken,
+  addNotificationTapListener,
+} from "@/utils/notifications";
+import { savePushToken } from "@/lib/firestore";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -141,11 +146,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     requestNotificationPermission().then(setNotificationsGranted);
   }, []);
 
+  // ── Notification tap deep-link handler ────────────────────────────────────
+  useEffect(() => {
+    return addNotificationTapListener((data) => {
+      const { router: routerPath } = data as { router?: string };
+      if (routerPath) {
+        const { router: expoRouter } = require("expo-router");
+        expoRouter.push(routerPath as any);
+      }
+    });
+  }, []);
+
   // ── Step 2: Firebase Auth listener ────────────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
+        // Register push token for real (non-anonymous) users
+        if (!firebaseUser.isAnonymous) {
+          registerPushToken()
+            .then((token) => {
+              if (token) savePushToken(firebaseUser.uid, token).catch(() => {});
+            })
+            .catch(() => {});
+        }
       } else {
         try {
           const cred = await signInAnonymously(auth);
