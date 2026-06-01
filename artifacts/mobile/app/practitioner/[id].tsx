@@ -23,6 +23,7 @@ import {
   markSlotBooked,
   subscribeAvailability,
 } from "@/lib/firestore";
+import { useStripe } from "@stripe/stripe-react-native";
 import { scheduleBookingReminders, ReminderResult } from "@/utils/notifications";
 
 type Screen = "detail" | "booking" | "confirmed";
@@ -32,12 +33,15 @@ export default function PractitionerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { userId, favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   const practitioner = PRACTITIONERS.find((p) => String(p.id) === id);
   const [screen, setScreen] = useState<Screen>("detail");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [reminders, setReminders] = useState<ReminderResult | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Reviews state
   const [showAllReviews, setShowAllReviews] = useState(false);
@@ -90,34 +94,91 @@ export default function PractitionerScreen() {
 
   const handleConfirmBooking = async () => {
     if (!selectedDate || !selectedTime) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const bookingId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setPaymentError(null);
+    setPaymentLoading(true);
 
-    // Mark slot as booked in Firestore
-    const slot = timesForDate.find((s) => s.time === selectedTime);
-    if (slot && userId) markSlotBooked(slot.id, userId).catch(console.warn);
+    try {
+      // ── Step 1: Create PaymentIntent on the server ──────────────────────
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+      const resp = await fetch(`${apiUrl}/api/payments/create-intent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: practitioner.price * 100, // pence
+          currency: "gbp",
+          description: `Soul Remembrance · Session with ${practitioner.name}`,
+        }),
+      });
 
-    addBooking({
-      id: bookingId,
-      practitionerId: practitioner.id,
-      practitionerName: practitioner.name,
-      practitionerInitials: practitioner.initials,
-      avatarColor: practitioner.avatarColor,
-      date: selectedDate,
-      time: selectedTime,
-      price: practitioner.price,
-      online: practitioner.online,
-      location: practitioner.location,
-      confirmedAt: new Date().toISOString(),
-    });
-    const result = await scheduleBookingReminders(
-      bookingId,
-      practitioner.name,
-      selectedDate,
-      selectedTime
-    );
-    setReminders(result);
-    setScreen("confirmed");
+      if (!resp.ok) {
+        const { error } = await resp.json();
+        throw new Error(error ?? "Failed to create payment");
+      }
+
+      const { clientSecret } = await resp.json();
+
+      // ── Step 2: Initialise the payment sheet ────────────────────────────
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: "Soul Remembrance",
+        style: "alwaysDark",
+        appearance: {
+          colors: {
+            primary: "#6B4FA8",
+            background: "#2D1B69",
+            componentBackground: "#3D2496",
+            componentText: "#FFFFFF",
+            primaryText: "#FFFFFF",
+            secondaryText: "rgba(255,255,255,0.65)",
+          },
+        },
+      });
+      if (initError) throw new Error(initError.message);
+
+      // ── Step 3: Present the payment sheet ──────────────────────────────
+      const { error: payError } = await presentPaymentSheet();
+      if (payError) {
+        if (payError.code === "Canceled") {
+          setPaymentLoading(false);
+          return; // user dismissed — do nothing
+        }
+        throw new Error(payError.message);
+      }
+
+      // ── Step 4: Payment succeeded — save booking ────────────────────────
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const bookingId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const slot = timesForDate.find((s) => s.time === selectedTime);
+      if (slot && userId) markSlotBooked(slot.id, userId).catch(console.warn);
+
+      addBooking({
+        id: bookingId,
+        practitionerId: practitioner.id,
+        practitionerName: practitioner.name,
+        practitionerInitials: practitioner.initials,
+        avatarColor: practitioner.avatarColor,
+        date: selectedDate,
+        time: selectedTime,
+        price: practitioner.price,
+        online: practitioner.online,
+        location: practitioner.location,
+        confirmedAt: new Date().toISOString(),
+      });
+
+      const result = await scheduleBookingReminders(
+        bookingId,
+        practitioner.name,
+        selectedDate,
+        selectedTime
+      );
+      setReminders(result);
+      setScreen("confirmed");
+    } catch (err: any) {
+      setPaymentError(err.message ?? "Payment failed. Please try again.");
+    } finally {
+      setPaymentLoading(false);
+    }
   };
 
   // ── Reviews computed values ──────────────────────────────
@@ -363,15 +424,22 @@ export default function PractitionerScreen() {
         </ScrollView>
 
         <View style={[styles.bookFooter, { paddingBottom: bottomPad + 12, backgroundColor: colors.softWhite, borderTopColor: colors.cream }]}>
+          {paymentError && (
+            <Text style={[styles.paymentError, { color: "#E53E3E" }]}>{paymentError}</Text>
+          )}
           <TouchableOpacity
             onPress={handleConfirmBooking}
-            disabled={!canConfirm}
+            disabled={!canConfirm || paymentLoading}
             style={[
               styles.confirmBtn,
-              { backgroundColor: canConfirm ? colors.deepIndigo : colors.blush },
+              { backgroundColor: canConfirm && !paymentLoading ? colors.deepIndigo : colors.blush },
             ]}
           >
-            <Text style={styles.confirmBtnText}>Confirm Booking · £{practitioner.price}</Text>
+            {paymentLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.confirmBtnText}>Pay £{practitioner.price} · Confirm Booking</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -989,6 +1057,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontFamily: "Inter_700Bold",
+  },
+  paymentError: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
   // Confirmed screen
   confHeader: {
