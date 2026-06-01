@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -232,7 +233,7 @@ export default function PractitionerScreen() {
           practitioner.id,
           practitioner.name,
           practitioner.initials,
-          practitioner.avatarColor
+          practitioner.avatarColor as [string, string]
         ).catch(console.warn);
       }
 

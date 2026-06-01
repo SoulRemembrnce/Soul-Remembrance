@@ -55,6 +55,7 @@ interface AppContextValue {
   userId: string | null;
   isAnonymous: boolean;
   displayName: string | null;
+  userName: string;
   email: string | null;
   photoURL: string | null;
   signInWithGoogle: () => void;
@@ -75,6 +76,7 @@ const AppContext = createContext<AppContextValue>({
   userId: null,
   isAnonymous: true,
   displayName: null,
+  userName: "Friend",
   email: null,
   photoURL: null,
   signInWithGoogle: () => {},
@@ -254,6 +256,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         userId: user?.uid ?? null,
         isAnonymous: user?.isAnonymous ?? true,
         displayName: user?.displayName ?? null,
+        userName: user?.displayName ?? "Friend",
         email: user?.email ?? null,
         photoURL: user?.photoURL ?? null,
         signInWithGoogle,

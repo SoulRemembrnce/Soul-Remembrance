@@ -7,7 +7,7 @@ export function StripeProviderWrapper({ children }: { children: React.ReactNode 
       publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""}
       merchantIdentifier="merchant.com.soul-remembrance"
     >
-      {children}
+      {children as React.ReactElement}
     </StripeProvider>
   );
 }

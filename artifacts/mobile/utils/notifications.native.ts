@@ -4,16 +4,20 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  } as Notifications.NotificationBehavior),
 });
 
 export async function requestNotificationPermission(): Promise<boolean> {
   try {
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    if (existing === "granted") return true;
-    const { status } = await Notifications.requestPermissionsAsync();
-    return status === "granted";
+    const existing = await Notifications.getPermissionsAsync();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isGranted = (p: unknown) => (p as any)?.granted === true || (p as any)?.status === "granted";
+    if (isGranted(existing)) return true;
+    const result = await Notifications.requestPermissionsAsync();
+    return isGranted(result);
   } catch {
     return false;
   }
@@ -92,7 +96,7 @@ export async function scheduleBookingReminders(
           sound: true,
           data: { bookingId, type: "day-before" },
         },
-        trigger: { seconds: dayBeforeSecs },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: dayBeforeSecs },
       });
       result.dayBefore = true;
     }
@@ -110,7 +114,7 @@ export async function scheduleBookingReminders(
           sound: true,
           data: { bookingId, type: "hour-before" },
         },
-        trigger: { seconds: hourBeforeSecs },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: hourBeforeSecs },
       });
       result.hourBefore = true;
     }
