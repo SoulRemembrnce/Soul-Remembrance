@@ -38,6 +38,7 @@ const MENU_ITEMS = [
   { icon: "credit-card", label: "Payment Methods", route: null },
   { icon: "settings", label: "Settings", route: null },
   { icon: "help-circle", label: "Help & Support", route: null },
+  { icon: "shield", label: "Privacy Policy", route: "/privacy" },
 ];
 
 const MONTH_MAP: Record<string, number> = {
@@ -359,6 +360,18 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <Feather name="arrow-right" size={16} color={colors.sage} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push("/privacy")}
+            style={{ alignItems: "center", marginTop: 14 }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.googleBtnSub, { color: colors.sage }]}>
+              By continuing you agree to our{" "}
+              <Text style={{ color: colors.deepIndigo, fontFamily: "Inter_600SemiBold" }}>
+                Privacy Policy
+              </Text>
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -759,7 +772,10 @@ export default function ProfileScreen() {
                 styles.menuItem,
                 i < MENU_ITEMS.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.cream },
               ]}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (item.route) router.push(item.route as any);
+              }}
             >
               <Feather name={item.icon as any} size={18} color={colors.deepIndigo} />
               <Text style={[styles.menuLabel, { color: colors.charcoal }]}>{item.label}</Text>

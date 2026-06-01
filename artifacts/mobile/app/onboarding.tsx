@@ -399,7 +399,12 @@ export default function OnboardingScreen() {
               </View>
               <Text style={[styles.termsText, { color: colors.sage }]}>
                 I agree to the{" "}
-                <Text style={{ color: colors.deepIndigo, fontFamily: "Inter_600SemiBold" }}>Practitioner Terms</Text>
+                <Text
+                  style={{ color: colors.deepIndigo, fontFamily: "Inter_600SemiBold" }}
+                  onPress={() => router.push("/privacy")}
+                >
+                  Practitioner Terms & Privacy Policy
+                </Text>
                 {" "}and understand the 2.5% booking fee and £3.99/mo subscription after my free trial.
               </Text>
             </TouchableOpacity>
