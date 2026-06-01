@@ -113,7 +113,7 @@ export function subscribeServices(
     const docs = snap.docs.map((d) => d.data() as FSService);
     docs.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
     cb(docs);
-  });
+  }, () => { cb([]); });
 }
 
 export async function addService(
@@ -153,7 +153,7 @@ export function subscribePractitioners(
 ): () => void {
   return onSnapshot(collection(db, "practitioners"), (snap) => {
     cb(snap.docs.map((d) => d.data() as FSPractitioner));
-  });
+  }, () => { cb([]); });
 }
 
 export async function seedPractitioners(
@@ -179,7 +179,7 @@ export async function getEvents(): Promise<FSEvent[]> {
 export function subscribeEvents(cb: (es: FSEvent[]) => void): () => void {
   return onSnapshot(collection(db, "events"), (snap) => {
     cb(snap.docs.map((d) => d.data() as FSEvent));
-  });
+  }, () => { cb([]); });
 }
 
 export async function seedEvents(events: FSEvent[]): Promise<void> {
@@ -248,7 +248,7 @@ export function subscribeBookings(
       .filter((b) => !b.cancelled);
     docs.sort((a, b) => b.confirmedAt.localeCompare(a.confirmedAt));
     cb(docs);
-  });
+  }, () => { cb([]); });
 }
 
 export async function addBookingToFirestore(
@@ -274,7 +274,7 @@ export function subscribeFavorites(
   );
   return onSnapshot(q, (snap) => {
     cb(snap.docs.map((d) => (d.data() as { practitionerId: number }).practitionerId));
-  });
+  }, () => { cb([]); });
 }
 
 export async function addFavoriteToFirestore(
@@ -328,7 +328,7 @@ export function subscribePosts(cb: (posts: FSPost[]) => void): () => void {
   );
   return onSnapshot(q, (snap) => {
     cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FSPost));
-  });
+  }, () => { cb([]); });
 }
 
 export async function addPost(post: Omit<FSPost, "createdAt">): Promise<void> {
@@ -391,7 +391,7 @@ export function subscribeConversations(
   );
   return onSnapshot(q, (snap) => {
     cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FSConversation));
-  });
+  }, () => { cb([]); });
 }
 
 export function subscribeMessages(
@@ -405,7 +405,7 @@ export function subscribeMessages(
   );
   return onSnapshot(q, (snap) => {
     cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FSMessage));
-  });
+  }, () => { cb([]); });
 }
 
 export async function createConversation(
@@ -496,7 +496,7 @@ export function subscribeAvailability(
         : a.timeISO.localeCompare(b.timeISO)
     );
     cb(slots);
-  });
+  }, () => { cb([]); });
 }
 
 export async function seedAvailability(
@@ -707,7 +707,8 @@ export function subscribePractitionerProfiles(
       collection(db, "practitionerProfiles"),
       where("subscriptionActive", "==", true)
     ),
-    (snap) => cb(snap.docs.map((d) => d.data() as FSPractitionerProfile))
+    (snap) => cb(snap.docs.map((d) => d.data() as FSPractitionerProfile)),
+    () => { cb([]); }
   );
 }
 
@@ -715,9 +716,11 @@ export function subscribePractitionerProfile(
   userId: string,
   cb: (profile: FSPractitionerProfile | null) => void
 ): () => void {
-  return onSnapshot(doc(db, "practitionerProfiles", userId), (snap) => {
-    cb(snap.exists() ? (snap.data() as FSPractitionerProfile) : null);
-  });
+  return onSnapshot(
+    doc(db, "practitionerProfiles", userId),
+    (snap) => { cb(snap.exists() ? (snap.data() as FSPractitionerProfile) : null); },
+    () => { cb(null); }
+  );
 }
 
 export async function updatePractitionerStripeAccount(
