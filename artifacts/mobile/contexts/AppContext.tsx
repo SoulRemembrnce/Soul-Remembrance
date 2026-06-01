@@ -34,7 +34,6 @@ import { seedDatabaseIfEmpty } from "@/lib/seed";
 import {
   requestNotificationPermission,
   registerPushToken,
-  addNotificationTapListener,
 } from "@/utils/notifications";
 import { savePushToken } from "@/lib/firestore";
 
@@ -144,17 +143,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then(() => setDbReady(true))
       .catch(() => setDbReady(true));
     requestNotificationPermission().then(setNotificationsGranted);
-  }, []);
-
-  // ── Notification tap deep-link handler ────────────────────────────────────
-  useEffect(() => {
-    return addNotificationTapListener((data) => {
-      const { router: routerPath } = data as { router?: string };
-      if (routerPath) {
-        const { router: expoRouter } = require("expo-router");
-        expoRouter.push(routerPath as any);
-      }
-    });
   }, []);
 
   // ── Step 2: Firebase Auth listener ────────────────────────────────────────
