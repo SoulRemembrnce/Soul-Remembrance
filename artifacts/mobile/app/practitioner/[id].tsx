@@ -111,23 +111,7 @@ export default function PractitionerScreen() {
     });
   }, [practitioner?.id]);
 
-  if (loadingProfile) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.softWhite }}>
-        <ActivityIndicator color={colors.purpleMid} size="large" />
-      </View>
-    );
-  }
-
-  if (!practitioner) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Text>Practitioner not found</Text>
-      </View>
-    );
-  }
-
-  // ── Derived availability ─────────────────────────────────────────────────
+  // ── Derived availability (must be before any early returns — React hook rules) ──
   const availDates = useMemo(() => {
     const map = new Map<string, { label: string; iso: string; hasOpen: boolean }>();
     for (const slot of availSlots) {
@@ -143,6 +127,22 @@ export default function PractitionerScreen() {
     if (!selectedDate) return [];
     return availSlots.filter((s) => s.date === selectedDate);
   }, [availSlots, selectedDate]);
+
+  if (loadingProfile) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.softWhite }}>
+        <ActivityIndicator color={colors.purpleMid} size="large" />
+      </View>
+    );
+  }
+
+  if (!practitioner) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <Text>Practitioner not found</Text>
+      </View>
+    );
+  }
 
   const handleConfirmBooking = async () => {
     if (!selectedDate || !selectedTime) return;
