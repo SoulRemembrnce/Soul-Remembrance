@@ -1,5 +1,6 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { AvatarPicker } from "@/components/AvatarPicker";
+import { ReviewModal, type ReviewTarget } from "@/components/ReviewModal";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
@@ -77,6 +78,8 @@ export default function ProfileScreen() {
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const pendingSessionIdRef = useRef<string | null>(null);
   const [clientPhotoUploading, setClientPhotoUploading] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
 
   const handleChangeClientPhoto = () => {
     if (Platform.OS === "web") { pickClientPhoto("library"); return; }
@@ -723,6 +726,32 @@ export default function ProfileScreen() {
                       <Text style={styles.joinCallText}>Join Call</Text>
                     </TouchableOpacity>
                   ) : null}
+                  {!upcoming && !reviewedIds.has(b.id) && (
+                    <TouchableOpacity
+                      style={[styles.reviewBtn, { backgroundColor: `${colors.warmGold}18`, borderColor: `${colors.warmGold}40` }]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setReviewTarget({
+                          bookingId: b.id,
+                          practitionerId: b.practitionerId,
+                          practitionerName: b.practitionerName,
+                          practitionerInitials: b.practitionerInitials,
+                          avatarColor: b.avatarColor as [string, string],
+                        });
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="star" size={12} color={colors.warmGold} />
+                      <Text style={[styles.reviewBtnText, { color: colors.warmGold }]}>Leave a Review</Text>
+                    </TouchableOpacity>
+                  )}
+                  {!upcoming && reviewedIds.has(b.id) && (
+                    <View style={[styles.reviewBtn, { backgroundColor: `${colors.deepIndigo}10`, borderColor: `${colors.deepIndigo}20` }]}>
+                      <Feather name="check-circle" size={12} color={colors.deepIndigo} />
+                      <Text style={[styles.reviewBtnText, { color: colors.deepIndigo }]}>Review submitted</Text>
+                    </View>
+                  )}
                 </View>
                 <View style={styles.sessionRight}>
                   <Text style={[styles.sessionPrice, { color: colors.deepIndigo }]}>£{b.price}</Text>
@@ -796,6 +825,14 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    <ReviewModal
+      target={reviewTarget}
+      onClose={() => setReviewTarget(null)}
+      onSubmitted={(id) => {
+        setReviewedIds((prev) => new Set([...prev, id]));
+        setReviewTarget(null);
+      }}
+    />
     </View>
   );
 }
@@ -964,6 +1001,8 @@ const styles = StyleSheet.create({
   sessionTagText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   joinCallBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginTop: 6, alignSelf: "flex-start" },
   joinCallText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  reviewBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginTop: 6, alignSelf: "flex-start", borderWidth: 1 },
+  reviewBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   sessionRight: { alignItems: "flex-end", gap: 6, flexShrink: 0 },
   sessionPrice: { fontSize: 16, fontFamily: "Inter_700Bold" },
   sessionStatus: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
