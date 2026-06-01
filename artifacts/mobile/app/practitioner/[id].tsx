@@ -23,7 +23,7 @@ import {
   markSlotBooked,
   subscribeAvailability,
 } from "@/lib/firestore";
-import { useStripe } from "@stripe/stripe-react-native";
+import { usePaymentSheet } from "@/hooks/usePaymentSheet";
 import { scheduleBookingReminders, ReminderResult } from "@/utils/notifications";
 
 type Screen = "detail" | "booking" | "confirmed";
@@ -33,7 +33,7 @@ export default function PractitionerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { userId, favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
 
   const practitioner = PRACTITIONERS.find((p) => String(p.id) === id);
   const [screen, setScreen] = useState<Screen>("detail");

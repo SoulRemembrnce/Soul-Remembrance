@@ -2,8 +2,11 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MODALITIES } from "@/constants/data";
+import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -42,12 +46,14 @@ const DOC_TYPES = [
 export default function OnboardingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { email } = useApp();
   const [step, setStep] = useState<Step>(1);
   const [data, setData] = useState<OnboardingData>({
     name: "", title: "", location: "", years: "", bio: "",
     modalities: [], rate: "", agreedTerms: false,
   });
   const [addedDocs, setAddedDocs] = useState<string[]>([]);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -60,6 +66,59 @@ export default function OnboardingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (step > 1) setStep((s) => (s - 1) as Step);
     else router.back();
+  };
+
+  // Opens Stripe Checkout for the £3.99/month trial subscription
+  const startTrialAndContinue = async () => {
+    if (!data.agreedTerms) return;
+    setSubscriptionLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+      const appScheme = "mobile";
+
+      const resp = await fetch(`${apiUrl}/api/payments/create-subscription-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name || "Practitioner",
+          email: email ?? undefined,
+          successUrl: `${appScheme}://subscription-success`,
+          cancelUrl: `${appScheme}://subscription-cancel`,
+        }),
+      });
+
+      if (!resp.ok) {
+        const { error } = await resp.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(error ?? "Could not start subscription");
+      }
+
+      const { url } = await resp.json();
+
+      // Open Stripe Checkout — resolves when browser closes or redirects back
+      const result = await WebBrowser.openAuthSessionAsync(url, `${appScheme}://`);
+
+      if (
+        result.type === "success" &&
+        result.url?.includes("subscription-success")
+      ) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        next();
+      } else if (result.type === "cancel" || result.type === "dismiss") {
+        // User closed the browser — stay on step 4, no error shown
+      } else {
+        next(); // fallback: treat any other close as success
+      }
+    } catch (err: any) {
+      Alert.alert(
+        "Subscription Error",
+        err.message ?? "Something went wrong. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setSubscriptionLoading(false);
+    }
   };
   const toggleModality = (m: string) => {
     Haptics.selectionAsync();
@@ -338,16 +397,27 @@ export default function OnboardingScreen() {
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              onPress={step === 4 ? (data.agreedTerms ? next : undefined) : next}
+              onPress={step === 4 ? (data.agreedTerms ? startTrialAndContinue : undefined) : next}
+              disabled={step === 4 && subscriptionLoading}
               style={[
                 styles.nextBtn,
                 { backgroundColor: step === 4 ? (data.agreedTerms ? colors.deepIndigo : colors.blush) : colors.deepIndigo, flex: step > 1 ? 2 : 1 },
               ]}
             >
-              <Text style={styles.nextBtnText}>
-                {step === 3 ? (addedDocs.length > 0 ? `Submit ${addedDocs.length} Doc${addedDocs.length > 1 ? "s" : ""}` : "Skip for now") : "Continue"}
-              </Text>
-              <Feather name="arrow-right" size={16} color="#fff" />
+              {step === 4 && subscriptionLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.nextBtnText}>
+                    {step === 4
+                      ? "Start Free Trial"
+                      : step === 3
+                      ? (addedDocs.length > 0 ? `Submit ${addedDocs.length} Doc${addedDocs.length > 1 ? "s" : ""}` : "Skip for now")
+                      : "Continue"}
+                  </Text>
+                  <Feather name="arrow-right" size={16} color="#fff" />
+                </>
+              )}
             </TouchableOpacity>
           </View>
         ) : (
