@@ -39,7 +39,7 @@ export default function PractitionerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { userId, favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
+  const { userId, email: userEmail, favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
   const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
 
   const mockPractitioner = PRACTITIONERS.find((p) => String(p.id) === id);
@@ -235,6 +235,35 @@ export default function PractitionerScreen() {
           practitioner.initials,
           practitioner.avatarColor as [string, string]
         ).catch(console.warn);
+      }
+
+      // ── Step 6: Send booking confirmation emails ─────────────────────────
+      if (userEmail) {
+        const bookingRef = `SR-${bookingId.split("-")[1]?.toUpperCase().slice(0, 6) ?? bookingId.slice(-6).toUpperCase()}`;
+        const price = selectedService?.price ?? practitioner.price;
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+        fetch(`${apiUrl}/api/emails/booking-confirmation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientEmail: userEmail,
+            clientName: userName || "Valued Client",
+            practitionerEmail: firestoreProfile?.email,
+            practitionerName: practitioner.name,
+            serviceName: selectedService?.name ?? practitioner.title,
+            sessionDate: selectedDate ?? "",
+            sessionTime: selectedTime ?? "",
+            duration: selectedService?.durationMinutes
+              ? `${selectedService.durationMinutes} minutes`
+              : "60 minutes",
+            sessionFormat:
+              (selectedService ? selectedService.online : practitioner.online)
+                ? "Online"
+                : "In-Person",
+            amountPaid: `£${price}`,
+            bookingRef,
+          }),
+        }).catch(console.warn);
       }
 
       const result = await scheduleBookingReminders(

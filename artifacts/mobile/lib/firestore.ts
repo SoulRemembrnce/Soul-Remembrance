@@ -623,6 +623,7 @@ export interface FSPractitionerProfile {
   online: boolean;
   verified: boolean;
   subscriptionActive: boolean;
+  email?: string;
   stripeAccountId?: string;
   stripeAccountEnabled?: boolean;
   createdAt?: Timestamp;

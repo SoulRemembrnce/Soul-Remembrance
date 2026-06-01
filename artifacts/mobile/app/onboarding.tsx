@@ -129,6 +129,7 @@ export default function OnboardingScreen() {
             online: true,
             verified: false,
             subscriptionActive: true,
+            email: email ?? undefined,
           });
         }
       } else if (result.type === "cancel" || result.type === "dismiss") {
