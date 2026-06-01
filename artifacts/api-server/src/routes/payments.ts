@@ -125,7 +125,147 @@ router.post("/payments/create-subscription-session", async (req, res): Promise<v
   const session = await stripe.checkout.sessions.create(sessionParams);
 
   req.log.info({ sessionId: session.id }, "Subscription checkout session created");
-  res.json({ url: session.url });
+  res.json({ url: session.url, sessionId: session.id });
+});
+
+// ── GET /api/subscriptions/check?sessionId=XXX ────────────────────────────────
+// Mobile app calls this after returning from the Stripe Checkout browser tab.
+// Returns { subscribed, subscriptionId, customerId } — no auth required
+// because the sessionId is unguessable (Stripe-generated).
+router.get("/subscriptions/check", async (req, res): Promise<void> => {
+  const { sessionId } = req.query;
+
+  if (typeof sessionId !== "string" || !sessionId) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+
+  const stripe = getStripe();
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+  const subscribed =
+    session.payment_status === "paid" ||
+    (session.status === "complete" && !!session.subscription);
+
+  req.log.info(
+    { sessionId, status: session.status, paymentStatus: session.payment_status },
+    "Subscription session checked"
+  );
+
+  res.json({
+    subscribed,
+    subscriptionId: session.subscription ?? null,
+    customerId: session.customer ?? null,
+  });
+});
+
+// ── GET /api/subscriptions/success ────────────────────────────────────────────
+// Landing page after successful Stripe Checkout — user sees this in the browser
+// before switching back to the app.
+router.get("/subscriptions/success", (_req, res): void => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subscription Confirmed — Soul Remembrance</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #2D1B69;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #FAF5FF;
+      border-radius: 20px;
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 380px;
+      width: 100%;
+    }
+    .icon { font-size: 56px; margin-bottom: 20px; }
+    h1 { color: #2D1B69; font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+    p { color: #6B7280; font-size: 15px; line-height: 1.5; margin-bottom: 24px; }
+    .badge {
+      display: inline-block;
+      background: #2D1B69;
+      color: #C9A84C;
+      padding: 10px 22px;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✨</div>
+    <h1>You're all set!</h1>
+    <p>Your 30-day free trial is active. Return to the Soul Remembrance app to start welcoming clients.</p>
+    <div class="badge">Return to the app →</div>
+  </div>
+</body>
+</html>`);
+});
+
+// ── GET /api/subscriptions/cancelled ──────────────────────────────────────────
+router.get("/subscriptions/cancelled", (_req, res): void => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subscription Cancelled — Soul Remembrance</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #2D1B69;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #FAF5FF;
+      border-radius: 20px;
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 380px;
+      width: 100%;
+    }
+    .icon { font-size: 56px; margin-bottom: 20px; }
+    h1 { color: #2D1B69; font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+    p { color: #6B7280; font-size: 15px; line-height: 1.5; margin-bottom: 24px; }
+    .badge {
+      display: inline-block;
+      background: #F5F0FF;
+      color: #2D1B69;
+      padding: 10px 22px;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid #DDD0F0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🕊️</div>
+    <h1>No worries</h1>
+    <p>You can start your free trial anytime from your practitioner dashboard in the app.</p>
+    <div class="badge">Return to the app</div>
+  </div>
+</body>
+</html>`);
 });
 
 export default router;

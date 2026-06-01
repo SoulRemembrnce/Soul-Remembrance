@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Linking,
   Platform,
   ScrollView,
@@ -25,6 +26,7 @@ import {
   FSPractitionerProfile,
   subscribePractitionerProfile,
   updatePractitionerStripeAccount,
+  updatePractitionerSubscription,
 } from "@/lib/firestore";
 
 const MENU_ITEMS = [
@@ -66,12 +68,82 @@ export default function ProfileScreen() {
   const [sessionTab, setSessionTab] = useState<"upcoming" | "past">("upcoming");
   const [myProfile, setMyProfile] = useState<FSPractitionerProfile | null>(null);
   const [connectLoading, setConnectLoading] = useState(false);
+  const [subscribeLoading, setSubscribeLoading] = useState(false);
+  const pendingSessionIdRef = useRef<string | null>(null);
 
   // Subscribe to own practitioner profile (if user is a practitioner)
   useEffect(() => {
     if (!userId) return;
     return subscribePractitionerProfile(userId, setMyProfile);
   }, [userId]);
+
+  // When the app returns to foreground, check if the Stripe subscription was completed
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", async (state) => {
+      if (state !== "active") return;
+      const sessionId = pendingSessionIdRef.current;
+      if (!sessionId || !userId) return;
+      try {
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+        const resp = await fetch(
+          `${apiUrl}/api/subscriptions/check?sessionId=${encodeURIComponent(sessionId)}`
+        );
+        if (!resp.ok) return;
+        const { subscribed, subscriptionId, customerId } = await resp.json();
+        if (subscribed) {
+          pendingSessionIdRef.current = null;
+          await updatePractitionerSubscription(userId, {
+            subscriptionActive: true,
+            ...(typeof subscriptionId === "string" && { subscriptionId }),
+            ...(typeof customerId === "string" && { stripeCustomerId: customerId }),
+          });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert(
+            "Welcome to Soul Remembrance! ✨",
+            "Your 30-day free trial is now active. Clients can discover and book you straight away."
+          );
+        }
+      } catch {
+        // silent — will retry next time app comes to foreground
+      } finally {
+        setSubscribeLoading(false);
+      }
+    });
+    return () => sub.remove();
+  }, [userId]);
+
+  const handleSubscribe = async () => {
+    if (!userId || !myProfile) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSubscribeLoading(true);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+      const successUrl = `${apiUrl}/api/subscriptions/success`;
+      const cancelUrl = `${apiUrl}/api/subscriptions/cancelled`;
+      const resp = await fetch(`${apiUrl}/api/payments/create-subscription-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: myProfile.name,
+          email: email ?? undefined,
+          successUrl,
+          cancelUrl,
+        }),
+      });
+      if (!resp.ok) {
+        const { error } = await resp.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(error ?? "Could not start subscription");
+      }
+      const { url, sessionId } = await resp.json();
+      // Store session ID so AppState listener can verify after return
+      if (sessionId) pendingSessionIdRef.current = sessionId;
+      // Open Stripe Checkout in the browser
+      await Linking.openURL(url);
+    } catch (err: any) {
+      setSubscribeLoading(false);
+      Alert.alert("Subscription Error", err.message ?? "Something went wrong. Please try again.");
+    }
+  };
 
   const checkConnectStatus = async (accountId: string) => {
     if (!userId) return;
@@ -265,6 +337,54 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Subscription status */}
+            {myProfile.subscriptionActive ? (
+              <View style={styles.subActiveRow}>
+                <View style={[styles.subActiveDot, { backgroundColor: "#38a169" }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.subActiveTitle, { color: colors.charcoal }]}>
+                    Subscription active
+                  </Text>
+                  <Text style={[styles.subActiveSub, { color: colors.sage }]}>
+                    £3.99/month · renews automatically
+                  </Text>
+                </View>
+                <View style={[styles.subBadge, { backgroundColor: "#38a16920" }]}>
+                  <Text style={[styles.subBadgeText, { color: "#38a169" }]}>Active</Text>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.subActivateBtn, {
+                  backgroundColor: `${colors.warmGold}18`,
+                  borderColor: colors.warmGold,
+                }]}
+                onPress={handleSubscribe}
+                disabled={subscribeLoading}
+                activeOpacity={0.85}
+              >
+                {subscribeLoading ? (
+                  <ActivityIndicator color={colors.warmGold} size="small" style={{ paddingVertical: 4 }} />
+                ) : (
+                  <>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.subActivateTitle, { color: colors.charcoal }]}>
+                        Activate your listing
+                      </Text>
+                      <Text style={[styles.subActivateSub, { color: colors.sage }]}>
+                        30-day free trial — then £3.99/month
+                      </Text>
+                    </View>
+                    <View style={[styles.subArrow, { backgroundColor: colors.warmGold }]}>
+                      <Feather name="arrow-right" size={14} color="#fff" />
+                    </View>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
 
             <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
 
@@ -771,6 +891,24 @@ const styles = StyleSheet.create({
   dashDivider: { height: 1, marginVertical: 14 },
   verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   verifiedText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  subActiveRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4, gap: 10 },
+  subActiveDot: { width: 10, height: 10, borderRadius: 5 },
+  subActiveTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 1 },
+  subActiveSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  subBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  subBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  subActivateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 13,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  subActivateTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 1 },
+  subActivateSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  subArrow: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   payoutsActiveRow: { flexDirection: "row", alignItems: "flex-start" },
   payoutsActiveText: { color: "#38a169", fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
   payoutsSub: { fontSize: 11, fontFamily: "Inter_400Regular" },

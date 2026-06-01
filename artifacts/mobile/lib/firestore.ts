@@ -701,3 +701,18 @@ export async function updatePractitionerStripeAccount(
     stripeAccountEnabled,
   });
 }
+
+export async function updatePractitionerSubscription(
+  userId: string,
+  data: {
+    subscriptionActive: boolean;
+    subscriptionId?: string;
+    stripeCustomerId?: string;
+  }
+): Promise<void> {
+  await updateDoc(doc(db, "practitionerProfiles", userId), {
+    subscriptionActive: data.subscriptionActive,
+    ...(data.subscriptionId !== undefined && { subscriptionId: data.subscriptionId }),
+    ...(data.stripeCustomerId !== undefined && { stripeCustomerId: data.stripeCustomerId }),
+  });
+}
