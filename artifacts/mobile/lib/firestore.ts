@@ -1,9 +1,13 @@
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
   getDocs,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -227,6 +231,68 @@ export async function removeFavoriteFromFirestore(
   await deleteDoc(
     doc(db, "favorites", `${userId}_${practitionerId}`)
   );
+}
+
+// ─── Community Posts ──────────────────────────────────────────────────────────
+
+export interface FSComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorInitials: string;
+  text: string;
+  createdAtISO: string; // ISO string — avoids Timestamp issues inside arrayUnion
+}
+
+export interface FSPost {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorInitials: string;
+  role: "client" | "practitioner";
+  circle: string;
+  text: string;
+  likedBy: string[];
+  comments: FSComment[];
+  createdAt: Timestamp;
+}
+
+export function subscribePosts(cb: (posts: FSPost[]) => void): () => void {
+  const q = query(
+    collection(db, "posts"),
+    orderBy("createdAt", "desc"),
+    limit(60)
+  );
+  return onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FSPost));
+  });
+}
+
+export async function addPost(post: Omit<FSPost, "createdAt">): Promise<void> {
+  await setDoc(doc(db, "posts", post.id), {
+    ...post,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function togglePostLike(
+  postId: string,
+  userId: string,
+  currentlyLiked: boolean
+): Promise<void> {
+  const ref = doc(db, "posts", postId);
+  await updateDoc(ref, {
+    likedBy: currentlyLiked ? arrayRemove(userId) : arrayUnion(userId),
+  });
+}
+
+export async function addCommentToPost(
+  postId: string,
+  comment: FSComment
+): Promise<void> {
+  await updateDoc(doc(db, "posts", postId), {
+    comments: arrayUnion(comment),
+  });
 }
 
 // ─── Availability ─────────────────────────────────────────────────────────────

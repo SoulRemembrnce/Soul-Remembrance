@@ -34,6 +34,24 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── Community posts ────────────────────────────────────────────────────
+    match /posts/{id} {
+      // Anyone can read the feed (including anonymous users)
+      allow read: if true;
+      // Any signed-in user can create a post they authored
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000;
+      // Any signed-in user can update a post (likes via arrayUnion/arrayRemove,
+      // and comments via arrayUnion — both are field-level updates on any post)
+      allow update: if isSignedIn();
+      // Only the original author can delete their post
+      allow delete: if isSignedIn()
+        && resource.data.authorId == request.auth.uid;
+    }
+
     match /availability/{id} {
       allow read: if true;
       // Only authenticated users can mark a slot booked, and only if it isn't already
