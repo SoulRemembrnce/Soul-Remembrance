@@ -1,14 +1,49 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "Q4klGy0j3VeZookjX23Ji"
 uri = "file://artifacts/mobile/assets/images/icon.png"
 type = "image"
-title = "generated_image"
+title = "soul_remembrance_icon_clean"
 
 [[generated]]
 id = "V5jgJCVtqkXIGbJmSwCD6"
 uri = "file://artifacts/mobile/assets/images/ash-tree.png"
 type = "image"
 title = "ash tree botanical illustration"
+
+[[generated]]
+id = "Lz2iHplRbMaz4GGMK9-RY"
+uri = "file://artifacts/mobile/assets/images/splash.png"
+type = "image"
+title = "soul_remembrance_splash_clean"
+
+[[generated]]
+id = "rIkmpAzd71Op5krPkp1Ye"
+uri = "file://artifacts/mobile/assets/images/adaptive-icon.png"
+type = "image"
+title = "soul_remembrance_adaptive_icon"
+
+[[outputs]]
+id = "MYyB6jTF0J5BePPhMd_L8"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "App Icon (1024×1024)"
+
+[[outputs]]
+id = "9UaPfEcTkMy0TcSlqnrPf"
+uri = "file://artifacts/mobile/assets/images/splash.png"
+type = "image"
+title = "Splash Screen"
+
+[[outputs]]
+id = "_NAVVwKqfLfQd-YXMDFjC"
+uri = "file://artifacts/mobile/assets/images/adaptive-icon.png"
+type = "image"
+title = "Android Adaptive Icon (transparent)"
+
+[[outputs]]
+id = "8h5LuNmjDnSBWakpTWUEc"
+uri = "file://artifacts/mobile/STORE_LISTING.md"
+type = "text"
+title = "Store Listing — App Store & Google Play copy"
