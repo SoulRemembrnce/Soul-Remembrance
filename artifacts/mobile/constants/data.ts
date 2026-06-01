@@ -27,6 +27,7 @@ export interface SREvent {
   host: string;
   hostInitials: string;
   date: string;
+  dateISO: string;
   time: string;
   location: string;
   type: string;
@@ -203,7 +204,8 @@ export const EVENTS: SREvent[] = [
     title: "Full Moon Sound Bath",
     host: "Luna Ashford",
     hostInitials: "LA",
-    date: "Jun 11",
+    date: "Jun 1",
+    dateISO: "2026-06-01",
     time: "7:00 PM",
     location: "Sedona Crystal Center",
     type: "In-Person",
@@ -218,7 +220,8 @@ export const EVENTS: SREvent[] = [
     title: "Breathwork & Release",
     host: "Marcus Rivera",
     hostInitials: "MR",
-    date: "Jun 14",
+    date: "Jun 3",
+    dateISO: "2026-06-03",
     time: "10:00 AM",
     location: "Online via Zoom",
     type: "Virtual",
@@ -233,7 +236,8 @@ export const EVENTS: SREvent[] = [
     title: "7-Day Desert Retreat",
     host: "Priya Nair",
     hostInitials: "PN",
-    date: "Jul 1–7",
+    date: "Jun 5–11",
+    dateISO: "2026-06-05",
     time: "All Day",
     location: "Taos, New Mexico",
     type: "Retreat",
@@ -248,7 +252,8 @@ export const EVENTS: SREvent[] = [
     title: "Intro to Plant Medicine",
     host: "Sacred Roots Collective",
     hostInitials: "SR",
-    date: "Jun 20",
+    date: "Jun 7",
+    dateISO: "2026-06-07",
     time: "2:00 PM",
     location: "Online",
     type: "Workshop",

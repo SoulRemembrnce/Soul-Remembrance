@@ -3,7 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Platform,
@@ -27,6 +27,32 @@ import {
 
 const MODALITY_CHIPS = ["All", "Sound", "Breath", "Reiki", "Somatic", "Ayurveda", "Meditation"];
 
+/** Returns a display badge like "TONIGHT • 7PM", "TOMORROW • 10AM", or "JUN 3 • 2PM" */
+function eventBadge(dateISO: string, time: string): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const evDate = new Date(dateISO + "T00:00:00");
+  const diff = Math.round((evDate.getTime() - today.getTime()) / 86400000);
+  const t = time.toUpperCase();
+  if (diff === 0) return `TONIGHT • ${t}`;
+  if (diff === 1) return `TOMORROW • ${t}`;
+  return `${evDate.toLocaleDateString("en-GB", { month: "short", day: "numeric" }).toUpperCase()} • ${t}`;
+}
+
+/** Events within the next 7 days (today inclusive), sorted earliest first */
+function getUpcomingEvents() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() + 7);
+  return EVENTS
+    .filter((ev) => {
+      const d = new Date(ev.dateISO + "T00:00:00");
+      return d >= today && d <= cutoff;
+    })
+    .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+}
+
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -39,7 +65,8 @@ export default function HomeScreen() {
   }, []);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const featured = EVENTS[0];
+  const upcomingEvents = useMemo(getUpcomingEvents, []);
+  const featured = upcomingEvents[0] ?? EVENTS[0];
   const allPractitioners = [...realProfiles.map(profileToPractitioner), ...PRACTITIONERS];
   const featuredPractitioners = allPractitioners.slice(0, 6);
 
@@ -125,7 +152,7 @@ export default function HomeScreen() {
                 { backgroundColor: "rgba(255,255,255,0.2)" },
               ]}
             >
-              <Text style={styles.featuredBadgeText}>TONIGHT • 7PM</Text>
+              <Text style={styles.featuredBadgeText}>{eventBadge(featured.dateISO, featured.time)}</Text>
             </View>
             <Text style={styles.featuredTitle}>{featured.title}</Text>
             <Text style={styles.featuredSub}>with {featured.host} • {featured.location}</Text>
@@ -213,30 +240,38 @@ export default function HomeScreen() {
       {/* Upcoming Events */}
       <View style={styles.sectionPad}>
         <Text style={[styles.sectionLabel, { color: colors.warmGold }]}>UPCOMING EVENTS</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {EVENTS.map((ev) => (
-            <TouchableOpacity
-              key={ev.id}
-              activeOpacity={0.85}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <LinearGradient
-                colors={ev.color as [string, string]}
-                style={styles.evCard}
+        {upcomingEvents.length === 0 ? (
+          <View style={[styles.evEmpty, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+            <Feather name="calendar" size={28} color={colors.sage} style={{ marginBottom: 8 }} />
+            <Text style={[styles.evEmptyTitle, { color: colors.charcoal }]}>Nothing in the next 7 days</Text>
+            <Text style={[styles.evEmptyBody, { color: colors.sage }]}>Check back soon — new events are added regularly.</Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {upcomingEvents.map((ev) => (
+              <TouchableOpacity
+                key={ev.id}
+                activeOpacity={0.85}
+                onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
               >
-                <View style={[styles.evTypeBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                  <Text style={styles.evTypeText}>{ev.type.toUpperCase()}</Text>
-                </View>
-                <Text style={styles.evTitle} numberOfLines={2}>{ev.title}</Text>
-                <Text style={styles.evHost}>with {ev.host}</Text>
-                <View style={styles.evFooter}>
-                  <Text style={styles.evDate}>{ev.date} • {ev.time}</Text>
-                  <Text style={styles.evPrice}>{ev.price}</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <LinearGradient
+                  colors={ev.color as [string, string]}
+                  style={styles.evCard}
+                >
+                  <View style={[styles.evTypeBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+                    <Text style={styles.evTypeText}>{eventBadge(ev.dateISO, ev.time)}</Text>
+                  </View>
+                  <Text style={styles.evTitle} numberOfLines={2}>{ev.title}</Text>
+                  <Text style={styles.evHost}>with {ev.host}</Text>
+                  <View style={styles.evFooter}>
+                    <Text style={styles.evDate}>{ev.date}</Text>
+                    <Text style={styles.evPrice}>{ev.price}</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </View>
     </ScrollView>
     </View>
@@ -499,5 +534,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_700Bold",
     marginTop: 2,
+  },
+  evEmpty: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  evEmptyTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  evEmptyBody: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 18,
   },
 });
