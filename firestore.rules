@@ -78,5 +78,21 @@ service cloud.firestore {
         && isOwner(resource.data.userId);
       allow update: if false;
     }
+
+    // ── Messaging ──────────────────────────────────────────────────────────
+    match /conversations/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /conversations/{convId}/messages/{msgId} {
+      allow read, create: if isSignedIn()
+        && get(/databases/$(database)/documents/conversations/$(convId)).data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
   }
 }

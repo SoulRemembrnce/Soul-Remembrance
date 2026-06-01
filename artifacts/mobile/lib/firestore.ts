@@ -4,6 +4,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   limit,
   onSnapshot,
@@ -293,6 +294,114 @@ export async function addCommentToPost(
   await updateDoc(doc(db, "posts", postId), {
     comments: arrayUnion(comment),
   });
+}
+
+// ─── Messaging ────────────────────────────────────────────────────────────────
+
+export interface FSConversation {
+  id: string;
+  userId: string;
+  practitionerId: number;
+  otherName: string;
+  otherInitials: string;
+  otherAvatarColor: [string, string];
+  lastMessage: string;
+  lastMessageAt: Timestamp | null;
+  unreadCount: number;
+  createdAt: Timestamp;
+}
+
+export interface FSMessage {
+  id: string;
+  text: string;
+  senderId: string; // userId or "prac_{practitionerId}"
+  createdAt: Timestamp;
+}
+
+export function subscribeConversations(
+  userId: string,
+  cb: (convs: FSConversation[]) => void
+): () => void {
+  const q = query(
+    collection(db, "conversations"),
+    where("userId", "==", userId),
+    orderBy("lastMessageAt", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FSConversation));
+  });
+}
+
+export function subscribeMessages(
+  conversationId: string,
+  cb: (msgs: FSMessage[]) => void
+): () => void {
+  const q = query(
+    collection(db, "conversations", conversationId, "messages"),
+    orderBy("createdAt", "asc"),
+    limit(100)
+  );
+  return onSnapshot(q, (snap) => {
+    cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FSMessage));
+  });
+}
+
+export async function createConversation(
+  userId: string,
+  practitionerId: number,
+  otherName: string,
+  otherInitials: string,
+  otherAvatarColor: [string, string]
+): Promise<string> {
+  const convId = `${userId}_prac_${practitionerId}`;
+  const ref = doc(db, "conversations", convId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      id: convId,
+      userId,
+      practitionerId,
+      otherName,
+      otherInitials,
+      otherAvatarColor,
+      lastMessage: "Booking confirmed — say hello! 👋",
+      lastMessageAt: serverTimestamp(),
+      unreadCount: 0,
+      createdAt: serverTimestamp(),
+    });
+  }
+  return convId;
+}
+
+export async function sendMessage(
+  conversationId: string,
+  senderId: string,
+  text: string
+): Promise<void> {
+  const msgId = `${senderId}_${Date.now()}`;
+  await setDoc(
+    doc(db, "conversations", conversationId, "messages", msgId),
+    { id: msgId, text, senderId, createdAt: serverTimestamp() }
+  );
+  await updateDoc(doc(db, "conversations", conversationId), {
+    lastMessage: text,
+    lastMessageAt: serverTimestamp(),
+    unreadCount: 0,
+  });
+}
+
+export async function getConversation(
+  conversationId: string
+): Promise<FSConversation | null> {
+  const snap = await getDoc(doc(db, "conversations", conversationId));
+  if (!snap.exists()) return null;
+  return { ...snap.data(), id: snap.id } as FSConversation;
+}
+
+export async function markConversationRead(
+  conversationId: string
+): Promise<void> {
+  await updateDoc(doc(db, "conversations", conversationId), { unreadCount: 0 });
 }
 
 // ─── Availability ─────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
   FSAvailabilitySlot,
+  createConversation,
   markSlotBooked,
   subscribeAvailability,
 } from "@/lib/firestore";
@@ -165,6 +166,17 @@ export default function PractitionerScreen() {
         location: practitioner.location,
         confirmedAt: new Date().toISOString(),
       });
+
+      // ── Step 5: Create messaging conversation ───────────────────────────
+      if (userId) {
+        createConversation(
+          userId,
+          practitioner.id,
+          practitioner.name,
+          practitioner.initials,
+          practitioner.avatarColor
+        ).catch(console.warn);
+      }
 
       const result = await scheduleBookingReminders(
         bookingId,
