@@ -6,6 +6,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  setDoc,
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
@@ -82,6 +83,38 @@ export async function toggleSubscription(
 
 export async function deletePractitioner(userId: string): Promise<void> {
   await deleteDoc(doc(db, "practitionerProfiles", userId));
+}
+
+// ── Events ─────────────────────────────────────────────────────────────────────
+
+export interface FSEvent {
+  id: number;
+  title: string;
+  host: string;
+  hostInitials: string;
+  avatarColor: [string, string];
+  date: string;
+  time: string;
+  type: string;
+  attendees: number;
+  tags: string[];
+}
+
+export function subscribeEvents(cb: (events: FSEvent[]) => void): () => void {
+  return onSnapshot(collection(db, "events"), (snap) => {
+    const events = snap.docs
+      .map((d) => d.data() as FSEvent)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    cb(events);
+  });
+}
+
+export async function saveEvent(event: FSEvent): Promise<void> {
+  await setDoc(doc(db, "events", String(event.id)), event);
+}
+
+export async function deleteEvent(id: number): Promise<void> {
+  await deleteDoc(doc(db, "events", String(id)));
 }
 
 export function computeStats(practitioners: FSPractitionerProfile[]): AdminStats {
