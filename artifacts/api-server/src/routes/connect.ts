@@ -31,6 +31,8 @@ router.post("/connect/onboard", async (req, res): Promise<void> => {
   if (!accountId) {
     const account = await stripe.accounts.create({
       type: "express",
+      country: "GB",
+      default_currency: "gbp",
       ...(email && typeof email === "string" ? { email } : {}),
       capabilities: {
         card_payments: { requested: true },
