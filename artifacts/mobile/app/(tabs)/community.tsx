@@ -16,7 +16,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { CIRCLES } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -50,17 +49,11 @@ function relativeTime(ts: any): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-const LIVE_EVENTS = [
-  { id: 1, title: "Full Moon Meditation Circle", host: "Luna Ashford", hostInitials: "LA", time: "Tonight · 8:00 PM", type: "Live Online", spots: 8 },
-  { id: 2, title: "Breathwork for Anxiety Relief", host: "Marcus Rivera", hostInitials: "MR", time: "Thu 5 Jun · 7:00 PM", type: "Live Online", spots: 14 },
-  { id: 3, title: "Ayurvedic Spring Cleanse Q&A", host: "Priya Nair", hostInitials: "PN", time: "Sat 7 Jun · 11:00 AM", type: "Live Online", spots: 20 },
-  { id: 4, title: "Sound Bath & Cacao Ceremony", host: "Ayla Storm", hostInitials: "AS", time: "Sun 8 Jun · 6:00 PM", type: "In-Person · Bristol", spots: 6 },
-];
 
 export default function CommunityScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { userId, displayName, goingEvents, toggleGoingEvent } = useApp();
+  const { userId, displayName } = useApp();
 
   const [activeTab, setActiveTab] = useState<"feed" | "events" | "circles">("feed");
   const [activeCircle, setActiveCircle] = useState("all");
@@ -383,79 +376,21 @@ export default function CommunityScreen() {
       )}
 
       {activeTab === "events" && (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-          {LIVE_EVENTS.map((ev) => (
-            <View key={ev.id} style={[styles.eventCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
-              <View style={styles.eventLeft}>
-                <LinearGradient colors={[colors.deepIndigo, colors.lavenderMid]} style={styles.eventAvatar}>
-                  <Text style={styles.eventInitials}>{ev.hostInitials}</Text>
-                </LinearGradient>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.eventTitle, { color: colors.charcoal }]}>{ev.title}</Text>
-                  <Text style={[styles.eventHost, { color: colors.sage }]}>with {ev.host}</Text>
-                  <Text style={[styles.eventTime, { color: colors.purpleMid }]}>{ev.time}</Text>
-                  <Text style={[styles.eventType, { color: colors.sage }]}>{ev.type}</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => { toggleGoingEvent(ev.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
-                style={[
-                  styles.goingBtn,
-                  { backgroundColor: goingEvents.has(ev.id) ? colors.deepIndigo : colors.cream, borderColor: colors.deepIndigo },
-                ]}
-              >
-                <Text style={[styles.goingBtnText, { color: goingEvents.has(ev.id) ? "#fff" : colors.deepIndigo }]}>
-                  {goingEvents.has(ev.id) ? "Going" : "Join"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
+        <View style={[styles.emptyWrap, { flex: 1 }]}>
+          <Feather name="calendar" size={36} color={colors.blush} />
+          <Text style={[styles.emptyText, { color: colors.sage, marginTop: 14 }]}>
+            No upcoming events yet.{"\n"}Check back soon — new events are added regularly.
+          </Text>
+        </View>
       )}
 
       {activeTab === "circles" && (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-          <Text style={[styles.circleTitle, { color: colors.charcoal }]}>Healing Circles</Text>
-          <Text style={[styles.circleBody, { color: colors.sage }]}>
-            Join circles to connect with others on similar healing journeys.
+        <View style={[styles.emptyWrap, { flex: 1 }]}>
+          <Feather name="users" size={36} color={colors.blush} />
+          <Text style={[styles.emptyText, { color: colors.sage, marginTop: 14 }]}>
+            Circles are coming soon.{"\n"}This is where healing communities will gather.
           </Text>
-          <View style={styles.circleGrid}>
-            {[
-              { label: "Healing Journey", colors: [colors.deepIndigo, colors.lavenderMid] },
-              { label: "Sound Healing", colors: [colors.purpleMid, "#9B7FD4"] },
-              { label: "Breathwork", colors: ["#1A4D2E", "#3A8C5C"] },
-              { label: "Ayurveda", colors: [colors.purpleMid, colors.lavender] },
-              { label: "Reiki", colors: ["#6B1F6B", "#A855A8"] },
-              { label: "Meditation", colors: ["#0D3B6E", "#1A6EAD"] },
-              { label: "Events & Retreats", colors: [colors.deepIndigo, colors.indigo2] },
-              { label: "EFT Tapping", colors: ["#7A4A00", "#C9A84C"] },
-            ].map((circle) => {
-              const circlePostCount = posts.filter((p) => p.circle === circle.label).length;
-              return (
-                <TouchableOpacity
-                  key={circle.label}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    const match = CIRCLES.find((c) => c.label === circle.label);
-                    if (match) { setActiveCircle(match.id); setActiveTab("feed"); }
-                  }}
-                  style={styles.circleCardWrap}
-                >
-                  <LinearGradient colors={circle.colors as [string, string]} style={styles.circleCard}>
-                    <Text style={styles.circleCardLabel}>{circle.label}</Text>
-                    <Text style={styles.circleCardCount}>
-                      {circlePostCount > 0 ? `${circlePostCount} post${circlePostCount > 1 ? "s" : ""}` : "Be the first"}
-                    </Text>
-                    <View style={[styles.joinCircleBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                      <Text style={styles.joinCircleBtnText}>View</Text>
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
+        </View>
       )}
     </View>
   );
