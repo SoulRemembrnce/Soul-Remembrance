@@ -18,6 +18,7 @@ import { useColors } from "@/hooks/useColors";
 import {
   FSAvailabilitySlot,
   addAvailabilitySlot,
+  cancelBookingByPractitioner,
   deleteAvailabilitySlot,
   subscribeAvailability,
 } from "@/lib/firestore";
@@ -100,8 +101,31 @@ export default function ManageAvailabilityScreen() {
     const slotId = `${numId}_${selectedDateISO}_${timeISO.replace(":", "")}`;
     const dateLabel = toDateLabel(selectedDateISO);
 
-    if (existing) {
-      if (existing.booked) return;
+    if (existing?.booked) {
+      // Practitioner cancels a client's booking
+      Alert.alert(
+        "Cancel Booking?",
+        `Cancel the ${timeLabel} booking on ${dateLabel}?\n\nThis will remove it from the client's sessions and free up the slot.`,
+        [
+          { text: "Keep", style: "cancel" },
+          {
+            text: "Cancel Booking",
+            style: "destructive",
+            onPress: async () => {
+              setToggling((prev) => new Set(prev).add(slotId));
+              await cancelBookingByPractitioner(existing).catch(console.warn);
+              setToggling((prev) => {
+                const n = new Set(prev);
+                n.delete(slotId);
+                return n;
+              });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            },
+          },
+        ]
+      );
+    } else if (existing) {
+      // Remove an available (unbooked) slot
       Alert.alert(
         "Remove slot?",
         `Remove ${timeLabel} on ${dateLabel}?`,
@@ -124,6 +148,7 @@ export default function ManageAvailabilityScreen() {
         ]
       );
     } else {
+      // Add a new slot
       (async () => {
         setToggling((prev) => new Set(prev).add(slotId));
         await addAvailabilitySlot(numId, selectedDateISO, dateLabel, timeISO, timeLabel).catch(
@@ -237,35 +262,40 @@ export default function ManageAvailabilityScreen() {
             const isToggling = toggling.has(slotId);
 
             const bgColor = isBooked
-              ? colors.cream
+              ? "#FFF8EE"
               : isAdded
               ? colors.deepIndigo
               : colors.softWhite;
             const borderColor = isBooked
-              ? colors.blush
+              ? "#E8A838"
               : isAdded
               ? colors.deepIndigo
               : colors.blush;
-            const textColor = isAdded && !isBooked ? "#fff" : colors.charcoal;
-            const icon: "lock" | "check" | "plus" = isBooked ? "lock" : isAdded ? "check" : "plus";
-            const iconColor = isAdded && !isBooked ? "rgba(255,255,255,0.7)" : isBooked ? colors.sage : colors.blush;
+            const textColor = isBooked ? "#92600A" : isAdded ? "#fff" : colors.charcoal;
+            const icon: "x-circle" | "check" | "plus" = isBooked ? "x-circle" : isAdded ? "check" : "plus";
+            const iconColor = isBooked ? "#E8A838" : isAdded ? "rgba(255,255,255,0.7)" : colors.blush;
 
             return (
               <TouchableOpacity
                 key={timeISO}
                 style={[styles.timeSlot, { backgroundColor: bgColor, borderColor }]}
                 onPress={() => handleToggleSlot(timeISO, label)}
-                disabled={isBooked || isToggling}
+                disabled={isToggling}
                 activeOpacity={0.75}
               >
                 {isToggling ? (
                   <ActivityIndicator
                     size="small"
-                    color={isAdded ? "#fff" : colors.deepIndigo}
+                    color={isBooked ? "#E8A838" : isAdded ? "#fff" : colors.deepIndigo}
                   />
                 ) : (
                   <>
-                    <Text style={[styles.timeText, { color: textColor }]}>{label}</Text>
+                    <View>
+                      <Text style={[styles.timeText, { color: textColor }]}>{label}</Text>
+                      {isBooked && (
+                        <Text style={styles.bookedLabel}>Booked · tap to cancel</Text>
+                      )}
+                    </View>
                     <Feather name={icon} size={14} color={iconColor} />
                   </>
                 )}
@@ -386,5 +416,11 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
+  },
+  bookedLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    color: "#E8A838",
+    marginTop: 2,
   },
 });

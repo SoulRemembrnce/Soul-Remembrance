@@ -79,6 +79,8 @@ export interface FSBooking {
   location: string;
   confirmedAt: string;
   createdAt?: Timestamp;
+  cancelled?: boolean;
+  cancelledAt?: Timestamp;
 }
 
 // ─── Practitioners ────────────────────────────────────────────────────────────
@@ -183,7 +185,9 @@ export function subscribeBookings(
     where("userId", "==", userId)
   );
   return onSnapshot(q, (snap) => {
-    const docs = snap.docs.map((d) => d.data() as FSBooking);
+    const docs = snap.docs
+      .map((d) => d.data() as FSBooking)
+      .filter((b) => !b.cancelled);
     docs.sort((a, b) => b.confirmedAt.localeCompare(a.confirmedAt));
     cb(docs);
   });
@@ -459,6 +463,36 @@ export async function markSlotBooked(
   await updateDoc(doc(db, "availability", slotId), {
     booked: true,
     bookedBy: userId,
+  });
+}
+
+export async function cancelBookingByPractitioner(
+  slot: FSAvailabilitySlot
+): Promise<void> {
+  // Find the matching booking document
+  const q = query(
+    collection(db, "bookings"),
+    where("practitionerId", "==", slot.practitionerId),
+    where("userId", "==", slot.bookedBy ?? ""),
+    where("date", "==", slot.date),
+    where("time", "==", slot.time)
+  );
+  const snap = await getDocs(q);
+
+  // Mark all matching bookings cancelled
+  await Promise.all(
+    snap.docs.map((d) =>
+      updateDoc(doc(db, "bookings", d.id), {
+        cancelled: true,
+        cancelledAt: serverTimestamp(),
+      })
+    )
+  );
+
+  // Free the availability slot
+  await updateDoc(doc(db, "availability", slot.id), {
+    booked: false,
+    bookedBy: null,
   });
 }
 
