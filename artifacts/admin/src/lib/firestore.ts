@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   onSnapshot,
@@ -34,6 +35,7 @@ export interface FSPractitionerProfile {
   email?: string;
   stripeAccountId?: string;
   stripeAccountEnabled?: boolean;
+  featuredUntil?: Timestamp;
   createdAt?: Timestamp;
 }
 
@@ -41,7 +43,7 @@ export interface AdminStats {
   total: number;
   activeSubscriptions: number;
   verified: number;
-  online: number;
+  featured: number;
 }
 
 export async function getAllPractitioners(): Promise<FSPractitionerProfile[]> {
@@ -85,6 +87,17 @@ export async function deletePractitioner(userId: string): Promise<void> {
   await deleteDoc(doc(db, "practitionerProfiles", userId));
 }
 
+/** Set or clear the featured placement for a practitioner.
+ *  Pass `null` to remove the featured status immediately. */
+export async function setFeaturedUntil(
+  userId: string,
+  until: Date | null
+): Promise<void> {
+  await updateDoc(doc(db, "practitionerProfiles", userId), {
+    featuredUntil: until ? Timestamp.fromDate(until) : deleteField(),
+  });
+}
+
 // ── Events ─────────────────────────────────────────────────────────────────────
 
 export interface FSEvent {
@@ -118,10 +131,17 @@ export async function deleteEvent(id: number): Promise<void> {
 }
 
 export function computeStats(practitioners: FSPractitionerProfile[]): AdminStats {
+  const now = new Date();
   return {
     total: practitioners.length,
     activeSubscriptions: practitioners.filter((p) => p.subscriptionActive).length,
     verified: practitioners.filter((p) => p.verified).length,
-    online: practitioners.filter((p) => p.online).length,
+    featured: practitioners.filter(
+      (p) => p.featuredUntil && p.featuredUntil.toDate() > now
+    ).length,
   };
+}
+
+export function isFeaturedActive(p: FSPractitionerProfile): boolean {
+  return !!p.featuredUntil && p.featuredUntil.toDate() > new Date();
 }

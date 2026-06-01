@@ -4,13 +4,13 @@ import { useLocation } from "wouter";
 import { useEffect, useState, useMemo } from "react";
 import {
   Loader2, LogOut, Search, Shield, ShieldAlert, Trash2, CheckCircle2,
-  UserCheck, Play, Pause, SearchX, Star, Plus, Pencil, CalendarDays, Tag,
+  UserCheck, Play, Pause, SearchX, Star, StarOff, Plus, Pencil, CalendarDays, Tag,
 } from "lucide-react";
 import {
   FSPractitionerProfile, FSEvent,
   subscribePractitioners, subscribeEvents,
-  computeStats, verifyPractitioner, toggleSubscription, deletePractitioner,
-  saveEvent, deleteEvent,
+  computeStats, isFeaturedActive, verifyPractitioner, toggleSubscription,
+  deletePractitioner, setFeaturedUntil, saveEvent, deleteEvent,
   AdminStats,
 } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
@@ -251,6 +251,7 @@ export default function Dashboard() {
       if (statusFilter === "unverified") return !p.verified;
       if (statusFilter === "active") return p.subscriptionActive;
       if (statusFilter === "inactive") return !p.subscriptionActive;
+      if (statusFilter === "featured") return isFeaturedActive(p);
       return true;
     });
   }, [practitioners, searchQuery, statusFilter]);
@@ -279,6 +280,27 @@ export default function Dashboard() {
       toast({ title: "Success", description: "Practitioner removed." });
     } catch {
       toast({ title: "Error", description: "Failed to delete practitioner.", variant: "destructive" });
+    }
+  };
+
+  const handleExtendFeatured = async (p: FSPractitionerProfile, days: number) => {
+    try {
+      const base = isFeaturedActive(p) ? p.featuredUntil!.toDate() : new Date();
+      const until = new Date(base);
+      until.setDate(until.getDate() + days);
+      await setFeaturedUntil(p.userId, until);
+      toast({ title: "Featured updated", description: `${p.name} featured until ${until.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}.` });
+    } catch {
+      toast({ title: "Error", description: "Failed to update featured status.", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveFeatured = async (p: FSPractitionerProfile) => {
+    try {
+      await setFeaturedUntil(p.userId, null);
+      toast({ title: "Featured removed", description: `${p.name} is no longer featured.` });
+    } catch {
+      toast({ title: "Error", description: "Failed to remove featured status.", variant: "destructive" });
     }
   };
 
@@ -336,7 +358,7 @@ export default function Dashboard() {
           <StatCard title="Total Practitioners" value={stats.total} icon={<UserCheck className="h-4 w-4 text-primary" />} />
           <StatCard title="Verified" value={stats.verified} icon={<Shield className="h-4 w-4 text-emerald-600" />} />
           <StatCard title="Active Subscriptions" value={stats.activeSubscriptions} icon={<CheckCircle2 className="h-4 w-4 text-blue-600" />} />
-          <StatCard title="Upcoming Events" value={events.length} icon={<CalendarDays className="h-4 w-4 text-purple-600" />} />
+          <StatCard title="Currently Featured" value={stats.featured} icon={<Star className="h-4 w-4 text-yellow-500" />} />
         </div>
 
         {/* Tabs */}
@@ -367,6 +389,7 @@ export default function Dashboard() {
                     <SelectItem value="unverified">Unverified</SelectItem>
                     <SelectItem value="active">Active Subscription</SelectItem>
                     <SelectItem value="inactive">Inactive Subscription</SelectItem>
+                    <SelectItem value="featured">Currently Featured</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -435,6 +458,12 @@ export default function Dashboard() {
                                   {p.subscriptionActive
                                     ? <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Active Sub</Badge>
                                     : <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200">Inactive Sub</Badge>}
+                                  {isFeaturedActive(p) && (
+                                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 gap-1">
+                                      <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                                      Featured
+                                    </Badge>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -495,6 +524,41 @@ export default function Dashboard() {
                                               ? <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 py-0 h-5">Available</Badge>
                                               : <span className="text-xs">Unavailable</span>}
                                           </div>
+                                        </div>
+                                      </div>
+
+                                      {/* ── Featured placement ─────────────── */}
+                                      <div className="pt-2 border-t border-border/40">
+                                        <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                                          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                                          Featured Placement
+                                        </h4>
+                                        <div className="text-sm text-muted-foreground mb-3">
+                                          {isFeaturedActive(p)
+                                            ? <>Active — expires <span className="font-medium text-foreground">{p.featuredUntil!.toDate().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span></>
+                                            : p.featuredUntil
+                                              ? <span className="text-destructive/70">Expired {p.featuredUntil.toDate().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                                              : "Not featured"}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                          <Button
+                                            size="sm" variant="outline"
+                                            className="text-xs h-7 border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                                            onClick={() => handleExtendFeatured(p, 30)}
+                                          >
+                                            <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
+                                            {isFeaturedActive(p) ? "Extend 30 days" : "Feature for 30 days"}
+                                          </Button>
+                                          {(isFeaturedActive(p) || p.featuredUntil) && (
+                                            <Button
+                                              size="sm" variant="outline"
+                                              className="text-xs h-7 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                                              onClick={() => handleRemoveFeatured(p)}
+                                            >
+                                              <StarOff className="h-3 w-3 mr-1" />
+                                              Remove
+                                            </Button>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
