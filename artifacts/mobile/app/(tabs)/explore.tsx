@@ -2,11 +2,10 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   FlatList,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,23 +15,47 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { FILTER_MODALITIES, PRACTITIONERS, Practitioner } from "@/constants/data";
+import PractitionerMap from "@/components/PractitionerMap";
+import { FILTER_MODALITIES, Practitioner, PRACTITIONERS } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+
+const LOCATION_PRESETS = [
+  { label: "All", city: "" },
+  { label: "London", city: "London" },
+  { label: "Sedona", city: "Sedona" },
+  { label: "Portland", city: "Portland" },
+  { label: "Boulder", city: "Boulder" },
+  { label: "Glastonbury", city: "Glastonbury" },
+  { label: "Brighton", city: "Brighton" },
+];
+
+const WORLD_REGION = {
+  latitude: 45,
+  longitude: -30,
+  latitudeDelta: 60,
+  longitudeDelta: 90,
+};
 
 export default function ExploreScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { favorites, toggleFavorite } = useApp();
 
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [activeLocation, setActiveLocation] = useState("");
+  const [locationSearch, setLocationSearch] = useState("");
   const [sortBy, setSortBy] = useState<"rating" | "price">("rating");
   const [onlineOnly, setOnlineOnly] = useState(false);
+  const [selectedPractitioner, setSelectedPractitioner] = useState<Practitioner | null>(null);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   const filtered = useMemo(() => {
+    const loc = locationSearch.trim().toLowerCase() || activeLocation.toLowerCase();
     return PRACTITIONERS.filter((p) => {
       const matchSearch =
         !search ||
@@ -44,9 +67,14 @@ export default function ExploreScreen() {
         p.tags.some((t) => t.toLowerCase().includes(activeFilter.toLowerCase())) ||
         p.modalities.some((m) => m.toLowerCase().includes(activeFilter.toLowerCase()));
       const matchOnline = !onlineOnly || p.online;
-      return matchSearch && matchFilter && matchOnline;
+      const matchLoc =
+        !loc ||
+        p.city.toLowerCase().includes(loc) ||
+        p.country.toLowerCase().includes(loc) ||
+        p.location.toLowerCase().includes(loc);
+      return matchSearch && matchFilter && matchOnline && matchLoc;
     }).sort((a, b) => (sortBy === "rating" ? b.rating - a.rating : a.price - b.price));
-  }, [search, activeFilter, sortBy, onlineOnly]);
+  }, [search, activeFilter, sortBy, onlineOnly, locationSearch, activeLocation]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
@@ -57,196 +85,288 @@ export default function ExploreScreen() {
         end={{ x: 1, y: 1 }}
         style={[styles.header, { paddingTop: topPad + 14 }]}
       >
-        <Text style={styles.headerTitle}>Explore</Text>
-        <View style={styles.searchRow}>
-          <View style={[styles.searchBox, { flex: 1 }]}>
-            <Feather name="search" size={15} color="rgba(255,255,255,0.5)" />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Practitioners, modalities..."
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              style={styles.searchInput}
-              returnKeyType="search"
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch("")}>
-                <Feather name="x" size={14} color="rgba(255,255,255,0.6)" />
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>Explore</Text>
+          {/* List / Map toggle */}
+          <View style={styles.viewToggle}>
+            {(["list", "map"] as const).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                onPress={() => {
+                  setViewMode(mode);
+                  setSelectedPractitioner(null);
+                  Haptics.selectionAsync();
+                }}
+                style={[
+                  styles.viewToggleBtn,
+                  { backgroundColor: viewMode === mode ? "#fff" : "transparent" },
+                ]}
+              >
+                <Feather
+                  name={mode === "list" ? "list" : "map"}
+                  size={14}
+                  color={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"}
+                />
+                <Text
+                  style={[
+                    styles.viewToggleTxt,
+                    { color: viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)" },
+                  ]}
+                >
+                  {mode === "list" ? "List" : "Map"}
+                </Text>
               </TouchableOpacity>
-            )}
+            ))}
           </View>
+        </View>
+
+        {/* Keyword search */}
+        <View style={[styles.searchBox, { marginBottom: 8 }]}>
+          <Feather name="search" size={15} color="rgba(255,255,255,0.5)" />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Practitioners, modalities..."
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            style={styles.searchInput}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Feather name="x" size={14} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Location search */}
+        <View style={styles.searchBox}>
+          <Feather name="map-pin" size={15} color="rgba(255,255,255,0.5)" />
+          <TextInput
+            value={locationSearch}
+            onChangeText={(v) => { setLocationSearch(v); setActiveLocation(""); }}
+            placeholder="Search by city or country..."
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            style={styles.searchInput}
+            returnKeyType="search"
+          />
+          {locationSearch.length > 0 && (
+            <TouchableOpacity onPress={() => setLocationSearch("")}>
+              <Feather name="x" size={14} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
 
-      {/* Filters */}
-      <View style={[styles.filterBar, { backgroundColor: colors.card, borderBottomColor: colors.cream }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-          {FILTER_MODALITIES.map((f) => (
-            <TouchableOpacity
-              key={f}
-              onPress={() => {
-                setActiveFilter(f);
-                Haptics.selectionAsync();
-              }}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: activeFilter === f ? colors.deepIndigo : colors.cream,
-                  marginRight: 8,
-                },
-              ]}
-            >
-              <Text
+      {/* Location preset chips */}
+      <View style={[styles.locBar, { backgroundColor: colors.card, borderBottomColor: colors.cream }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 14 }}
+        >
+          {LOCATION_PRESETS.map(({ label, city }) => {
+            const isActive = activeLocation === city && !locationSearch;
+            return (
+              <TouchableOpacity
+                key={label}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setActiveLocation(city);
+                  setLocationSearch("");
+                }}
                 style={[
-                  styles.filterChipText,
-                  { color: activeFilter === f ? "#fff" : colors.charcoal },
+                  styles.locChip,
+                  { backgroundColor: isActive ? colors.deepIndigo : colors.cream, marginRight: 8 },
                 ]}
               >
-                {f}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                {label !== "All" && (
+                  <Feather
+                    name="map-pin"
+                    size={10}
+                    color={isActive ? "rgba(255,255,255,0.8)" : colors.sage}
+                  />
+                )}
+                <Text style={[styles.locChipText, { color: isActive ? "#fff" : colors.charcoal }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
-      {/* Sort + online toggle */}
-      <View style={[styles.sortBar, { backgroundColor: colors.softWhite }]}>
-        <View style={styles.sortBtns}>
-          {([["rating", "Top Rated"], ["price", "Price"]] as const).map(([val, label]) => (
-            <TouchableOpacity
-              key={val}
-              onPress={() => setSortBy(val)}
-              style={[
-                styles.sortBtn,
-                {
-                  backgroundColor: sortBy === val ? `${colors.deepIndigo}18` : colors.card,
-                  borderColor: sortBy === val ? colors.deepIndigo : colors.border,
-                },
-              ]}
-            >
-              <Text
+      {/* Modality filters — list only */}
+      {viewMode === "list" && (
+        <View style={[styles.filterBar, { backgroundColor: colors.card, borderBottomColor: colors.cream }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+          >
+            {FILTER_MODALITIES.map((f) => (
+              <TouchableOpacity
+                key={f}
+                onPress={() => { setActiveFilter(f); Haptics.selectionAsync(); }}
                 style={[
-                  styles.sortBtnText,
-                  { color: sortBy === val ? colors.deepIndigo : colors.sage },
+                  styles.filterChip,
+                  { backgroundColor: activeFilter === f ? colors.deepIndigo : colors.cream, marginRight: 8 },
                 ]}
               >
-                {label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TouchableOpacity
-          onPress={() => {
-            setOnlineOnly((v) => !v);
-            Haptics.selectionAsync();
-          }}
-          style={styles.toggleRow}
-        >
-          <View
-            style={[
-              styles.toggle,
-              { backgroundColor: onlineOnly ? colors.deepIndigo : colors.blush },
-            ]}
-          >
-            <View
-              style={[
-                styles.toggleThumb,
-                { transform: [{ translateX: onlineOnly ? 16 : 2 }] },
-              ]}
-            />
-          </View>
-          <Text style={[styles.toggleLabel, { color: colors.charcoal }]}>Online</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Practitioner list */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Feather name="search" size={40} color={colors.blush} />
-            <Text style={[styles.emptyTitle, { color: colors.charcoal }]}>No practitioners found</Text>
-            <Text style={[styles.emptyBody, { color: colors.sage }]}>Try adjusting your search or filters</Text>
-          </View>
-        }
-        renderItem={({ item: p }) => (
-          <TouchableOpacity
-            style={[styles.practCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push(`/practitioner/${p.id}`);
-            }}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={[colors.deepIndigo, colors.lavenderMid]}
-              style={styles.practHeader}
-            >
-              <View style={styles.practHeaderInner}>
-                <LinearGradient colors={p.avatarColor as [string, string]} style={styles.practAvatar}>
-                  <Text style={styles.practInitials}>{p.initials}</Text>
-                </LinearGradient>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.practName}>{p.name}</Text>
-                    {p.verified && (
-                      <View style={[styles.verifiedBadge, { backgroundColor: colors.gold }]}>
-                        <Text style={styles.verifiedText}>✓</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.practTitleText}>{p.title}</Text>
-                  <Text style={styles.practLocation}>
-                    {p.location}
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={[styles.practRating, { color: colors.gold }]}>★ {p.rating}</Text>
-                  <Text style={styles.practPriceText}>£{p.price}</Text>
-                </View>
-              </View>
-            </LinearGradient>
-            <View style={styles.practBody}>
-              <View style={styles.tagsRow}>
-                {p.tags.map((tag) => (
-                  <View key={tag} style={[styles.tag, { backgroundColor: colors.cream }]}>
-                    <Text style={[styles.tagText, { color: colors.deepIndigo }]}>{tag}</Text>
-                  </View>
-                ))}
-                {p.online && (
-                  <View style={[styles.tag, { backgroundColor: "#EEE5FF" }]}>
-                    <Feather name="monitor" size={10} color={colors.deepIndigo} />
-                    <Text style={[styles.tagText, { color: colors.deepIndigo, marginLeft: 3 }]}>Online</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.practFooter}>
-                <Text style={[styles.nextAvail, { color: colors.sage }]}>
-                  Next:{" "}
-                  <Text
-                    style={{
-                      color: p.nextAvail === "Today" ? colors.deepIndigo : colors.charcoal,
-                      fontFamily: "Inter_600SemiBold",
-                    }}
-                  >
-                    {p.nextAvail}
-                  </Text>
+                <Text style={[styles.filterChipText, { color: activeFilter === f ? "#fff" : colors.charcoal }]}>
+                  {f}
                 </Text>
-                <TouchableOpacity onPress={() => toggleFavorite(p.id)}>
-                  <Feather
-                    name="heart"
-                    size={16}
-                    color={favorites.has(p.id) ? "#E55" : colors.mutedForeground}
-                  />
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Sort + online toggle — list only */}
+      {viewMode === "list" && (
+        <View style={[styles.sortBar, { backgroundColor: colors.softWhite }]}>
+          <View style={styles.sortBtns}>
+            {([["rating", "Top Rated"], ["price", "Price"]] as const).map(([val, label]) => (
+              <TouchableOpacity
+                key={val}
+                onPress={() => setSortBy(val)}
+                style={[
+                  styles.sortBtn,
+                  {
+                    backgroundColor: sortBy === val ? `${colors.deepIndigo}18` : colors.card,
+                    borderColor: sortBy === val ? colors.deepIndigo : colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.sortBtnText, { color: sortBy === val ? colors.deepIndigo : colors.sage }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={[styles.resultsText, { color: colors.sage }]}>
+            {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+          </Text>
+          <TouchableOpacity
+            onPress={() => { setOnlineOnly((v) => !v); Haptics.selectionAsync(); }}
+            style={styles.toggleRow}
+          >
+            <View style={[styles.toggle, { backgroundColor: onlineOnly ? colors.deepIndigo : colors.blush }]}>
+              <View style={[styles.toggleThumb, { transform: [{ translateX: onlineOnly ? 16 : 2 }] }]} />
             </View>
+            <Text style={[styles.toggleLabel, { color: colors.charcoal }]}>Online</Text>
           </TouchableOpacity>
-        )}
-      />
+        </View>
+      )}
+
+      {/* === MAP VIEW === */}
+      {viewMode === "map" && (
+        <PractitionerMap
+          practitioners={filtered}
+          selected={selectedPractitioner}
+          onSelect={setSelectedPractitioner}
+          initialRegion={WORLD_REGION}
+          bottomPad={bottomPad}
+        />
+      )}
+
+      {/* === LIST VIEW === */}
+      {viewMode === "list" && (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={{ padding: 16, paddingBottom: bottomPad + 80 }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Feather name="search" size={40} color={colors.blush} />
+              <Text style={[styles.emptyTitle, { color: colors.charcoal }]}>No practitioners found</Text>
+              <Text style={[styles.emptyBody, { color: colors.sage }]}>
+                Try adjusting your search or filters
+              </Text>
+              {(activeLocation || locationSearch) && (
+                <TouchableOpacity
+                  onPress={() => { setActiveLocation(""); setLocationSearch(""); }}
+                  style={[styles.clearBtn, { backgroundColor: colors.cream }]}
+                >
+                  <Text style={[styles.clearBtnText, { color: colors.deepIndigo }]}>Clear location</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          }
+          renderItem={({ item: p }) => (
+            <TouchableOpacity
+              style={[styles.practCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/practitioner/${p.id}`);
+              }}
+              activeOpacity={0.85}
+            >
+              <LinearGradient colors={[colors.deepIndigo, colors.lavenderMid]} style={styles.practHeader}>
+                <View style={styles.practHeaderInner}>
+                  <LinearGradient colors={p.avatarColor as [string, string]} style={styles.practAvatar}>
+                    <Text style={styles.practInitials}>{p.initials}</Text>
+                  </LinearGradient>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.practName}>{p.name}</Text>
+                      {p.verified && (
+                        <View style={[styles.verifiedBadge, { backgroundColor: colors.gold }]}>
+                          <Text style={styles.verifiedText}>✓</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.practTitleText}>{p.title}</Text>
+                    <View style={styles.locationRow}>
+                      <Feather name="map-pin" size={10} color="rgba(255,255,255,0.5)" />
+                      <Text style={styles.practLocation}>{p.location}</Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={[styles.practRating, { color: colors.gold }]}>★ {p.rating}</Text>
+                    <Text style={styles.practPriceText}>£{p.price}</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+              <View style={styles.practBody}>
+                <View style={styles.tagsRow}>
+                  {p.tags.map((tag) => (
+                    <View key={tag} style={[styles.tag, { backgroundColor: colors.cream }]}>
+                      <Text style={[styles.tagText, { color: colors.deepIndigo }]}>{tag}</Text>
+                    </View>
+                  ))}
+                  {p.online && (
+                    <View style={[styles.tag, { backgroundColor: "#EEE5FF" }]}>
+                      <Feather name="monitor" size={10} color={colors.deepIndigo} />
+                      <Text style={[styles.tagText, { color: colors.deepIndigo, marginLeft: 3 }]}>Online</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.practFooter}>
+                  <Text style={[styles.nextAvail, { color: colors.sage }]}>
+                    Next:{" "}
+                    <Text
+                      style={{
+                        color: p.nextAvail === "Today" ? colors.deepIndigo : colors.charcoal,
+                        fontFamily: "Inter_600SemiBold",
+                      }}
+                    >
+                      {p.nextAvail}
+                    </Text>
+                  </Text>
+                  <TouchableOpacity onPress={() => toggleFavorite(p.id)}>
+                    <Feather
+                      name="heart"
+                      size={16}
+                      color={favorites.has(p.id) ? "#E55" : colors.mutedForeground}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -254,22 +374,41 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 16,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
   headerTitle: {
     color: "#fff",
     fontSize: 24,
     fontFamily: "Inter_700Bold",
-    marginBottom: 12,
   },
-  searchRow: {
+  viewToggle: {
     flexDirection: "row",
-    gap: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 20,
+    padding: 3,
+  },
+  viewToggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 17,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  viewToggleTxt: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
   },
   searchBox: {
     backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 14,
-    padding: 12,
+    padding: 11,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -277,9 +416,25 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: "#fff",
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
     padding: 0,
+  },
+  locBar: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  locChip: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  locChipText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
   },
   filterBar: {
     paddingVertical: 10,
@@ -299,7 +454,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 9,
   },
   sortBtns: {
     flexDirection: "row",
@@ -314,6 +469,10 @@ const styles = StyleSheet.create({
   sortBtnText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
+  },
+  resultsText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
   },
   toggleRow: {
     flexDirection: "row",
@@ -354,6 +513,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_400Regular",
   },
+  clearBtn: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  clearBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
   practCard: {
     borderRadius: 20,
     overflow: "hidden",
@@ -393,7 +562,7 @@ const styles = StyleSheet.create({
   },
   practName: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 17,
     fontFamily: "Inter_600SemiBold",
   },
   verifiedBadge: {
@@ -412,11 +581,16 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     marginTop: 2,
   },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
   practLocation: {
     color: "rgba(255,255,255,0.5)",
     fontSize: 11,
     fontFamily: "Inter_400Regular",
-    marginTop: 1,
   },
   practRating: {
     fontSize: 14,

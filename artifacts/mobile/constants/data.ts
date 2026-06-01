@@ -7,6 +7,8 @@ export interface Practitioner {
   location: string;
   city: string;
   country: string;
+  lat: number;
+  lon: number;
   rating: number;
   reviews: number;
   tags: string[];
@@ -75,6 +77,8 @@ export const PRACTITIONERS: Practitioner[] = [
     location: "Sedona, AZ",
     city: "Sedona",
     country: "USA",
+    lat: 34.8697,
+    lon: -111.7609,
     rating: 4.9,
     reviews: 128,
     tags: ["Sound Bath", "Reiki", "Energy Work"],
@@ -94,6 +98,8 @@ export const PRACTITIONERS: Practitioner[] = [
     location: "Portland, OR",
     city: "Portland",
     country: "USA",
+    lat: 45.5051,
+    lon: -122.6750,
     rating: 4.8,
     reviews: 94,
     tags: ["Somatic", "Trauma", "Breathwork"],
@@ -113,6 +119,8 @@ export const PRACTITIONERS: Practitioner[] = [
     location: "Boulder, CO",
     city: "Boulder",
     country: "USA",
+    lat: 40.0150,
+    lon: -105.2705,
     rating: 5.0,
     reviews: 67,
     tags: ["Ayurveda", "Meditation", "Herbs"],
@@ -132,6 +140,8 @@ export const PRACTITIONERS: Practitioner[] = [
     location: "Glastonbury, UK",
     city: "Glastonbury",
     country: "UK",
+    lat: 51.1458,
+    lon: -2.7158,
     rating: 4.7,
     reviews: 52,
     tags: ["Shamanic", "Plant Medicine", "Soul Retrieval"],
@@ -151,6 +161,8 @@ export const PRACTITIONERS: Practitioner[] = [
     location: "London, UK",
     city: "London",
     country: "UK",
+    lat: 51.5074,
+    lon: -0.1278,
     rating: 4.9,
     reviews: 201,
     tags: ["Meditation", "EFT", "Mindfulness"],
@@ -170,6 +182,8 @@ export const PRACTITIONERS: Practitioner[] = [
     location: "Brighton, UK",
     city: "Brighton",
     country: "UK",
+    lat: 50.8225,
+    lon: -0.1372,
     rating: 4.6,
     reviews: 38,
     tags: ["Crystal Healing", "Reiki", "Chakra"],
