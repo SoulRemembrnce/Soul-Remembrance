@@ -110,6 +110,7 @@ router.post("/payments/create-subscription-session", async (req, res): Promise<v
         quantity: 1,
       },
     ],
+    allow_promotion_codes: true,
     subscription_data: {
       trial_period_days: 30,
       metadata: { practitionerName: name ?? "" },
