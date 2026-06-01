@@ -898,6 +898,35 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* Mind & Soul */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionLabel, { color: colors.warmGold }]}>MIND & SOUL</Text>
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <TouchableOpacity
+            style={[styles.mindCard, { backgroundColor: colors.deepIndigo }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/meditation"); }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.mindIcon}>🧘</Text>
+            <Text style={[styles.mindTitle, { color: "#fff" }]}>Meditate</Text>
+            <Text style={[styles.mindSub, { color: "rgba(255,255,255,0.6)" }]}>Guided breathing & timer</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.mindCard, {
+              backgroundColor: `${colors.warmGold}12`,
+              borderWidth: 1,
+              borderColor: `${colors.warmGold}35`,
+            }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/journal"); }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.mindIcon}>📔</Text>
+            <Text style={[styles.mindTitle, { color: colors.charcoal }]}>Journal</Text>
+            <Text style={[styles.mindSub, { color: colors.sage }]}>Reflect & write freely</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Account Menu */}
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: colors.warmGold }]}>ACCOUNT</Text>
@@ -1260,4 +1289,8 @@ const styles = StyleSheet.create({
   // ── Sign out ──────────────────────────────────────────────
   signOutBtn: { borderRadius: 16, borderWidth: 1.5, padding: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   signOutText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  mindCard: { borderRadius: 18, padding: 18, flex: 1, minHeight: 110 },
+  mindIcon: { fontSize: 28, marginBottom: 8 },
+  mindTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
+  mindSub: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
 });

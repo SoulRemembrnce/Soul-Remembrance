@@ -90,6 +90,8 @@ function RootLayoutNav() {
         <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, presentation: "modal" }} />
         <Stack.Screen name="new-message" options={{ headerShown: false, presentation: "modal" }} />
+        <Stack.Screen name="meditation" options={{ headerShown: false }} />
+        <Stack.Screen name="journal" options={{ headerShown: false }} />
       </Stack>
     </>
   );

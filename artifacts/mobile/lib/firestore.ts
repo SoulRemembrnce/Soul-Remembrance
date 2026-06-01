@@ -762,3 +762,61 @@ export async function updatePractitionerSubscription(
     ...(data.stripeCustomerId !== undefined && { stripeCustomerId: data.stripeCustomerId }),
   });
 }
+
+// ─── Journal ──────────────────────────────────────────────────────────────────
+
+export interface FSJournalEntry {
+  id: string;
+  text: string;
+  mood: string;
+  moodLabel: string;
+  createdAt: string;
+}
+
+export async function addJournalEntry(
+  uid: string,
+  entry: { text: string; mood: string; moodLabel: string }
+): Promise<string> {
+  const ref = doc(collection(db, "users", uid, "journal"));
+  await setDoc(ref, {
+    text: entry.text,
+    mood: entry.mood,
+    moodLabel: entry.moodLabel,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export function subscribeJournalEntries(
+  uid: string,
+  cb: (entries: FSJournalEntry[]) => void
+): () => void {
+  const q = query(
+    collection(db, "users", uid, "journal"),
+    orderBy("createdAt", "desc"),
+    limit(100)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const ts = data.createdAt as Timestamp | null;
+          return {
+            id: d.id,
+            text: data.text ?? "",
+            mood: data.mood ?? "😌",
+            moodLabel: data.moodLabel ?? "Calm",
+            createdAt: ts ? ts.toDate().toISOString() : new Date().toISOString(),
+          };
+        })
+      );
+    },
+    () => cb([])
+  );
+}
+
+export async function deleteJournalEntry(uid: string, entryId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", uid, "journal", entryId));
+}
