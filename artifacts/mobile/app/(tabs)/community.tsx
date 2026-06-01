@@ -27,6 +27,17 @@ import {
   togglePostLike,
 } from "@/lib/firestore";
 
+const CIRCLES: { id: string; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "Healing Journey", label: "Healing Journey" },
+  { id: "Meditation", label: "Meditation" },
+  { id: "Breathwork", label: "Breathwork" },
+  { id: "Energy Work", label: "Energy Work" },
+  { id: "Spiritual Growth", label: "Spiritual Growth" },
+  { id: "Grief & Loss", label: "Grief & Loss" },
+  { id: "Gratitude", label: "Gratitude" },
+];
+
 function getInitials(name: string | null): string {
   if (!name) return "?";
   return name

@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import Stripe from "stripe";
 import { getAdminDb } from "../lib/firebase-admin";
+import { sendPushToUser } from "../lib/sendPush";
 
 const router: IRouter = Router();
 
@@ -106,6 +107,13 @@ async function handleEvent(event: Stripe.Event, req: Request): Promise<void> {
           : session.subscription.id,
       });
       req.log.info({ userId: doc.id, customerId }, "Subscription activated via checkout");
+
+      sendPushToUser(
+        doc.id,
+        "Subscription active! 🎉",
+        "Your Soul Remembrance practitioner subscription is now live. Your profile is visible to clients.",
+        { screen: "profile" }
+      ).catch((err) => req.log.warn({ err, userId: doc.id }, "Push failed: subscription activated"));
       break;
     }
 
@@ -139,6 +147,13 @@ async function handleEvent(event: Stripe.Event, req: Request): Promise<void> {
 
       await db.doc(`practitionerProfiles/${doc.id}`).update({ subscriptionActive: false });
       req.log.info({ userId: doc.id }, "Subscription cancelled — practitioner deactivated");
+
+      sendPushToUser(
+        doc.id,
+        "Subscription ended",
+        "Your Soul Remembrance subscription has ended. Renew anytime to make your profile visible again.",
+        { screen: "profile" }
+      ).catch((err) => req.log.warn({ err, userId: doc.id }, "Push failed: subscription deleted"));
       break;
     }
 
@@ -160,6 +175,13 @@ async function handleEvent(event: Stripe.Event, req: Request): Promise<void> {
       // if the payment eventually succeeds.
       await db.doc(`practitionerProfiles/${doc.id}`).update({ subscriptionActive: false });
       req.log.info({ userId: doc.id, customerId }, "Payment failed — practitioner deactivated");
+
+      sendPushToUser(
+        doc.id,
+        "Payment failed ⚠️",
+        "We couldn't collect your Soul Remembrance subscription payment. Please update your billing details to keep your profile active.",
+        { screen: "profile" }
+      ).catch((err) => req.log.warn({ err, userId: doc.id }, "Push failed: invoice.payment_failed"));
       break;
     }
 

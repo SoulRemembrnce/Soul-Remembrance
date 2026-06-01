@@ -31,8 +31,7 @@ import {
   subscribeServices,
 } from "@/lib/firestore";
 import { usePaymentSheet } from "@/hooks/usePaymentSheet";
-import { scheduleBookingReminders, ReminderResult, sendExpoPush } from "@/utils/notifications";
-import { getPushTokenForUserId } from "@/lib/firestore";
+import { scheduleBookingReminders, ReminderResult } from "@/utils/notifications";
 
 type Screen = "detail" | "booking" | "confirmed";
 
@@ -265,20 +264,22 @@ export default function PractitionerScreen() {
         }).catch(console.warn);
       }
 
-      // ── Step 7: Push-notify the practitioner of new booking ─────────────
-      if (firestoreProfile?.userId) {
-        getPushTokenForUserId(firestoreProfile.userId)
-          .then((token) => {
-            if (token) {
-              sendExpoPush(
-                token,
-                "New booking! 📅",
-                `${userName || "A client"} has booked a session with you on ${selectedDate} at ${selectedTime}.`,
-                { router: "/(tabs)/profile", screen: "sessions" }
-              );
-            }
-          })
-          .catch(() => {});
+      // ── Step 7: Server sends push to both client + practitioner ─────────
+      if (userId && firestoreProfile?.userId) {
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+        fetch(`${apiUrl}/api/notifications/booking-confirmed`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientUserId: userId,
+            practitionerUserId: firestoreProfile.userId,
+            practitionerName: practitioner.name,
+            clientName: userName || "A client",
+            serviceName: selectedService?.name ?? practitioner.title,
+            sessionDate: selectedDate ?? "",
+            sessionTime: selectedTime ?? "",
+          }),
+        }).catch(() => {});
       }
 
       const result = await scheduleBookingReminders(

@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
-  FSPractitionerProfile,
+  FSPractitioner,
   createConversation,
   subscribePractitioners,
 } from "@/lib/firestore";
@@ -27,7 +27,7 @@ export default function NewMessageScreen() {
   const insets = useSafeAreaInsets();
   const { userId } = useApp();
 
-  const [practitioners, setPractitioners] = useState<FSPractitionerProfile[]>([]);
+  const [practitioners, setPractitioners] = useState<FSPractitioner[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [starting, setStarting] = useState<number | null>(null);
@@ -48,17 +48,17 @@ export default function NewMessageScreen() {
     return (
       p.name.toLowerCase().includes(q) ||
       p.title.toLowerCase().includes(q) ||
-      (p.city ?? "").toLowerCase().includes(q)
+      (p.location ?? "").toLowerCase().includes(q)
     );
   });
 
-  async function startConversation(p: FSPractitionerProfile) {
+  async function startConversation(p: FSPractitioner) {
     if (!userId) return;
-    setStarting(p.numericId);
+    setStarting(p.id);
     try {
       const convId = await createConversation(
         userId,
-        p.numericId,
+        p.id,
         p.name,
         p.initials,
         p.avatarColor
@@ -123,7 +123,7 @@ export default function NewMessageScreen() {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(p) => p.userId}
+          keyExtractor={(p) => String(p.id)}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item: p }) => (
@@ -153,14 +153,14 @@ export default function NewMessageScreen() {
                 <Text style={[styles.title, { color: colors.purpleMid }]} numberOfLines={1}>
                   {p.title}
                 </Text>
-                {p.city ? (
+                {p.location ? (
                   <Text style={[styles.location, { color: colors.sage }]} numberOfLines={1}>
-                    {p.city}{p.country ? `, ${p.country}` : ""}
+                    {p.location}
                   </Text>
                 ) : null}
               </View>
 
-              {starting === p.numericId ? (
+              {starting === p.id ? (
                 <ActivityIndicator color={colors.deepIndigo} size="small" />
               ) : (
                 <Feather name="chevron-right" size={18} color={colors.blush} />
