@@ -30,3 +30,14 @@ externalPort = 8081
 [[ports]]
 localPort = 18115
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_FIREBASE_API_KEY = "AIzaSyAnumGNwmWaiSO4KODvsC-Tqj0AlWssIig"
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = "soul-remembrance.firebaseapp.com"
+EXPO_PUBLIC_FIREBASE_PROJECT_ID = "soul-remembrance"
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET = "soul-remembrance.firebasestorage.app"
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "384463054245"
+EXPO_PUBLIC_FIREBASE_APP_ID = "1:384463054245:web:84424138dd46ef62a7744c"
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID = "G-EQKLMFYCGG"
