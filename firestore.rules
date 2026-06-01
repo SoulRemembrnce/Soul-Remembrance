@@ -8,8 +8,8 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
     }
 
     // Checks a lightweight /admins/{uid} sentinel written by the admin panel
@@ -22,9 +22,6 @@ service cloud.firestore {
     }
 
     // ── admins collection ──────────────────────────────────────────────────
-    // Doc ID = Firebase UID. Written automatically when an admin first signs
-    // in via the admin panel. Only verified-email users may self-register;
-    // existing admins may add / remove others.
     match /admins/{uid} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && (
@@ -42,6 +39,18 @@ service cloud.firestore {
     match /events/{id} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // ── Practitioner profiles ──────────────────────────────────────────────
+    // Document ID = Firebase Auth UID of the practitioner.
+    // Public read so Explore works without sign-in.
+    // Only the owner can update their own profile — this covers every field:
+    // onboarding, photoURL, subscriptionActive, stripeAccountId, featuredUntil, etc.
+    match /practitionerProfiles/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
     // ── Reviews ────────────────────────────────────────────────────────────
@@ -63,19 +72,22 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 2000;
-      // Allow like / comment field updates by any signed-in user;
-      // full deletes restricted to the author or an admin.
       allow update: if isSignedIn();
       allow delete: if isSignedIn()
         && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    // ── Services (practitioner offerings) ─────────────────────────────────
+    // Public read so clients can browse session types before booking.
+    match /services/{id} {
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     // ── Availability slots ─────────────────────────────────────────────────
     match /availability/{id} {
       allow read: if true;
       allow create: if isSignedIn();
-      // Clients can mark a slot booked; practitioners can manage their own slots;
-      // admins have full access.
       allow update: if isSignedIn() && (
         (resource.data.booked == false
           && request.resource.data.booked == true
@@ -115,41 +127,37 @@ service cloud.firestore {
     }
 
     // ── Messaging ──────────────────────────────────────────────────────────
-    // Conversations have a `participants` array containing both user UIDs.
+    // Conversations store `userId` = the client's Firebase Auth UID.
+    // (No `participants` array — the practitionerId is a numeric platform ID,
+    // not a Firebase UID, so we key access off the client's userId field.)
     match /conversations/{convId} {
       allow read: if isSignedIn() && (
-        request.auth.uid in resource.data.participants || isAdmin()
+        resource.data.userId == request.auth.uid || isAdmin()
       );
       allow create: if isSignedIn()
-        && request.auth.uid in request.resource.data.participants;
+        && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && (
-        request.auth.uid in resource.data.participants || isAdmin()
+        resource.data.userId == request.auth.uid || isAdmin()
       );
       allow delete: if isAdmin();
 
       match /messages/{msgId} {
         allow read: if isSignedIn() && (
-          request.auth.uid in
-            get(/databases/$(database)/documents/conversations/$(convId)).data.participants
-          || isAdmin()
+          get(/databases/$(database)/documents/conversations/$(convId))
+            .data.userId == request.auth.uid || isAdmin()
         );
-        allow create: if isSignedIn()
-          && request.auth.uid in
-            get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+        allow create: if isSignedIn() && (
+          get(/databases/$(database)/documents/conversations/$(convId))
+            .data.userId == request.auth.uid
+        );
         allow update, delete: if isAdmin();
       }
     }
 
-    // ── Practitioner profiles ──────────────────────────────────────────────
-    // Read is public so the Explore screen works without auth.
-    // Admins can verify, suspend, or delete any profile.
-    match /practitionerProfiles/{userId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && (
-        request.auth.uid == userId || isAdmin()
-      );
-      allow delete: if isAdmin();
+    // ── Push tokens ────────────────────────────────────────────────────────
+    // Only the token owner can read or write their own push token.
+    match /pushTokens/{userId} {
+      allow read, write: if isOwner(userId);
     }
   }
 }
