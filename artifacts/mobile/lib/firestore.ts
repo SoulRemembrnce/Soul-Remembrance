@@ -462,6 +462,30 @@ export async function markSlotBooked(
   });
 }
 
+export async function addAvailabilitySlot(
+  practitionerNumericId: number,
+  dateISO: string,
+  dateLabel: string,
+  timeISO: string,
+  timeLabel: string
+): Promise<void> {
+  const timeSlug = timeISO.replace(":", "");
+  const id = `${practitionerNumericId}_${dateISO}_${timeSlug}`;
+  await setDoc(doc(db, "availability", id), {
+    id,
+    practitionerId: practitionerNumericId,
+    date: dateLabel,
+    dateISO,
+    time: timeLabel,
+    timeISO,
+    booked: false,
+  });
+}
+
+export async function deleteAvailabilitySlot(slotId: string): Promise<void> {
+  await deleteDoc(doc(db, "availability", slotId));
+}
+
 // ─── Practitioner Profiles (real, onboarded practitioners) ───────────────────
 
 export interface FSPractitionerProfile {

@@ -322,6 +322,30 @@ export default function ProfileScreen() {
                 <Text style={[styles.dashStatLabel, { color: colors.sage }]}>Per session</Text>
               </View>
             </View>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Manage availability */}
+            <TouchableOpacity
+              style={[styles.availabilityBtn, { borderColor: colors.deepIndigo }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push({
+                  pathname: "/manage-availability",
+                  params: {
+                    numericId: String(myProfile.numericId),
+                    practitionerName: myProfile.name,
+                  },
+                });
+              }}
+              activeOpacity={0.85}
+            >
+              <Feather name="calendar" size={16} color={colors.deepIndigo} />
+              <Text style={[styles.availabilityBtnText, { color: colors.deepIndigo }]}>
+                Manage Availability
+              </Text>
+              <Feather name="chevron-right" size={14} color={colors.deepIndigo} />
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -707,6 +731,20 @@ const styles = StyleSheet.create({
   dashStat: { alignItems: "center", flex: 1 },
   dashStatNum: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 2 },
   dashStatLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  availabilityBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  availabilityBtnText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
   // ── Account menu ──────────────────────────────────────────
   menuCard: { borderRadius: 18, borderWidth: 1, overflow: "hidden" },
   menuItem: { flexDirection: "row", alignItems: "center", padding: 16, gap: 14 },
