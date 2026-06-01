@@ -15,13 +15,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PRACTITIONERS, REVIEWS, Review } from "@/constants/data";
+import { Practitioner, PRACTITIONERS, REVIEWS, Review } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
   FSAvailabilitySlot,
   createConversation,
+  getPractitionerProfileByNumericId,
   markSlotBooked,
+  profileToPractitioner,
   subscribeAvailability,
 } from "@/lib/firestore";
 import { usePaymentSheet } from "@/hooks/usePaymentSheet";
@@ -36,7 +38,7 @@ export default function PractitionerScreen() {
   const { userId, favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
   const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
 
-  const practitioner = PRACTITIONERS.find((p) => String(p.id) === id);
+  const mockPractitioner = PRACTITIONERS.find((p) => String(p.id) === id);
   const [screen, setScreen] = useState<Screen>("detail");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -54,16 +56,28 @@ export default function PractitionerScreen() {
   const [availSlots, setAvailSlots] = useState<FSAvailabilitySlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
 
+  // Firestore fallback for real (non-mock) practitioners
+  const [firestorePractitioner, setFirestorePractitioner] = useState<Practitioner | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(!mockPractitioner);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  if (!practitioner) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Text>Practitioner not found</Text>
-      </View>
-    );
-  }
+  const practitioner = mockPractitioner ?? firestorePractitioner;
+
+  // Load from Firestore if not in mock data
+  useEffect(() => {
+    if (mockPractitioner) { setLoadingProfile(false); return; }
+    if (!id) return;
+    let cancelled = false;
+    setLoadingProfile(true);
+    getPractitionerProfileByNumericId(Number(id)).then((profile) => {
+      if (cancelled) return;
+      setFirestorePractitioner(profile ? (profileToPractitioner(profile) as Practitioner) : null);
+      setLoadingProfile(false);
+    });
+    return () => { cancelled = true; };
+  }, [id]);
 
   // ── Availability subscription ────────────────────────────────────────────
   useEffect(() => {
@@ -75,6 +89,22 @@ export default function PractitionerScreen() {
     });
     return unsub;
   }, [practitioner?.id]);
+
+  if (loadingProfile) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.softWhite }}>
+        <ActivityIndicator color={colors.purpleMid} size="large" />
+      </View>
+    );
+  }
+
+  if (!practitioner) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <Text>Practitioner not found</Text>
+      </View>
+    );
+  }
 
   // ── Derived availability ─────────────────────────────────────────────────
   const availDates = useMemo(() => {

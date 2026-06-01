@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MODALITIES } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { savePractitionerProfile } from "@/lib/firestore";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -46,7 +47,7 @@ const DOC_TYPES = [
 export default function OnboardingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { email } = useApp();
+  const { email, userId } = useApp();
   const [step, setStep] = useState<Step>(1);
   const [data, setData] = useState<OnboardingData>({
     name: "", title: "", location: "", years: "", bio: "",
@@ -105,6 +106,31 @@ export default function OnboardingScreen() {
       ) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         next();
+        if (userId) {
+          const nameParts = (data.name || "Practitioner").trim().split(/\s+/);
+          const initials = nameParts.map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "PR";
+          const locationParts = data.location.split(",").map((s) => s.trim());
+          await savePractitionerProfile({
+            userId,
+            numericId: Date.now(),
+            name: data.name || "Practitioner",
+            initials,
+            title: data.title || "Wellness Practitioner",
+            location: data.location || "",
+            city: locationParts[0] || "",
+            country: locationParts[locationParts.length - 1] || "",
+            bio: data.bio || "",
+            modalities: data.modalities,
+            rate: Number(data.rate) || 0,
+            years: data.years || "",
+            avatarColor: ["#2D1B69", "#7B5EA7"],
+            rating: 0,
+            reviewCount: 0,
+            online: true,
+            verified: false,
+            subscriptionActive: true,
+          });
+        }
       } else if (result.type === "cancel" || result.type === "dismiss") {
         // User closed the browser — stay on step 4, no error shown
       } else {

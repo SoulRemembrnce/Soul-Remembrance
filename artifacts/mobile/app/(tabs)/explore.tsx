@@ -3,7 +3,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { router } from "expo-router";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -21,6 +21,11 @@ import PractitionerMap from "@/components/PractitionerMap";
 import { FILTER_MODALITIES, Practitioner, PRACTITIONERS } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import {
+  FSPractitionerProfile,
+  profileToPractitioner,
+  subscribePractitionerProfiles,
+} from "@/lib/firestore";
 
 const LOCATION_PRESETS = [
   { label: "All", city: "" },
@@ -76,6 +81,11 @@ export default function ExploreScreen() {
   const [nearMeLoading, setNearMeLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [locationError, setLocationError] = useState("");
+  const [realProfiles, setRealProfiles] = useState<FSPractitionerProfile[]>([]);
+
+  useEffect(() => {
+    return subscribePractitionerProfiles(setRealProfiles);
+  }, []);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -114,11 +124,16 @@ export default function ExploreScreen() {
     }
   };
 
+  const allPractitioners: Practitioner[] = useMemo(
+    () => [...realProfiles.map(profileToPractitioner) as Practitioner[], ...PRACTITIONERS],
+    [realProfiles]
+  );
+
   type PractitionerWithDist = Practitioner & { distKm?: number };
 
   const filtered = useMemo((): PractitionerWithDist[] => {
     const loc = locationSearch.trim().toLowerCase() || activeLocation.toLowerCase();
-    let list: PractitionerWithDist[] = PRACTITIONERS.filter((p) => {
+    let list: PractitionerWithDist[] = allPractitioners.filter((p) => {
       const matchSearch =
         !search ||
         p.name.toLowerCase().includes(search.toLowerCase()) ||

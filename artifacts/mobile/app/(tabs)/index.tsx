@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FlatList,
   Platform,
@@ -18,6 +18,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { EVENTS, PRACTITIONERS } from "@/constants/data";
 import { useColors } from "@/hooks/useColors";
+import {
+  FSPractitionerProfile,
+  profileToPractitioner,
+  subscribePractitionerProfiles,
+} from "@/lib/firestore";
 
 const MODALITY_CHIPS = ["All", "Sound", "Breath", "Reiki", "Somatic", "Ayurveda", "Meditation"];
 
@@ -26,10 +31,16 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { userName, favorites, toggleFavorite } = useApp();
   const [activeModality, setActiveModality] = useState("All");
+  const [realProfiles, setRealProfiles] = useState<FSPractitionerProfile[]>([]);
+
+  useEffect(() => {
+    return subscribePractitionerProfiles(setRealProfiles);
+  }, []);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const featured = EVENTS[0];
-  const featuredPractitioners = PRACTITIONERS.slice(0, 3);
+  const allPractitioners = [...realProfiles.map(profileToPractitioner), ...PRACTITIONERS];
+  const featuredPractitioners = allPractitioners.slice(0, 6);
 
   return (
     <ScrollView

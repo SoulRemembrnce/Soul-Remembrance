@@ -461,3 +461,81 @@ export async function markSlotBooked(
     bookedBy: userId,
   });
 }
+
+// ─── Practitioner Profiles (real, onboarded practitioners) ───────────────────
+
+export interface FSPractitionerProfile {
+  userId: string;
+  numericId: number;
+  name: string;
+  initials: string;
+  title: string;
+  location: string;
+  city: string;
+  country: string;
+  bio: string;
+  modalities: string[];
+  rate: number;
+  years: string;
+  avatarColor: [string, string];
+  rating: number;
+  reviewCount: number;
+  online: boolean;
+  verified: boolean;
+  subscriptionActive: boolean;
+  createdAt?: Timestamp;
+}
+
+export function profileToPractitioner(p: FSPractitionerProfile) {
+  return {
+    id: p.numericId,
+    name: p.name,
+    initials: p.initials,
+    avatarColor: p.avatarColor as string[],
+    title: p.title,
+    location: p.location,
+    city: p.city,
+    country: p.country,
+    lat: 0,
+    lon: 0,
+    rating: p.rating,
+    reviews: p.reviewCount,
+    tags: p.modalities.slice(0, 3),
+    verified: p.verified,
+    price: p.rate,
+    bio: p.bio,
+    modalities: p.modalities,
+    nextAvail: "Contact to book",
+    online: p.online,
+  };
+}
+
+export async function savePractitionerProfile(
+  profile: FSPractitionerProfile
+): Promise<void> {
+  await setDoc(doc(db, "practitionerProfiles", profile.userId), profile);
+}
+
+export async function getPractitionerProfileByNumericId(
+  numericId: number
+): Promise<FSPractitionerProfile | null> {
+  const q = query(
+    collection(db, "practitionerProfiles"),
+    where("numericId", "==", numericId),
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  return snap.empty ? null : (snap.docs[0].data() as FSPractitionerProfile);
+}
+
+export function subscribePractitionerProfiles(
+  cb: (profiles: FSPractitionerProfile[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "practitionerProfiles"),
+      where("subscriptionActive", "==", true)
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSPractitionerProfile))
+  );
+}
