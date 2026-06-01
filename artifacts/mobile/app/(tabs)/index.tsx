@@ -66,7 +66,7 @@ export default function HomeScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const upcomingEvents = useMemo(getUpcomingEvents, []);
-  const featured = upcomingEvents[0] ?? EVENTS[0];
+  const featured = upcomingEvents[0] ?? null;
   const allPractitioners = realProfiles.map(profileToPractitioner);
   const featuredPractitioners = allPractitioners.slice(0, 6);
 
@@ -137,8 +137,8 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Featured Event */}
-      <View style={styles.sectionPad}>
+      {/* Featured Event — only shown when an event exists */}
+      {featured && <View style={styles.sectionPad}>
         <LinearGradient
           colors={[colors.purpleMid, "#5A3A9A"]}
           start={{ x: 0, y: 0 }}
@@ -174,7 +174,7 @@ export default function HomeScreen() {
             </View>
           </View>
         </LinearGradient>
-      </View>
+      </View>}
 
       {/* Featured Practitioners */}
       <View style={styles.sectionPad}>
