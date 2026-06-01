@@ -1,12 +1,12 @@
 {
   "expo": {
     "name": "Soul Remembrance",
-    "slug": "soul-remembrance",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "soulremembrance",
-    "userInterfaceStyle": "light",
+    "scheme": "mobile",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
 
     "splash": {
@@ -25,7 +25,6 @@
         "NSPhotoLibraryUsageDescription": "Soul Remembrance accesses your photo library so you can choose a profile photo.",
         "NSCalendarsUsageDescription": "Soul Remembrance uses your calendar to add booked sessions and send you reminders.",
         "NSUserNotificationsUsageDescription": "Soul Remembrance sends you booking confirmations, session reminders, and messages from your practitioners.",
-        "NSMicrophoneUsageDescription": "Soul Remembrance uses your microphone during live online sessions.",
         "UIBackgroundModes": ["remote-notification"]
       },
       "entitlements": {
@@ -56,8 +55,6 @@
     "android": {
       "package": "com.soulremembrance.app",
       "versionCode": 1,
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#2D1B69"
@@ -69,15 +66,10 @@
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
-      ],
-      "googleServicesFile": "./google-services.json",
-      "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
       ]
     },
 
@@ -130,13 +122,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-
-    "owner": "REPLACE_WITH_YOUR_EXPO_USERNAME",
-    "extra": {
-      "eas": {
-        "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
-      }
     }
   }
 }
