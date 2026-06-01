@@ -359,46 +359,6 @@ export default function ExploreScreen() {
         </View>
       </LinearGradient>
 
-      {/* Location preset chips */}
-      <View style={[styles.locBar, { backgroundColor: colors.card, borderBottomColor: colors.cream }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 14 }}
-        >
-          {LOCATION_PRESETS.map(({ label, city }) => {
-            const isActive = !nearMeActive && activeLocation === city && !locationSearch;
-            return (
-              <TouchableOpacity
-                key={label}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setActiveLocation(city);
-                  setLocationSearch("");
-                  setNearMeActive(false);
-                  setUserLocation(null);
-                }}
-                style={[
-                  styles.locChip,
-                  { backgroundColor: isActive ? colors.deepIndigo : colors.cream, marginRight: 8 },
-                ]}
-              >
-                {label !== "All" && (
-                  <Feather
-                    name="map-pin"
-                    size={10}
-                    color={isActive ? "rgba(255,255,255,0.8)" : colors.sage}
-                  />
-                )}
-                <Text style={[styles.locChipText, { color: isActive ? "#fff" : colors.charcoal }]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
       {/* Active filter tags — list only */}
       {viewMode === "list" && activeFilterCount > 0 && (
         <View style={[styles.activeTagsBar, { backgroundColor: colors.card, borderBottomColor: colors.cream }]}>
