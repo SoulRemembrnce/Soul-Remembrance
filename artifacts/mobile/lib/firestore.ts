@@ -185,6 +185,13 @@ export function subscribeEvents(cb: (es: FSEvent[]) => void): () => void {
 export async function seedEvents(events: FSEvent[]): Promise<void> {
   const col = collection(db, "events");
   const snap = await getDocs(col);
+  // If local events list is empty, delete any seeded data that exists in Firestore
+  if (events.length === 0) {
+    if (!snap.empty) {
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    }
+    return;
+  }
   if (!snap.empty) return;
   await Promise.all(
     events.map((e) => setDoc(doc(db, "events", String(e.id)), e))
