@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import webhooksRouter from "./routes/webhooks";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -26,6 +27,11 @@ app.use(
   }),
 );
 app.use(cors());
+
+// ── Stripe webhook — must receive raw body for signature verification ─────────
+// Mount BEFORE express.json() so the Buffer is untouched.
+app.use("/api", express.raw({ type: "application/json" }), webhooksRouter);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

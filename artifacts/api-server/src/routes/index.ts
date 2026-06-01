@@ -12,3 +12,6 @@ router.use(connectRouter);
 router.use(emailsRouter);
 
 export default router;
+
+// Note: webhooksRouter is mounted directly in app.ts (before express.json())
+// so Stripe signature verification receives the raw request body.
