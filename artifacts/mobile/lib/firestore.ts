@@ -483,6 +483,8 @@ export interface FSPractitionerProfile {
   online: boolean;
   verified: boolean;
   subscriptionActive: boolean;
+  stripeAccountId?: string;
+  stripeAccountEnabled?: boolean;
   createdAt?: Timestamp;
 }
 
@@ -538,4 +540,24 @@ export function subscribePractitionerProfiles(
     ),
     (snap) => cb(snap.docs.map((d) => d.data() as FSPractitionerProfile))
   );
+}
+
+export function subscribePractitionerProfile(
+  userId: string,
+  cb: (profile: FSPractitionerProfile | null) => void
+): () => void {
+  return onSnapshot(doc(db, "practitionerProfiles", userId), (snap) => {
+    cb(snap.exists() ? (snap.data() as FSPractitionerProfile) : null);
+  });
+}
+
+export async function updatePractitionerStripeAccount(
+  userId: string,
+  stripeAccountId: string,
+  stripeAccountEnabled: boolean
+): Promise<void> {
+  await updateDoc(doc(db, "practitionerProfiles", userId), {
+    stripeAccountId,
+    stripeAccountEnabled,
+  });
 }

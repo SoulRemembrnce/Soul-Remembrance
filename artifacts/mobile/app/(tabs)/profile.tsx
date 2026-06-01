@@ -3,8 +3,10 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import * as WebBrowser from "expo-web-browser";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
@@ -18,6 +20,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PRACTITIONERS } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import {
+  FSPractitionerProfile,
+  subscribePractitionerProfile,
+  updatePractitionerStripeAccount,
+} from "@/lib/firestore";
 
 const MENU_ITEMS = [
   { icon: "credit-card", label: "Payment Methods", route: null },
@@ -50,12 +57,73 @@ export default function ProfileScreen() {
   const {
     bookings, favorites, userReviews,
     isAnonymous, displayName, email, photoURL,
-    signInWithGoogle, signOut,
+    signInWithGoogle, signOut, userId,
   } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const sessionsY = useRef(0);
 
   const [sessionTab, setSessionTab] = useState<"upcoming" | "past">("upcoming");
+  const [myProfile, setMyProfile] = useState<FSPractitionerProfile | null>(null);
+  const [connectLoading, setConnectLoading] = useState(false);
+
+  // Subscribe to own practitioner profile (if user is a practitioner)
+  useEffect(() => {
+    if (!userId) return;
+    return subscribePractitionerProfile(userId, setMyProfile);
+  }, [userId]);
+
+  const checkConnectStatus = async (accountId: string) => {
+    if (!userId) return;
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+      const resp = await fetch(`${apiUrl}/api/connect/status/${accountId}`);
+      if (!resp.ok) return;
+      const { enabled } = await resp.json();
+      if (enabled) {
+        await updatePractitionerStripeAccount(userId, accountId, true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+      // silent — status checked on next open
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    if (!userId || !myProfile) return;
+    setConnectLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+      const resp = await fetch(`${apiUrl}/api/connect/onboard`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          email: email ?? undefined,
+          name: myProfile.name,
+          existingAccountId: myProfile.stripeAccountId ?? undefined,
+        }),
+      });
+      if (!resp.ok) {
+        const { error } = await resp.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(error ?? "Failed to start payout setup");
+      }
+      const { url, accountId } = await resp.json();
+      // Save accountId immediately so it persists even if onboarding is incomplete
+      await updatePractitionerStripeAccount(userId, accountId, false);
+      // Open Stripe Connect onboarding in browser
+      await WebBrowser.openBrowserAsync(url, {
+        toolbarColor: "#2D1B69",
+        controlsColor: "#C9A84C",
+      });
+      // After browser closes, check if onboarding completed
+      await checkConnectStatus(accountId);
+    } catch (err: any) {
+      Alert.alert("Setup Error", err.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setConnectLoading(false);
+    }
+  };
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const favPractitioners = PRACTITIONERS.filter((p) => favorites.has(p.id));
@@ -170,29 +238,119 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Become a Practitioner */}
-      <View style={{ padding: 20, paddingTop: isAnonymous ? 12 : 20 }}>
-        <TouchableOpacity
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push("/onboarding");
-          }}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={[colors.purpleMid, "#5A3A9A"]}
-            style={styles.practitionerBanner}
+      {/* Practitioner Dashboard — shown when user is a practitioner */}
+      {myProfile && !isAnonymous && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <Text style={[styles.sectionLabel, { color: colors.warmGold, marginBottom: 12 }]}>
+            PRACTITIONER DASHBOARD
+          </Text>
+          <View style={[styles.dashCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+            {/* Profile row */}
+            <View style={styles.dashRow}>
+              <LinearGradient
+                colors={myProfile.avatarColor as [string, string]}
+                style={styles.dashAvatar}
+              >
+                <Text style={styles.dashInitials}>{myProfile.initials}</Text>
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.dashName, { color: colors.charcoal }]}>{myProfile.name}</Text>
+                <Text style={[styles.dashTitle, { color: colors.sage }]}>{myProfile.title}</Text>
+              </View>
+              {myProfile.verified && (
+                <View style={[styles.verifiedBadge, { backgroundColor: colors.cream }]}>
+                  <Feather name="check-circle" size={12} color={colors.deepIndigo} />
+                  <Text style={[styles.verifiedText, { color: colors.deepIndigo }]}>Verified</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Payout status */}
+            {myProfile.stripeAccountEnabled ? (
+              <View style={styles.payoutsActiveRow}>
+                <Feather name="check-circle" size={16} color="#38a169" />
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={styles.payoutsActiveText}>Payouts active</Text>
+                  <Text style={[styles.payoutsSub, { color: colors.sage }]}>
+                    97.5% of each session paid to you automatically
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.payoutsBtn, { backgroundColor: colors.deepIndigo }]}
+                onPress={handleConnectStripe}
+                disabled={connectLoading}
+                activeOpacity={0.85}
+              >
+                {connectLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Feather name="dollar-sign" size={16} color="#fff" />
+                    <Text style={styles.payoutsBtnText}>
+                      {myProfile.stripeAccountId ? "Complete payout setup" : "Set up payouts"}
+                    </Text>
+                    <Feather name="arrow-right" size={14} color="rgba(255,255,255,0.7)" />
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Stats */}
+            <View style={styles.dashStats}>
+              <View style={styles.dashStat}>
+                <Text style={[styles.dashStatNum, { color: colors.charcoal }]}>
+                  {myProfile.reviewCount}
+                </Text>
+                <Text style={[styles.dashStatLabel, { color: colors.sage }]}>Reviews</Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: colors.blush, height: 30 }]} />
+              <View style={styles.dashStat}>
+                <Text style={[styles.dashStatNum, { color: colors.charcoal }]}>
+                  {myProfile.rating > 0 ? `★ ${myProfile.rating.toFixed(1)}` : "—"}
+                </Text>
+                <Text style={[styles.dashStatLabel, { color: colors.sage }]}>Rating</Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: colors.blush, height: 30 }]} />
+              <View style={styles.dashStat}>
+                <Text style={[styles.dashStatNum, { color: colors.charcoal }]}>£{myProfile.rate}</Text>
+                <Text style={[styles.dashStatLabel, { color: colors.sage }]}>Per session</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Become a Practitioner — only shown if not already one */}
+      {!myProfile && (
+        <View style={{ padding: 20, paddingTop: isAnonymous ? 12 : 20 }}>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push("/onboarding");
+            }}
+            activeOpacity={0.85}
           >
-            <View>
-              <Text style={styles.bannerTitle}>Become a Practitioner</Text>
-              <Text style={styles.bannerBody}>Share your healing gifts. £3.99/mo after 30-day free trial.</Text>
-            </View>
-            <View style={[styles.bannerArrow, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-              <Feather name="arrow-right" size={18} color="#fff" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+            <LinearGradient
+              colors={[colors.purpleMid, "#5A3A9A"]}
+              style={styles.practitionerBanner}
+            >
+              <View>
+                <Text style={styles.bannerTitle}>Become a Practitioner</Text>
+                <Text style={styles.bannerBody}>Share your healing gifts. £3.99/mo after 30-day free trial.</Text>
+              </View>
+              <View style={[styles.bannerArrow, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+                <Feather name="arrow-right" size={18} color="#fff" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* ── MY SESSIONS ─────────────────────────────────────── */}
       <View
@@ -512,6 +670,43 @@ const styles = StyleSheet.create({
   sessionPrice: { fontSize: 16, fontFamily: "Inter_700Bold" },
   sessionStatus: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   sessionStatusText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  // ── Practitioner Dashboard ────────────────────────────────
+  dashCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  dashRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 0 },
+  dashAvatar: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  dashInitials: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
+  dashName: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  dashTitle: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  dashDivider: { height: 1, marginVertical: 14 },
+  verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  verifiedText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  payoutsActiveRow: { flexDirection: "row", alignItems: "flex-start" },
+  payoutsActiveText: { color: "#38a169", fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  payoutsSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  payoutsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 13,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  payoutsBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold", flex: 1 },
+  dashStats: { flexDirection: "row", alignItems: "center", justifyContent: "space-around" },
+  dashStat: { alignItems: "center", flex: 1 },
+  dashStatNum: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 2 },
+  dashStatLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
   // ── Account menu ──────────────────────────────────────────
   menuCard: { borderRadius: 18, borderWidth: 1, overflow: "hidden" },
   menuItem: { flexDirection: "row", alignItems: "center", padding: 16, gap: 14 },

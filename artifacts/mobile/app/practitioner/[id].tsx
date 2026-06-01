@@ -20,6 +20,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
   FSAvailabilitySlot,
+  FSPractitionerProfile,
   createConversation,
   getPractitionerProfileByNumericId,
   markSlotBooked,
@@ -58,6 +59,7 @@ export default function PractitionerScreen() {
 
   // Firestore fallback for real (non-mock) practitioners
   const [firestorePractitioner, setFirestorePractitioner] = useState<Practitioner | null>(null);
+  const [firestoreProfile, setFirestoreProfile] = useState<FSPractitionerProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(!mockPractitioner);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -73,6 +75,7 @@ export default function PractitionerScreen() {
     setLoadingProfile(true);
     getPractitionerProfileByNumericId(Number(id)).then((profile) => {
       if (cancelled) return;
+      setFirestoreProfile(profile);
       setFirestorePractitioner(profile ? (profileToPractitioner(profile) as Practitioner) : null);
       setLoadingProfile(false);
     });
@@ -135,9 +138,14 @@ export default function PractitionerScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: practitioner.price * 100, // pence
+          amount: practitioner.price * 100,
           currency: "gbp",
           description: `Soul Remembrance · Session with ${practitioner.name}`,
+          practitionerId: practitioner.id,
+          practitionerName: practitioner.name,
+          ...(firestoreProfile?.stripeAccountId
+            ? { stripeAccountId: firestoreProfile.stripeAccountId }
+            : {}),
         }),
       });
 

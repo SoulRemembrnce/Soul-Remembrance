@@ -22,7 +22,14 @@ router.post("/payments/create-intent", async (req, res): Promise<void> => {
     return;
   }
 
-  const { amount, currency = "gbp", description, practitionerId, practitionerName } = req.body;
+  const {
+    amount,
+    currency = "gbp",
+    description,
+    practitionerId,
+    practitionerName,
+    stripeAccountId,
+  } = req.body;
 
   if (typeof amount !== "number" || amount <= 0 || !Number.isInteger(amount)) {
     res.status(400).json({ error: "amount must be a positive integer (pence)" });
@@ -36,7 +43,8 @@ router.post("/payments/create-intent", async (req, res): Promise<void> => {
   const platformFeeAmount = Math.round(amount * (PLATFORM_FEE_PERCENT / 100));
 
   const stripe = getStripe();
-  const paymentIntent = await stripe.paymentIntents.create({
+
+  const intentParams: Stripe.PaymentIntentCreateParams = {
     amount,
     currency,
     description,
@@ -46,11 +54,20 @@ router.post("/payments/create-intent", async (req, res): Promise<void> => {
       practitionerName: String(practitionerName ?? ""),
       platformFeeAmount: String(platformFeeAmount),
       platformFeePercent: String(PLATFORM_FEE_PERCENT),
+      connectEnabled: stripeAccountId ? "true" : "false",
     },
-  });
+  };
+
+  // When practitioner has a Stripe Connect account, route 97.5% to them automatically
+  if (stripeAccountId && typeof stripeAccountId === "string") {
+    intentParams.application_fee_amount = platformFeeAmount;
+    intentParams.transfer_data = { destination: stripeAccountId };
+  }
+
+  const paymentIntent = await stripe.paymentIntents.create(intentParams);
 
   req.log.info(
-    { amount, currency, platformFeeAmount },
+    { amount, currency, platformFeeAmount, connectEnabled: !!stripeAccountId },
     "PaymentIntent created"
   );
   res.json({ clientSecret: paymentIntent.client_secret });
