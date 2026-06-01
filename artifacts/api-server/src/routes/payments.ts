@@ -269,4 +269,32 @@ router.get("/subscriptions/cancelled", (_req, res): void => {
 </html>`);
 });
 
+// ── POST /api/payments/create-featured-intent ─────────────────────────────────
+// Creates a one-time PaymentIntent for the £4.99 / 30-day Featured Practitioner boost.
+router.post("/payments/create-featured-intent", async (req, res): Promise<void> => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    req.log.error("STRIPE_SECRET_KEY not configured");
+    res.status(503).json({ error: "Payment service not configured" });
+    return;
+  }
+
+  const { userId } = req.body;
+  if (typeof userId !== "string" || !userId) {
+    res.status(400).json({ error: "userId is required" });
+    return;
+  }
+
+  const stripe = getStripe();
+  const intent = await stripe.paymentIntents.create({
+    amount: 499, // £4.99 in pence
+    currency: "gbp",
+    description: "Soul Remembrance — Featured Practitioner (30 days)",
+    automatic_payment_methods: { enabled: true },
+    metadata: { userId, type: "featured_placement" },
+  });
+
+  req.log.info({ userId }, "Featured practitioner PaymentIntent created");
+  res.json({ clientSecret: intent.client_secret });
+});
+
 export default router;

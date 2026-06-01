@@ -68,7 +68,11 @@ export default function HomeScreen() {
   const upcomingEvents = useMemo(getUpcomingEvents, []);
   const featured = upcomingEvents[0] ?? null;
   const allPractitioners = realProfiles.map(profileToPractitioner);
-  const featuredPractitioners = allPractitioners.slice(0, 6);
+  const now = Date.now();
+  const featuredPractitioners = realProfiles
+    .filter((p) => p.featuredUntil && p.featuredUntil.toMillis() > now)
+    .map(profileToPractitioner)
+    .slice(0, 6);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>

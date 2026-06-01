@@ -29,12 +29,14 @@ import { Practitioner } from "@/constants/data";
 import {
   FSPractitionerProfile,
   profileToPractitioner,
+  setFeaturedUntil,
   subscribePractitionerProfile,
   subscribePractitionerProfiles,
   updatePractitionerPhotoURL,
   updatePractitionerStripeAccount,
   updatePractitionerSubscription,
 } from "@/lib/firestore";
+import { usePaymentSheet } from "@/hooks/usePaymentSheet";
 import { uploadAvatar } from "@/lib/storage";
 
 const MENU_ITEMS = [
@@ -80,6 +82,8 @@ export default function ProfileScreen() {
   const [allProfiles, setAllProfiles] = useState<FSPractitionerProfile[]>([]);
   const [connectLoading, setConnectLoading] = useState(false);
   const [subscribeLoading, setSubscribeLoading] = useState(false);
+  const [featuredLoading, setFeaturedLoading] = useState(false);
+  const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
   const pendingSessionIdRef = useRef<string | null>(null);
   const [clientPhotoUploading, setClientPhotoUploading] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
@@ -249,6 +253,47 @@ export default function ProfileScreen() {
       Alert.alert("Setup Error", err.message ?? "Something went wrong. Please try again.");
     } finally {
       setConnectLoading(false);
+    }
+  };
+
+  const handleGetFeatured = async () => {
+    if (!userId || !myProfile) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setFeaturedLoading(true);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+      const resp = await fetch(`${apiUrl}/api/payments/create-featured-intent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!resp.ok) {
+        const { error } = await resp.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(error ?? "Could not start payment");
+      }
+      const { clientSecret } = await resp.json();
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: "Soul Remembrance",
+      });
+      if (initError) throw new Error(initError.message);
+      const { error: payError } = await presentPaymentSheet();
+      if (payError) {
+        if ((payError as any).code !== "Canceled") throw new Error(payError.message);
+        return;
+      }
+      const featuredDate = new Date();
+      featuredDate.setDate(featuredDate.getDate() + 30);
+      await setFeaturedUntil(userId, featuredDate);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "You're Featured! ⭐",
+        "Your profile will appear in the Featured Practitioners section on the home screen for the next 30 days."
+      );
+    } catch (err: any) {
+      Alert.alert("Payment Error", err.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setFeaturedLoading(false);
     }
   };
 
@@ -575,6 +620,58 @@ export default function ProfileScreen() {
               </Text>
               <Feather name="chevron-right" size={14} color={colors.deepIndigo} />
             </TouchableOpacity>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Get Featured */}
+            {myProfile.featuredUntil && myProfile.featuredUntil.toDate() > new Date() ? (
+              <View style={styles.featuredActiveRow}>
+                <Text style={styles.featuredStar}>⭐</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.featuredActiveTitle, { color: colors.charcoal }]}>
+                    Featured listing active
+                  </Text>
+                  <Text style={[styles.featuredActiveSub, { color: colors.sage }]}>
+                    {Math.ceil(
+                      (myProfile.featuredUntil.toDate().getTime() - Date.now()) / 86400000
+                    )}{" "}
+                    days remaining
+                  </Text>
+                </View>
+                <View style={[styles.subBadge, { backgroundColor: `${colors.warmGold}22` }]}>
+                  <Text style={[styles.subBadgeText, { color: colors.warmGold }]}>Featured</Text>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.featuredBtn, {
+                  backgroundColor: `${colors.warmGold}12`,
+                  borderColor: colors.warmGold,
+                }]}
+                onPress={handleGetFeatured}
+                disabled={featuredLoading}
+                activeOpacity={0.85}
+              >
+                {featuredLoading ? (
+                  <ActivityIndicator color={colors.warmGold} size="small" style={{ paddingVertical: 4 }} />
+                ) : (
+                  <>
+                    <Text style={styles.featuredStar}>⭐</Text>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={[styles.featuredBtnTitle, { color: colors.charcoal }]}>
+                        Get Featured
+                      </Text>
+                      <Text style={[styles.featuredBtnSub, { color: colors.sage }]}>
+                        Top of home screen · £4.99 / 30 days
+                      </Text>
+                    </View>
+                    <View style={[styles.subArrow, { backgroundColor: colors.warmGold }]}>
+                      <Feather name="arrow-right" size={14} color="#fff" />
+                    </View>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
@@ -1135,6 +1232,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
   },
+  // ── Get Featured ──────────────────────────────────────────
+  featuredActiveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    gap: 10,
+  },
+  featuredStar: { fontSize: 20 },
+  featuredActiveTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 1 },
+  featuredActiveSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  featuredBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 13,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  featuredBtnTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 1 },
+  featuredBtnSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
   // ── Account menu ──────────────────────────────────────────
   menuCard: { borderRadius: 18, borderWidth: 1, overflow: "hidden" },
   menuItem: { flexDirection: "row", alignItems: "center", padding: 16, gap: 14 },

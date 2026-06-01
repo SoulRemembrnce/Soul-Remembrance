@@ -627,6 +627,7 @@ export interface FSPractitionerProfile {
   photoURL?: string;
   stripeAccountId?: string;
   stripeAccountEnabled?: boolean;
+  featuredUntil?: Timestamp;
   createdAt?: Timestamp;
 }
 
@@ -660,6 +661,12 @@ export async function updatePractitionerPhotoURL(
   photoURL: string
 ): Promise<void> {
   await updateDoc(doc(db, "practitionerProfiles", userId), { photoURL });
+}
+
+export async function setFeaturedUntil(userId: string, date: Date): Promise<void> {
+  await updateDoc(doc(db, "practitionerProfiles", userId), {
+    featuredUntil: Timestamp.fromDate(date),
+  });
 }
 
 export async function savePractitionerProfile(
