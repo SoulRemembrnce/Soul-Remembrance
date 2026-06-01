@@ -46,6 +46,7 @@ interface Booking {
   online: boolean;
   location: string;
   confirmedAt: string;
+  videoLink?: string;
 }
 
 interface AppContextValue {
@@ -171,6 +172,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             online: b.online,
             location: b.location,
             confirmedAt: b.confirmedAt,
+            videoLink: b.videoLink,
           }))
         )
       )

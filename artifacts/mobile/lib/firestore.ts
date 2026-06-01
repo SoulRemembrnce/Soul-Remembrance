@@ -81,6 +81,7 @@ export interface FSBooking {
   createdAt?: Timestamp;
   cancelled?: boolean;
   cancelledAt?: Timestamp;
+  videoLink?: string;
 }
 
 // ─── Practitioners ────────────────────────────────────────────────────────────
@@ -419,6 +420,7 @@ export interface FSAvailabilitySlot {
   timeISO: string;      // "10:00" (24h for sorting)
   booked: boolean;
   bookedBy?: string;
+  videoLink?: string;
 }
 
 export function subscribeAvailability(
@@ -464,6 +466,29 @@ export async function markSlotBooked(
     booked: true,
     bookedBy: userId,
   });
+}
+
+export async function setSlotVideoLink(
+  slot: FSAvailabilitySlot,
+  videoLink: string
+): Promise<void> {
+  // Update the availability slot
+  await updateDoc(doc(db, "availability", slot.id), { videoLink });
+
+  // Propagate to the matching booking document
+  if (slot.bookedBy) {
+    const q = query(
+      collection(db, "bookings"),
+      where("practitionerId", "==", slot.practitionerId),
+      where("userId", "==", slot.bookedBy),
+      where("date", "==", slot.date),
+      where("time", "==", slot.time)
+    );
+    const snap = await getDocs(q);
+    await Promise.all(
+      snap.docs.map((d) => updateDoc(doc(db, "bookings", d.id), { videoLink }))
+    );
+  }
 }
 
 export async function cancelBookingByPractitioner(

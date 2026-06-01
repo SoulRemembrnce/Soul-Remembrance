@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -478,6 +479,20 @@ export default function ProfileScreen() {
                       </Text>
                     </View>
                   </View>
+                  {upcoming && b.videoLink ? (
+                    <TouchableOpacity
+                      style={[styles.joinCallBtn, { backgroundColor: colors.deepIndigo }]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        Linking.openURL(b.videoLink!);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="video" size={12} color="#fff" />
+                      <Text style={styles.joinCallText}>Join Call</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
                 <View style={styles.sessionRight}>
                   <Text style={[styles.sessionPrice, { color: colors.deepIndigo }]}>£{b.price}</Text>
@@ -690,6 +705,8 @@ const styles = StyleSheet.create({
   sessionTagRow: { flexDirection: "row", gap: 6 },
   sessionTag: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2 },
   sessionTagText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  joinCallBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginTop: 6, alignSelf: "flex-start" },
+  joinCallText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" },
   sessionRight: { alignItems: "flex-end", gap: 6, flexShrink: 0 },
   sessionPrice: { fontSize: 16, fontFamily: "Inter_700Bold" },
   sessionStatus: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },

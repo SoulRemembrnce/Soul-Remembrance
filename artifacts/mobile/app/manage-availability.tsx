@@ -1,13 +1,17 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -20,6 +24,7 @@ import {
   addAvailabilitySlot,
   cancelBookingByPractitioner,
   deleteAvailabilitySlot,
+  setSlotVideoLink,
   subscribeAvailability,
 } from "@/lib/firestore";
 
@@ -79,6 +84,15 @@ export default function ManageAvailabilityScreen() {
   const [slots, setSlots] = useState<FSAvailabilitySlot[]>([]);
   const [toggling, setToggling] = useState<Set<string>>(new Set());
 
+  // Video link modal
+  const [videoModal, setVideoModal] = useState<{
+    visible: boolean;
+    slot: FSAvailabilitySlot | null;
+    value: string;
+    saving: boolean;
+  }>({ visible: false, slot: null, value: "", saving: false });
+  const videoInputRef = useRef<TextInput>(null);
+
   useEffect(() => {
     if (!numId) return;
     return subscribeAvailability(numId, setSlots);
@@ -102,14 +116,24 @@ export default function ManageAvailabilityScreen() {
     const dateLabel = toDateLabel(selectedDateISO);
 
     if (existing?.booked) {
-      // Practitioner cancels a client's booking
+      // Action sheet for booked slots
       Alert.alert(
-        "Cancel Booking?",
-        `Cancel the ${timeLabel} booking on ${dateLabel}?\n\nThis will remove it from the client's sessions and free up the slot.`,
+        `${timeLabel} — ${dateLabel}`,
+        "What would you like to do with this booking?",
         [
-          { text: "Keep", style: "cancel" },
           {
-            text: "Cancel Booking",
+            text: "Set video call link",
+            onPress: () => {
+              setVideoModal({
+                visible: true,
+                slot: existing,
+                value: existing.videoLink ?? "",
+                saving: false,
+              });
+            },
+          },
+          {
+            text: "Cancel booking",
             style: "destructive",
             onPress: async () => {
               setToggling((prev) => new Set(prev).add(slotId));
@@ -122,6 +146,7 @@ export default function ManageAvailabilityScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             },
           },
+          { text: "Dismiss", style: "cancel" },
         ]
       );
     } else if (existing) {
@@ -306,6 +331,64 @@ export default function ManageAvailabilityScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* ── Video link modal ─────────────────────────────────── */}
+      <Modal
+        visible={videoModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVideoModal((m) => ({ ...m, visible: false }))}
+        onShow={() => setTimeout(() => videoInputRef.current?.focus(), 100)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Video call link</Text>
+            <Text style={styles.modalSub}>
+              Paste your Zoom, Google Meet, or Teams link. The client will see a "Join Call" button in their sessions.
+            </Text>
+            <TextInput
+              ref={videoInputRef}
+              style={styles.modalInput}
+              value={videoModal.value}
+              onChangeText={(t) => setVideoModal((m) => ({ ...m, value: t }))}
+              placeholder="https://zoom.us/j/..."
+              placeholderTextColor="#B0A8C8"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              returnKeyType="done"
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setVideoModal((m) => ({ ...m, visible: false }))}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSave, { opacity: videoModal.saving ? 0.6 : 1 }]}
+                disabled={videoModal.saving || !videoModal.value.trim()}
+                onPress={async () => {
+                  if (!videoModal.slot) return;
+                  setVideoModal((m) => ({ ...m, saving: true }));
+                  await setSlotVideoLink(videoModal.slot, videoModal.value.trim()).catch(console.warn);
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  setVideoModal({ visible: false, slot: null, value: "", saving: false });
+                }}
+              >
+                {videoModal.saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalSaveText}>Save link</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -422,5 +505,78 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: "#E8A838",
     marginTop: 2,
+  },
+  // ── Video link modal ───────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(30,15,60,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    color: "#2D1B69",
+    marginBottom: 6,
+  },
+  modalSub: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: "#7B5EA7",
+    marginBottom: 16,
+    lineHeight: 19,
+  },
+  modalInput: {
+    borderWidth: 1.5,
+    borderColor: "#DDD0F0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: "#2D1B69",
+    marginBottom: 20,
+    backgroundColor: "#FAF5FF",
+  },
+  modalBtns: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalCancel: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: "#DDD0F0",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#7B5EA7",
+  },
+  modalSave: {
+    flex: 1,
+    backgroundColor: "#2D1B69",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalSaveText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
   },
 });
