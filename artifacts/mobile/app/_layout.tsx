@@ -81,6 +81,7 @@ function RootLayoutNav() {
         <Stack.Screen name="practitioner/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, presentation: "modal" }} />
+        <Stack.Screen name="new-message" options={{ headerShown: false, presentation: "modal" }} />
       </Stack>
     </>
   );

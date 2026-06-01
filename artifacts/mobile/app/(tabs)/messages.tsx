@@ -64,7 +64,7 @@ export default function MessagesScreen() {
               <Text style={styles.headerSub}>{totalUnread} unread</Text>
             )}
           </View>
-          <TouchableOpacity style={styles.composeBtn}>
+          <TouchableOpacity style={styles.composeBtn} onPress={() => router.push("/new-message" as any)}>
             <Feather name="edit" size={18} color="rgba(255,255,255,0.9)" />
           </TouchableOpacity>
         </View>
