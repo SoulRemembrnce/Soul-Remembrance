@@ -1,5 +1,22 @@
-import { onAuthStateChanged, signInAnonymously, User } from "firebase/auth";
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+import {
+  GoogleAuthProvider,
+  linkWithCredential,
+  onAuthStateChanged,
+  signInAnonymously,
+  signInWithCredential,
+  signOut as firebaseSignOut,
+  User,
+} from "firebase/auth";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Review } from "@/constants/data";
 import { auth } from "@/lib/firebase";
@@ -14,6 +31,8 @@ import {
 } from "@/lib/firestore";
 import { seedDatabaseIfEmpty } from "@/lib/seed";
 import { requestNotificationPermission } from "@/utils/notifications";
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface Booking {
   id: string;
@@ -31,13 +50,18 @@ interface Booking {
 
 interface AppContextValue {
   userId: string | null;
+  isAnonymous: boolean;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+  signInWithGoogle: () => void;
+  signOut: () => Promise<void>;
   favorites: Set<number>;
   toggleFavorite: (id: number) => void;
   bookings: Booking[];
   addBooking: (booking: Booking) => void;
   goingEvents: Set<number>;
   toggleGoingEvent: (id: number) => void;
-  userName: string;
   notificationsGranted: boolean;
   userReviews: Review[];
   addReview: (review: Review) => void;
@@ -46,13 +70,18 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue>({
   userId: null,
+  isAnonymous: true,
+  displayName: null,
+  email: null,
+  photoURL: null,
+  signInWithGoogle: () => {},
+  signOut: async () => {},
   favorites: new Set(),
   toggleFavorite: () => {},
   bookings: [],
   addBooking: () => {},
   goingEvents: new Set(),
   toggleGoingEvent: () => {},
-  userName: "Amara",
   notificationsGranted: false,
   userReviews: [],
   addReview: () => {},
@@ -70,21 +99,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const dataUnsubsRef = useRef<Array<() => void>>([]);
 
-  // ── Step 1: Seed database on first app launch ──────────────────────────
+  // ── Google OAuth request ───────────────────────────────────────────────────
+  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "not-configured";
+  const [, response, promptAsync] = Google.useAuthRequest({
+    webClientId: googleClientId,
+  });
+
+  // Process Google auth response
+  useEffect(() => {
+    if (response?.type !== "success") return;
+    const idToken = response.params.id_token;
+    if (!idToken) return;
+
+    const credential = GoogleAuthProvider.credential(idToken);
+    const currentUser = auth.currentUser;
+
+    if (currentUser?.isAnonymous) {
+      // Upgrade anonymous → Google account (keeps their bookings/favorites)
+      linkWithCredential(currentUser, credential).catch(() =>
+        signInWithCredential(auth, credential)
+      );
+    } else {
+      signInWithCredential(auth, credential).catch(console.warn);
+    }
+  }, [response]);
+
+  // ── Step 1: Seed DB on first launch ───────────────────────────────────────
   useEffect(() => {
     seedDatabaseIfEmpty()
       .then(() => setDbReady(true))
-      .catch((e) => {
-        console.warn("[AppContext] Seed failed:", e);
-        setDbReady(true); // still mark ready so app doesn't hang
-      });
-
+      .catch(() => setDbReady(true));
     requestNotificationPermission().then(setNotificationsGranted);
   }, []);
 
-  // ── Step 2: Auth — sign in anonymously if not already signed in ─────────
+  // ── Step 2: Firebase Auth listener ────────────────────────────────────────
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
       } else {
@@ -96,19 +146,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
     });
-    return unsubAuth;
+    return unsub;
   }, []);
 
-  // ── Step 3: Subscribe to user data once we have a UID ──────────────────
+  // ── Step 3: Subscribe to user data when UID is available ──────────────────
   useEffect(() => {
     if (!user) return;
 
-    // Tear down any previous subscriptions before starting new ones
     dataUnsubsRef.current.forEach((u) => u());
     dataUnsubsRef.current = [];
 
     dataUnsubsRef.current.push(
-      subscribeBookings(user.uid, (bs) => {
+      subscribeBookings(user.uid, (bs) =>
         setBookings(
           bs.map((b) => ({
             id: b.id,
@@ -123,14 +172,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             location: b.location,
             confirmedAt: b.confirmedAt,
           }))
-        );
-      })
+        )
+      )
     );
 
     dataUnsubsRef.current.push(
-      subscribeFavorites(user.uid, (ids) => {
-        setFavorites(new Set(ids));
-      })
+      subscribeFavorites(user.uid, (ids) => setFavorites(new Set(ids)))
     );
 
     return () => {
@@ -140,6 +187,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user?.uid]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
+
+  const signInWithGoogle = useCallback(() => {
+    promptAsync();
+  }, [promptAsync]);
+
+  const signOut = useCallback(async () => {
+    dataUnsubsRef.current.forEach((u) => u());
+    dataUnsubsRef.current = [];
+    setBookings([]);
+    setFavorites(new Set());
+    await firebaseSignOut(auth);
+    // onAuthStateChanged will trigger anonymous sign-in automatically
+  }, []);
 
   const toggleFavorite = useCallback(
     (id: number) => {
@@ -186,13 +246,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider
       value={{
         userId: user?.uid ?? null,
+        isAnonymous: user?.isAnonymous ?? true,
+        displayName: user?.displayName ?? null,
+        email: user?.email ?? null,
+        photoURL: user?.photoURL ?? null,
+        signInWithGoogle,
+        signOut,
         favorites,
         toggleFavorite,
         bookings,
         addBooking,
         goingEvents,
         toggleGoingEvent,
-        userName: "Amara",
         notificationsGranted,
         userReviews,
         addReview,

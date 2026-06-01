@@ -1,9 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -45,7 +47,11 @@ function isUpcoming(dateStr: string): boolean {
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { bookings, favorites, userReviews, userName } = useApp();
+  const {
+    bookings, favorites, userReviews,
+    isAnonymous, displayName, email, photoURL,
+    signInWithGoogle, signOut,
+  } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const sessionsY = useRef(0);
 
@@ -58,8 +64,29 @@ export default function ProfileScreen() {
   const shownBookings = sessionTab === "upcoming" ? upcomingBookings : pastBookings;
   const myReviewCount = userReviews.length;
 
+  // Derive display name and initials
+  const profileName = displayName ?? "Soul Seeker";
+  const initials = profileName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   const scrollToSessions = () => {
     scrollRef.current?.scrollTo({ y: sessionsY.current - 12, animated: true });
+  };
+
+  const handleSignOut = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: () => signOut().catch(console.warn),
+      },
+    ]);
   };
 
   return (
@@ -75,15 +102,31 @@ export default function ProfileScreen() {
         style={[styles.header, { paddingTop: topPad + 16 }]}
       >
         <View style={styles.avatarWrap}>
-          <View style={[styles.avatar, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-            <Text style={styles.avatarText}>AJ</Text>
-          </View>
-          <TouchableOpacity style={styles.editAvatarBtn}>
-            <Feather name="camera" size={12} color="#fff" />
-          </TouchableOpacity>
+          {photoURL ? (
+            <Image
+              source={{ uri: photoURL }}
+              style={styles.avatarPhoto}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
+          {!isAnonymous && (
+            <View style={[styles.googleBadge, { backgroundColor: "#fff" }]}>
+              <GoogleColorIcon size={12} />
+            </View>
+          )}
         </View>
-        <Text style={styles.profileName}>{userName} Johnson</Text>
-        <Text style={styles.profileSub}>Soul Seeker · Member since 2024</Text>
+
+        <Text style={styles.profileName}>{profileName}</Text>
+        {email ? (
+          <Text style={styles.profileSub}>{email}</Text>
+        ) : (
+          <Text style={styles.profileSub}>Soul Seeker · Member since 2024</Text>
+        )}
+
         <View style={styles.statsRow}>
           <TouchableOpacity style={styles.stat} onPress={scrollToSessions}>
             <Text style={styles.statNum}>{bookings.length}</Text>
@@ -102,8 +145,33 @@ export default function ProfileScreen() {
         </View>
       </LinearGradient>
 
+      {/* Sign in with Google — shown only when anonymous */}
+      {isAnonymous && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <TouchableOpacity
+            style={[styles.googleBtn, { backgroundColor: colors.card, borderColor: colors.cream }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              signInWithGoogle();
+            }}
+            activeOpacity={0.85}
+          >
+            <GoogleColorIcon size={20} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.googleBtnTitle, { color: colors.charcoal }]}>
+                Continue with Google
+              </Text>
+              <Text style={[styles.googleBtnSub, { color: colors.sage }]}>
+                Save your bookings and favourites across devices
+              </Text>
+            </View>
+            <Feather name="arrow-right" size={16} color={colors.sage} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Become a Practitioner */}
-      <View style={{ padding: 20 }}>
+      <View style={{ padding: 20, paddingTop: isAnonymous ? 12 : 20 }}>
         <TouchableOpacity
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -143,7 +211,14 @@ export default function ProfileScreen() {
                 key={tab}
                 style={[
                   styles.tabBtn,
-                  active && { backgroundColor: colors.softWhite, shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 1 }, shadowRadius: 4, elevation: 2 },
+                  active && {
+                    backgroundColor: colors.softWhite,
+                    shadowColor: "#000",
+                    shadowOpacity: 0.08,
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowRadius: 4,
+                    elevation: 2,
+                  },
                 ]}
                 onPress={() => {
                   setSessionTab(tab);
@@ -199,15 +274,12 @@ export default function ProfileScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                {/* Left: avatar */}
                 <LinearGradient
                   colors={b.avatarColor as [string, string]}
                   style={styles.sessionAvatar}
                 >
                   <Text style={styles.sessionInitials}>{b.practitionerInitials}</Text>
                 </LinearGradient>
-
-                {/* Middle: info */}
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.sessionName, { color: colors.charcoal }]}>{b.practitionerName}</Text>
                   <View style={styles.sessionMetaRow}>
@@ -225,26 +297,10 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                 </View>
-
-                {/* Right: price + status */}
                 <View style={styles.sessionRight}>
                   <Text style={[styles.sessionPrice, { color: colors.deepIndigo }]}>£{b.price}</Text>
-                  <View
-                    style={[
-                      styles.sessionStatus,
-                      {
-                        backgroundColor: upcoming
-                          ? `${colors.deepIndigo}14`
-                          : `${colors.warmGold}18`,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.sessionStatusText,
-                        { color: upcoming ? colors.deepIndigo : colors.warmGold },
-                      ]}
-                    >
+                  <View style={[styles.sessionStatus, { backgroundColor: upcoming ? `${colors.deepIndigo}14` : `${colors.warmGold}18` }]}>
+                    <Text style={[styles.sessionStatusText, { color: upcoming ? colors.deepIndigo : colors.warmGold }]}>
                       {upcoming ? "Upcoming" : "Completed"}
                     </Text>
                   </View>
@@ -303,13 +359,24 @@ export default function ProfileScreen() {
       <View style={[styles.section, { paddingBottom: 20 }]}>
         <TouchableOpacity
           style={[styles.signOutBtn, { borderColor: colors.blush }]}
-          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+          onPress={handleSignOut}
         >
           <Feather name="log-out" size={16} color={colors.sage} />
           <Text style={[styles.signOutText, { color: colors.sage }]}>Sign Out</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
+  );
+}
+
+// Minimal Google "G" icon in brand colours
+function GoogleColorIcon({ size = 18 }: { size?: number }) {
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <Text style={{ fontSize: size * 0.85, fontFamily: "Inter_700Bold", color: "#4285F4", lineHeight: size }}>
+        G
+      </Text>
+    </View>
   );
 }
 
@@ -332,21 +399,32 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "rgba(255,255,255,0.3)",
   },
+  avatarPhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 28,
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
   avatarText: {
     color: "#fff",
     fontSize: 26,
     fontFamily: "Inter_700Bold",
   },
-  editAvatarBtn: {
+  googleBadge: {
     position: "absolute",
     bottom: -4,
     right: -4,
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
   profileName: {
     color: "#fff",
@@ -365,24 +443,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 28,
   },
-  stat: {
+  stat: { alignItems: "center" },
+  statNum: { color: "#fff", fontSize: 22, fontFamily: "Inter_700Bold" },
+  statLabel: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  statDivider: { width: 1, height: 30 },
+  // ── Google sign-in card ───────────────────────────────────
+  googleBtn: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
   },
-  statNum: {
-    color: "#fff",
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
+  googleBtnTitle: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    marginBottom: 2,
   },
-  statLabel: {
-    color: "rgba(255,255,255,0.55)",
+  googleBtnSub: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
-    marginTop: 2,
+    lineHeight: 17,
   },
-  statDivider: {
-    width: 1,
-    height: 30,
-  },
+  // ── Practitioner banner ───────────────────────────────────
   practitionerBanner: {
     borderRadius: 18,
     padding: 20,
@@ -390,212 +479,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  bannerTitle: {
-    color: "#fff",
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 4,
-  },
-  bannerBody: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    maxWidth: 240,
-  },
-  bannerArrow: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 8,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 1.5,
-    marginBottom: 12,
-  },
-  // ── Session tabs ──────────────────────────────────────
-  tabRow: {
-    flexDirection: "row",
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 12,
-  },
-  tabBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    borderRadius: 10,
-    paddingVertical: 9,
-  },
-  tabText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  tabBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    minWidth: 18,
-    alignItems: "center",
-  },
-  tabBadgeText: {
-    fontSize: 11,
-    fontFamily: "Inter_700Bold",
-  },
-  // ── Empty state ───────────────────────────────────────
-  emptyCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 28,
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  emptyIconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  emptyBody: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 19,
-    marginBottom: 18,
-  },
-  emptyBtn: {
-    borderRadius: 12,
-    paddingHorizontal: 22,
-    paddingVertical: 11,
-  },
-  emptyBtnText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  // ── Session card ──────────────────────────────────────
-  sessionCard: {
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  sessionAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  sessionInitials: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-  },
-  sessionName: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    marginBottom: 4,
-  },
-  sessionMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginBottom: 5,
-    flexWrap: "wrap",
-  },
-  sessionMeta: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-  },
-  sessionTagRow: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  sessionTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    borderRadius: 7,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  sessionTagText: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-  },
-  sessionRight: {
-    alignItems: "flex-end",
-    gap: 6,
-    flexShrink: 0,
-  },
-  sessionPrice: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-  },
-  sessionStatus: {
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  sessionStatusText: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-  },
-  // ── Account menu ──────────────────────────────────────
-  menuCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    gap: 14,
-  },
-  menuLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
-  signOutBtn: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  signOutText: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
+  bannerTitle: { color: "#fff", fontSize: 17, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  bannerBody: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontFamily: "Inter_400Regular", maxWidth: 240 },
+  bannerArrow: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  // ── Section ───────────────────────────────────────────────
+  section: { paddingHorizontal: 20, marginBottom: 8 },
+  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1.5, marginBottom: 12 },
+  // ── Session tabs ──────────────────────────────────────────
+  tabRow: { flexDirection: "row", borderRadius: 14, padding: 4, marginBottom: 12 },
+  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 10, paddingVertical: 9 },
+  tabText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  tabBadge: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, minWidth: 18, alignItems: "center" },
+  tabBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold" },
+  // ── Empty state ───────────────────────────────────────────
+  emptyCard: { borderRadius: 18, borderWidth: 1, padding: 28, alignItems: "center", marginBottom: 8 },
+  emptyIconWrap: { width: 60, height: 60, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  emptyTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 6, textAlign: "center" },
+  emptyBody: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 19, marginBottom: 18 },
+  emptyBtn: { borderRadius: 12, paddingHorizontal: 22, paddingVertical: 11 },
+  emptyBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  // ── Session card ──────────────────────────────────────────
+  sessionCard: { borderRadius: 16, padding: 14, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, marginBottom: 8, shadowColor: "#000", shadowOpacity: 0.04, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6, elevation: 1 },
+  sessionAvatar: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  sessionInitials: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+  sessionName: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
+  sessionMetaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 5, flexWrap: "wrap" },
+  sessionMeta: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  sessionTagRow: { flexDirection: "row", gap: 6 },
+  sessionTag: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2 },
+  sessionTagText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  sessionRight: { alignItems: "flex-end", gap: 6, flexShrink: 0 },
+  sessionPrice: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  sessionStatus: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  sessionStatusText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  // ── Account menu ──────────────────────────────────────────
+  menuCard: { borderRadius: 18, borderWidth: 1, overflow: "hidden" },
+  menuItem: { flexDirection: "row", alignItems: "center", padding: 16, gap: 14 },
+  menuLabel: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
+  // ── Sign out ──────────────────────────────────────────────
+  signOutBtn: { borderRadius: 16, borderWidth: 1.5, padding: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  signOutText: { fontSize: 15, fontFamily: "Inter_500Medium" },
 });
