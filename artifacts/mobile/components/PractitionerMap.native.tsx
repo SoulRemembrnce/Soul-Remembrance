@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
 
@@ -10,16 +10,37 @@ import { Practitioner } from "@/constants/data";
 import { useColors } from "@/hooks/useColors";
 
 interface Props {
-  practitioners: Practitioner[];
+  practitioners: (Practitioner & { distKm?: number })[];
   selected: Practitioner | null;
   onSelect: (p: Practitioner | null) => void;
   initialRegion: Region;
+  userRegion?: Region;
   bottomPad: number;
 }
 
-export default function PractitionerMap({ practitioners, selected, onSelect, initialRegion, bottomPad }: Props) {
+function formatDist(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
+export default function PractitionerMap({
+  practitioners,
+  selected,
+  onSelect,
+  initialRegion,
+  userRegion,
+  bottomPad,
+}: Props) {
   const colors = useColors();
   const mapRef = useRef<MapView>(null);
+
+  // Fly to user's location when Near Me activates
+  useEffect(() => {
+    if (userRegion && mapRef.current) {
+      mapRef.current.animateToRegion(userRegion, 900);
+    }
+  }, [userRegion]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -60,25 +81,52 @@ export default function PractitionerMap({ practitioners, selected, onSelect, ini
         </Text>
       </View>
 
+      {/* Near Me indicator */}
+      {userRegion && (
+        <View style={[styles.nearMeIndicator, { backgroundColor: `${colors.gold}E8` }]}>
+          <Feather name="navigation" size={12} color={colors.deepIndigo} />
+          <Text style={[styles.nearMeText, { color: colors.deepIndigo }]}>Near Me · nearest first</Text>
+        </View>
+      )}
+
       {/* Bottom card */}
       {selected && (
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cream, paddingBottom: bottomPad + 14 }]}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.card, borderColor: colors.cream, paddingBottom: bottomPad + 14 },
+          ]}
+        >
           <View style={styles.cardHandle}>
             <View style={[styles.handleBar, { backgroundColor: colors.blush }]} />
           </View>
           <View style={styles.cardContent}>
-            <LinearGradient colors={selected.avatarColor as [string, string]} style={styles.cardAvatar}>
+            <LinearGradient
+              colors={selected.avatarColor as [string, string]}
+              style={styles.cardAvatar}
+            >
               <Text style={styles.cardInitials}>{selected.initials}</Text>
             </LinearGradient>
             <View style={styles.cardInfo}>
               <View style={styles.cardNameRow}>
                 <Text style={[styles.cardName, { color: colors.charcoal }]}>{selected.name}</Text>
-                {selected.verified && <Feather name="check-circle" size={13} color={colors.deepIndigo} />}
+                {selected.verified && (
+                  <Feather name="check-circle" size={13} color={colors.deepIndigo} />
+                )}
               </View>
               <Text style={[styles.cardTitle, { color: colors.sage }]}>{selected.title}</Text>
               <View style={styles.cardMeta}>
                 <Feather name="map-pin" size={11} color={colors.sage} />
                 <Text style={[styles.cardLocation, { color: colors.sage }]}>{selected.location}</Text>
+                {(selected as Practitioner & { distKm?: number }).distKm !== undefined && (
+                  <>
+                    <View style={[styles.dot, { backgroundColor: colors.blush }]} />
+                    <Feather name="navigation" size={10} color={colors.gold} />
+                    <Text style={[styles.cardDist, { color: colors.gold }]}>
+                      {formatDist((selected as Practitioner & { distKm?: number }).distKm!)}
+                    </Text>
+                  </>
+                )}
                 <View style={[styles.dot, { backgroundColor: colors.blush }]} />
                 <Text style={[styles.cardRating, { color: colors.gold }]}>★ {selected.rating}</Text>
                 <View style={[styles.dot, { backgroundColor: colors.blush }]} />
@@ -93,7 +141,9 @@ export default function PractitionerMap({ practitioners, selected, onSelect, ini
                 {selected.online && (
                   <View style={[styles.tag, { backgroundColor: "#EEE5FF" }]}>
                     <Feather name="monitor" size={9} color={colors.deepIndigo} />
-                    <Text style={[styles.tagText, { color: colors.deepIndigo, marginLeft: 2 }]}>Online</Text>
+                    <Text style={[styles.tagText, { color: colors.deepIndigo, marginLeft: 2 }]}>
+                      Online
+                    </Text>
                   </View>
                 )}
               </View>
@@ -180,6 +230,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
   },
+  nearMeIndicator: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  nearMeText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
   card: {
     position: "absolute",
     bottom: 0,
@@ -250,6 +320,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   cardLocation: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  cardDist: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   dot: { width: 3, height: 3, borderRadius: 1.5 },
   cardRating: { fontSize: 13, fontFamily: "Inter_700Bold" },
   cardPrice: { fontSize: 13, fontFamily: "Inter_600SemiBold" },

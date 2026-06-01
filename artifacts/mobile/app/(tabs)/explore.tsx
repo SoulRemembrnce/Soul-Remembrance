@@ -1,9 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Platform,
   ScrollView,
@@ -37,6 +39,24 @@ const WORLD_REGION = {
   longitudeDelta: 90,
 };
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDist(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
 export default function ExploreScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -51,12 +71,54 @@ export default function ExploreScreen() {
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [selectedPractitioner, setSelectedPractitioner] = useState<Practitioner | null>(null);
 
+  // Near Me state
+  const [nearMeActive, setNearMeActive] = useState(false);
+  const [nearMeLoading, setNearMeLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [locationError, setLocationError] = useState("");
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const filtered = useMemo(() => {
+  const handleNearMe = async () => {
+    if (nearMeActive) {
+      // Toggle off
+      setNearMeActive(false);
+      setUserLocation(null);
+      setLocationError("");
+      Haptics.selectionAsync();
+      return;
+    }
+
+    setNearMeLoading(true);
+    setLocationError("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocationError("Location permission denied");
+        setNearMeLoading(false);
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      setNearMeActive(true);
+      setActiveLocation("");
+      setLocationSearch("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      setLocationError("Couldn't get your location");
+    } finally {
+      setNearMeLoading(false);
+    }
+  };
+
+  type PractitionerWithDist = Practitioner & { distKm?: number };
+
+  const filtered = useMemo((): PractitionerWithDist[] => {
     const loc = locationSearch.trim().toLowerCase() || activeLocation.toLowerCase();
-    return PRACTITIONERS.filter((p) => {
+    let list: PractitionerWithDist[] = PRACTITIONERS.filter((p) => {
       const matchSearch =
         !search ||
         p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -73,8 +135,24 @@ export default function ExploreScreen() {
         p.country.toLowerCase().includes(loc) ||
         p.location.toLowerCase().includes(loc);
       return matchSearch && matchFilter && matchOnline && matchLoc;
-    }).sort((a, b) => (sortBy === "rating" ? b.rating - a.rating : a.price - b.price));
-  }, [search, activeFilter, sortBy, onlineOnly, locationSearch, activeLocation]);
+    });
+
+    if (nearMeActive && userLocation) {
+      list = list.map((p) => ({
+        ...p,
+        distKm: haversineKm(userLocation.lat, userLocation.lon, p.lat, p.lon),
+      }));
+      list.sort((a, b) => (a.distKm ?? 0) - (b.distKm ?? 0));
+    } else {
+      list.sort((a, b) => (sortBy === "rating" ? b.rating - a.rating : a.price - b.price));
+    }
+
+    return list;
+  }, [search, activeFilter, sortBy, onlineOnly, locationSearch, activeLocation, nearMeActive, userLocation]);
+
+  const userRegion = userLocation
+    ? { latitude: userLocation.lat, longitude: userLocation.lon, latitudeDelta: 8, longitudeDelta: 8 }
+    : undefined;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
@@ -87,38 +165,90 @@ export default function ExploreScreen() {
       >
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>Explore</Text>
-          {/* List / Map toggle */}
-          <View style={styles.viewToggle}>
-            {(["list", "map"] as const).map((mode) => (
-              <TouchableOpacity
-                key={mode}
-                onPress={() => {
-                  setViewMode(mode);
-                  setSelectedPractitioner(null);
-                  Haptics.selectionAsync();
-                }}
+          <View style={styles.headerActions}>
+            {/* Near Me button */}
+            <TouchableOpacity
+              onPress={handleNearMe}
+              style={[
+                styles.nearMeBtn,
+                {
+                  backgroundColor: nearMeActive
+                    ? colors.gold
+                    : "rgba(255,255,255,0.18)",
+                  borderColor: nearMeActive ? colors.gold : "rgba(255,255,255,0.3)",
+                },
+              ]}
+            >
+              {nearMeLoading ? (
+                <ActivityIndicator size={13} color="#fff" />
+              ) : (
+                <Feather
+                  name="navigation"
+                  size={13}
+                  color={nearMeActive ? colors.deepIndigo : "#fff"}
+                />
+              )}
+              <Text
                 style={[
-                  styles.viewToggleBtn,
-                  { backgroundColor: viewMode === mode ? "#fff" : "transparent" },
+                  styles.nearMeTxt,
+                  { color: nearMeActive ? colors.deepIndigo : "#fff" },
                 ]}
               >
-                <Feather
-                  name={mode === "list" ? "list" : "map"}
-                  size={14}
-                  color={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"}
-                />
-                <Text
+                {nearMeActive ? "Near Me ✓" : "Near Me"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* List / Map toggle */}
+            <View style={styles.viewToggle}>
+              {(["list", "map"] as const).map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  onPress={() => {
+                    setViewMode(mode);
+                    setSelectedPractitioner(null);
+                    Haptics.selectionAsync();
+                  }}
                   style={[
-                    styles.viewToggleTxt,
-                    { color: viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)" },
+                    styles.viewToggleBtn,
+                    { backgroundColor: viewMode === mode ? "#fff" : "transparent" },
                   ]}
                 >
-                  {mode === "list" ? "List" : "Map"}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Feather
+                    name={mode === "list" ? "list" : "map"}
+                    size={14}
+                    color={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"}
+                  />
+                  <Text
+                    style={[
+                      styles.viewToggleTxt,
+                      { color: viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)" },
+                    ]}
+                  >
+                    {mode === "list" ? "List" : "Map"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
+
+        {/* Location error */}
+        {locationError.length > 0 && (
+          <View style={[styles.errorBanner, { backgroundColor: "rgba(255,80,80,0.18)" }]}>
+            <Feather name="alert-circle" size={13} color="#ffaaaa" />
+            <Text style={styles.errorText}>{locationError}</Text>
+          </View>
+        )}
+
+        {/* Near Me active banner */}
+        {nearMeActive && userLocation && (
+          <View style={[styles.nearMeBanner, { backgroundColor: "rgba(201,168,76,0.18)" }]}>
+            <Feather name="navigation" size={13} color={colors.gold} />
+            <Text style={[styles.nearMeBannerText, { color: colors.gold }]}>
+              Sorted by distance from your location
+            </Text>
+          </View>
+        )}
 
         {/* Keyword search */}
         <View style={[styles.searchBox, { marginBottom: 8 }]}>
@@ -143,7 +273,14 @@ export default function ExploreScreen() {
           <Feather name="map-pin" size={15} color="rgba(255,255,255,0.5)" />
           <TextInput
             value={locationSearch}
-            onChangeText={(v) => { setLocationSearch(v); setActiveLocation(""); }}
+            onChangeText={(v) => {
+              setLocationSearch(v);
+              setActiveLocation("");
+              if (v.length > 0) {
+                setNearMeActive(false);
+                setUserLocation(null);
+              }
+            }}
             placeholder="Search by city or country..."
             placeholderTextColor="rgba(255,255,255,0.4)"
             style={styles.searchInput}
@@ -165,7 +302,7 @@ export default function ExploreScreen() {
           contentContainerStyle={{ paddingHorizontal: 14 }}
         >
           {LOCATION_PRESETS.map(({ label, city }) => {
-            const isActive = activeLocation === city && !locationSearch;
+            const isActive = !nearMeActive && activeLocation === city && !locationSearch;
             return (
               <TouchableOpacity
                 key={label}
@@ -173,6 +310,8 @@ export default function ExploreScreen() {
                   Haptics.selectionAsync();
                   setActiveLocation(city);
                   setLocationSearch("");
+                  setNearMeActive(false);
+                  setUserLocation(null);
                 }}
                 style={[
                   styles.locChip,
@@ -224,25 +363,35 @@ export default function ExploreScreen() {
       {/* Sort + online toggle — list only */}
       {viewMode === "list" && (
         <View style={[styles.sortBar, { backgroundColor: colors.softWhite }]}>
-          <View style={styles.sortBtns}>
-            {([["rating", "Top Rated"], ["price", "Price"]] as const).map(([val, label]) => (
-              <TouchableOpacity
-                key={val}
-                onPress={() => setSortBy(val)}
-                style={[
-                  styles.sortBtn,
-                  {
-                    backgroundColor: sortBy === val ? `${colors.deepIndigo}18` : colors.card,
-                    borderColor: sortBy === val ? colors.deepIndigo : colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.sortBtnText, { color: sortBy === val ? colors.deepIndigo : colors.sage }]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {!nearMeActive && (
+            <View style={styles.sortBtns}>
+              {([["rating", "Top Rated"], ["price", "Price"]] as const).map(([val, label]) => (
+                <TouchableOpacity
+                  key={val}
+                  onPress={() => setSortBy(val)}
+                  style={[
+                    styles.sortBtn,
+                    {
+                      backgroundColor: sortBy === val ? `${colors.deepIndigo}18` : colors.card,
+                      borderColor: sortBy === val ? colors.deepIndigo : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.sortBtnText, { color: sortBy === val ? colors.deepIndigo : colors.sage }]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          {nearMeActive && (
+            <View style={[styles.sortBtns]}>
+              <View style={[styles.sortBtn, { backgroundColor: `${colors.gold}20`, borderColor: colors.gold }]}>
+                <Feather name="navigation" size={11} color={colors.gold} />
+                <Text style={[styles.sortBtnText, { color: colors.gold }]}>Nearest first</Text>
+              </View>
+            </View>
+          )}
           <Text style={[styles.resultsText, { color: colors.sage }]}>
             {filtered.length} result{filtered.length !== 1 ? "s" : ""}
           </Text>
@@ -265,6 +414,7 @@ export default function ExploreScreen() {
           selected={selectedPractitioner}
           onSelect={setSelectedPractitioner}
           initialRegion={WORLD_REGION}
+          userRegion={userRegion}
           bottomPad={bottomPad}
         />
       )}
@@ -283,9 +433,14 @@ export default function ExploreScreen() {
               <Text style={[styles.emptyBody, { color: colors.sage }]}>
                 Try adjusting your search or filters
               </Text>
-              {(activeLocation || locationSearch) && (
+              {(activeLocation || locationSearch || nearMeActive) && (
                 <TouchableOpacity
-                  onPress={() => { setActiveLocation(""); setLocationSearch(""); }}
+                  onPress={() => {
+                    setActiveLocation("");
+                    setLocationSearch("");
+                    setNearMeActive(false);
+                    setUserLocation(null);
+                  }}
                   style={[styles.clearBtn, { backgroundColor: colors.cream }]}
                 >
                   <Text style={[styles.clearBtnText, { color: colors.deepIndigo }]}>Clear location</Text>
@@ -293,78 +448,90 @@ export default function ExploreScreen() {
               )}
             </View>
           }
-          renderItem={({ item: p }) => (
-            <TouchableOpacity
-              style={[styles.practCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(`/practitioner/${p.id}`);
-              }}
-              activeOpacity={0.85}
-            >
-              <LinearGradient colors={[colors.deepIndigo, colors.lavenderMid]} style={styles.practHeader}>
-                <View style={styles.practHeaderInner}>
-                  <LinearGradient colors={p.avatarColor as [string, string]} style={styles.practAvatar}>
-                    <Text style={styles.practInitials}>{p.initials}</Text>
-                  </LinearGradient>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.nameRow}>
-                      <Text style={styles.practName}>{p.name}</Text>
-                      {p.verified && (
-                        <View style={[styles.verifiedBadge, { backgroundColor: colors.gold }]}>
-                          <Text style={styles.verifiedText}>✓</Text>
-                        </View>
-                      )}
+          renderItem={({ item: p }) => {
+            const dist = (p as Practitioner & { distKm?: number }).distKm;
+            return (
+              <TouchableOpacity
+                style={[styles.practCard, { backgroundColor: colors.card, borderColor: colors.cream }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/practitioner/${p.id}`);
+                }}
+                activeOpacity={0.85}
+              >
+                <LinearGradient colors={[colors.deepIndigo, colors.lavenderMid]} style={styles.practHeader}>
+                  <View style={styles.practHeaderInner}>
+                    <LinearGradient colors={p.avatarColor as [string, string]} style={styles.practAvatar}>
+                      <Text style={styles.practInitials}>{p.initials}</Text>
+                    </LinearGradient>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.nameRow}>
+                        <Text style={styles.practName}>{p.name}</Text>
+                        {p.verified && (
+                          <View style={[styles.verifiedBadge, { backgroundColor: colors.gold }]}>
+                            <Text style={styles.verifiedText}>✓</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.practTitleText}>{p.title}</Text>
+                      <View style={styles.locationRow}>
+                        <Feather name="map-pin" size={10} color="rgba(255,255,255,0.5)" />
+                        <Text style={styles.practLocation}>{p.location}</Text>
+                        {dist !== undefined && (
+                          <>
+                            <Text style={styles.practLocationDot}>·</Text>
+                            <Feather name="navigation" size={9} color={colors.gold} />
+                            <Text style={[styles.practDist, { color: colors.gold }]}>
+                              {formatDist(dist)}
+                            </Text>
+                          </>
+                        )}
+                      </View>
                     </View>
-                    <Text style={styles.practTitleText}>{p.title}</Text>
-                    <View style={styles.locationRow}>
-                      <Feather name="map-pin" size={10} color="rgba(255,255,255,0.5)" />
-                      <Text style={styles.practLocation}>{p.location}</Text>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={[styles.practRating, { color: colors.gold }]}>★ {p.rating}</Text>
+                      <Text style={styles.practPriceText}>£{p.price}</Text>
                     </View>
                   </View>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text style={[styles.practRating, { color: colors.gold }]}>★ {p.rating}</Text>
-                    <Text style={styles.practPriceText}>£{p.price}</Text>
+                </LinearGradient>
+                <View style={styles.practBody}>
+                  <View style={styles.tagsRow}>
+                    {p.tags.map((tag) => (
+                      <View key={tag} style={[styles.tag, { backgroundColor: colors.cream }]}>
+                        <Text style={[styles.tagText, { color: colors.deepIndigo }]}>{tag}</Text>
+                      </View>
+                    ))}
+                    {p.online && (
+                      <View style={[styles.tag, { backgroundColor: "#EEE5FF" }]}>
+                        <Feather name="monitor" size={10} color={colors.deepIndigo} />
+                        <Text style={[styles.tagText, { color: colors.deepIndigo, marginLeft: 3 }]}>Online</Text>
+                      </View>
+                    )}
                   </View>
-                </View>
-              </LinearGradient>
-              <View style={styles.practBody}>
-                <View style={styles.tagsRow}>
-                  {p.tags.map((tag) => (
-                    <View key={tag} style={[styles.tag, { backgroundColor: colors.cream }]}>
-                      <Text style={[styles.tagText, { color: colors.deepIndigo }]}>{tag}</Text>
-                    </View>
-                  ))}
-                  {p.online && (
-                    <View style={[styles.tag, { backgroundColor: "#EEE5FF" }]}>
-                      <Feather name="monitor" size={10} color={colors.deepIndigo} />
-                      <Text style={[styles.tagText, { color: colors.deepIndigo, marginLeft: 3 }]}>Online</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.practFooter}>
-                  <Text style={[styles.nextAvail, { color: colors.sage }]}>
-                    Next:{" "}
-                    <Text
-                      style={{
-                        color: p.nextAvail === "Today" ? colors.deepIndigo : colors.charcoal,
-                        fontFamily: "Inter_600SemiBold",
-                      }}
-                    >
-                      {p.nextAvail}
+                  <View style={styles.practFooter}>
+                    <Text style={[styles.nextAvail, { color: colors.sage }]}>
+                      Next:{" "}
+                      <Text
+                        style={{
+                          color: p.nextAvail === "Today" ? colors.deepIndigo : colors.charcoal,
+                          fontFamily: "Inter_600SemiBold",
+                        }}
+                      >
+                        {p.nextAvail}
+                      </Text>
                     </Text>
-                  </Text>
-                  <TouchableOpacity onPress={() => toggleFavorite(p.id)}>
-                    <Feather
-                      name="heart"
-                      size={16}
-                      color={favorites.has(p.id) ? "#E55" : colors.mutedForeground}
-                    />
-                  </TouchableOpacity>
+                    <TouchableOpacity onPress={() => toggleFavorite(p.id)}>
+                      <Feather
+                        name="heart"
+                        size={16}
+                        color={favorites.has(p.id) ? "#E55" : colors.mutedForeground}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          )}
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
     </View>
@@ -380,12 +547,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   headerTitle: {
     color: "#fff",
     fontSize: 24,
     fontFamily: "Inter_700Bold",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  nearMeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderWidth: 1,
+  },
+  nearMeTxt: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
   },
   viewToggle: {
     flexDirection: "row",
@@ -405,6 +590,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
   },
+  nearMeBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
+  nearMeBannerText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
+  errorText: {
+    color: "#ffaaaa",
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
   searchBox: {
     backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 14,
@@ -412,6 +624,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginBottom: 0,
   },
   searchInput: {
     flex: 1,
@@ -465,6 +678,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
   sortBtnText: {
     fontSize: 12,
@@ -534,9 +750,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
-  practHeader: {
-    padding: 16,
-  },
+  practHeader: { padding: 16 },
   practHeaderInner: {
     flexDirection: "row",
     alignItems: "center",
@@ -586,11 +800,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 3,
     marginTop: 2,
+    flexWrap: "wrap",
   },
   practLocation: {
     color: "rgba(255,255,255,0.5)",
     fontSize: 11,
     fontFamily: "Inter_400Regular",
+  },
+  practLocationDot: {
+    color: "rgba(255,255,255,0.3)",
+    fontSize: 11,
+  },
+  practDist: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
   },
   practRating: {
     fontSize: 14,
@@ -602,9 +825,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     marginTop: 2,
   },
-  practBody: {
-    padding: 14,
-  },
+  practBody: { padding: 14 },
   tagsRow: {
     flexDirection: "row",
     flexWrap: "wrap",

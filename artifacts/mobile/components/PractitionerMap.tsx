@@ -10,23 +10,37 @@ import { Practitioner } from "@/constants/data";
 import { useColors } from "@/hooks/useColors";
 
 interface Props {
-  practitioners: Practitioner[];
+  practitioners: (Practitioner & { distKm?: number })[];
   selected: Practitioner | null;
   onSelect: (p: Practitioner | null) => void;
   initialRegion: Region;
+  userRegion?: Region;
   bottomPad: number;
 }
 
-export default function PractitionerMap({ practitioners, selected, onSelect, bottomPad }: Props) {
+function formatDist(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
+export default function PractitionerMap({ practitioners, userRegion, bottomPad }: Props) {
   const colors = useColors();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
-      {/* Web fallback: styled list with location context */}
-      <View style={[styles.mapFallbackBanner, { backgroundColor: `${colors.deepIndigo}12`, borderBottomColor: colors.blush }]}>
+      {/* Web fallback banner */}
+      <View
+        style={[
+          styles.mapFallbackBanner,
+          { backgroundColor: `${colors.deepIndigo}12`, borderBottomColor: colors.blush },
+        ]}
+      >
         <Feather name="map" size={15} color={colors.deepIndigo} />
         <Text style={[styles.fallbackText, { color: colors.deepIndigo }]}>
-          Map view available on iOS & Android via Expo Go
+          {userRegion
+            ? "Near Me active — sorted by distance · Map view on Expo Go"
+            : "Map view available on iOS & Android via Expo Go"}
         </Text>
       </View>
 
@@ -43,13 +57,7 @@ export default function PractitionerMap({ practitioners, selected, onSelect, bot
         }
         renderItem={({ item: p }) => (
           <TouchableOpacity
-            style={[
-              styles.card,
-              {
-                backgroundColor: selected?.id === p.id ? `${colors.deepIndigo}10` : colors.card,
-                borderColor: selected?.id === p.id ? colors.deepIndigo : colors.cream,
-              },
-            ]}
+            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cream }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push(`/practitioner/${p.id}`);
@@ -68,6 +76,12 @@ export default function PractitionerMap({ practitioners, selected, onSelect, bot
               <View style={styles.metaRow}>
                 <Feather name="map-pin" size={11} color={colors.sage} />
                 <Text style={[styles.location, { color: colors.sage }]}>{p.location}</Text>
+                {p.distKm !== undefined && (
+                  <>
+                    <Feather name="navigation" size={10} color={colors.gold} />
+                    <Text style={[styles.dist, { color: colors.gold }]}>{formatDist(p.distKm)}</Text>
+                  </>
+                )}
                 <Text style={[styles.rating, { color: colors.gold }]}>★ {p.rating}</Text>
                 <Text style={[styles.price, { color: colors.purpleMid }]}>£{p.price}</Text>
               </View>
@@ -92,6 +106,7 @@ const styles = StyleSheet.create({
   fallbackText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
+    flex: 1,
   },
   emptyState: {
     alignItems: "center",
@@ -147,12 +162,16 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 6,
     flexWrap: "wrap",
   },
   location: {
     fontSize: 11,
     fontFamily: "Inter_400Regular",
+  },
+  dist: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
   },
   rating: {
     fontSize: 12,
