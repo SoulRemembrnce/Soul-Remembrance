@@ -32,13 +32,12 @@ export default function Dashboard() {
   }, [user, isAdmin, loading, setLocation]);
 
   useEffect(() => {
-    if (user && isAdmin) {
-      const unsubscribe = subscribePractitioners((data) => {
-        setPractitioners(data);
-        setIsSubscribed(true);
-      });
-      return () => unsubscribe();
-    }
+    if (!user || !isAdmin) return;
+    const unsubscribe = subscribePractitioners((data) => {
+      setPractitioners(data);
+      setIsSubscribed(true);
+    });
+    return () => unsubscribe();
   }, [user, isAdmin]);
 
   const stats: AdminStats = useMemo(() => computeStats(practitioners), [practitioners]);
