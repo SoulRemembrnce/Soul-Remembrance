@@ -5,14 +5,29 @@ import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Image, Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 
+function LotusTabIcon({ color }: { color: string }) {
+  return (
+    <Image
+      source={require("../../assets/images/icon.png")}
+      tintColor={color}
+      style={{ width: 24, height: 24, borderRadius: 4 }}
+      resizeMode="contain"
+    />
+  );
+}
+
 function NativeTabLayout() {
   return (
     <NativeTabs>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
+        <Label>Profile</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Home</Label>
@@ -28,10 +43,6 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="messages">
         <Icon sf={{ default: "message", selected: "message.fill" }} />
         <Label>Messages</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person.crop.circle", selected: "person.crop.circle.fill" }} />
-        <Label>Profile</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -73,6 +84,13 @@ function ClassicTabLayout() {
         },
       }}
     >
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => <LotusTabIcon color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{
@@ -118,18 +136,6 @@ function ClassicTabLayout() {
               <SymbolView name="message" tintColor={color} size={22} />
             ) : (
               <Feather name="message-circle" size={21} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="person.crop.circle" tintColor={color} size={22} />
-            ) : (
-              <Feather name="user" size={21} color={color} />
             ),
         }}
       />
