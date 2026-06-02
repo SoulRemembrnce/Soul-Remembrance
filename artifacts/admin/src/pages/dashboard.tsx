@@ -7,10 +7,11 @@ import {
   UserCheck, Play, Pause, SearchX, Star, StarOff, Plus, Pencil, CalendarDays, Tag,
 } from "lucide-react";
 import {
-  FSPractitionerProfile, FSEvent,
-  subscribePractitioners, subscribeEvents,
+  FSPractitionerProfile, FSEvent, FSVerificationApplication,
+  subscribePractitioners, subscribeEvents, subscribeVerificationApplications,
   computeStats, isFeaturedActive, verifyPractitioner, toggleSubscription,
   deletePractitioner, setFeaturedUntil, saveEvent, deleteEvent,
+  approveVerificationApplication, rejectVerificationApplication,
   AdminStats,
 } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
@@ -216,6 +217,10 @@ export default function Dashboard() {
 
   const [practitioners, setPractitioners] = useState<FSPractitionerProfile[]>([]);
   const [events, setEvents] = useState<FSEvent[]>([]);
+  const [verificationApplications, setVerificationApplications] = useState<FSVerificationApplication[]>([]);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectingApp, setRejectingApp] = useState<FSVerificationApplication | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -235,7 +240,8 @@ export default function Dashboard() {
       setIsSubscribed(true);
     });
     const unsubEvents = subscribeEvents(setEvents);
-    return () => { unsubPractitioners(); unsubEvents(); };
+    const unsubVerifications = subscribeVerificationApplications(setVerificationApplications);
+    return () => { unsubPractitioners(); unsubEvents(); unsubVerifications(); };
   }, [user, isAdmin]);
 
   const stats: AdminStats = useMemo(() => computeStats(practitioners), [practitioners]);
@@ -322,6 +328,40 @@ export default function Dashboard() {
   const openNew = () => { setEditingEvent(undefined); setEventDialogOpen(true); };
   const openEdit = (ev: FSEvent) => { setEditingEvent(ev); setEventDialogOpen(true); };
 
+  const pendingVerificationCount = useMemo(
+    () => verificationApplications.filter((a) => a.status === "pending").length,
+    [verificationApplications]
+  );
+
+  const handleApproveVerification = async (app: FSVerificationApplication) => {
+    try {
+      const name = practitioners.find((p) => p.userId === app.practitionerUid)?.name ?? "Practitioner";
+      await approveVerificationApplication(app.id, app.practitionerUid);
+      toast({ title: "Verified!", description: `${name} is now verified and will appear first in listings.` });
+    } catch {
+      toast({ title: "Error", description: "Failed to approve verification.", variant: "destructive" });
+    }
+  };
+
+  const handleOpenReject = (app: FSVerificationApplication) => {
+    setRejectingApp(app);
+    setRejectNote("");
+    setRejectDialogOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectingApp) return;
+    try {
+      await rejectVerificationApplication(rejectingApp.id, rejectNote);
+      toast({ title: "Application rejected" });
+      setRejectDialogOpen(false);
+      setRejectingApp(null);
+      setRejectNote("");
+    } catch {
+      toast({ title: "Error", description: "Failed to reject application.", variant: "destructive" });
+    }
+  };
+
   if (loading || !isSubscribed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -365,6 +405,14 @@ export default function Dashboard() {
         <Tabs defaultValue="practitioners">
           <TabsList className="mb-2">
             <TabsTrigger value="practitioners">Practitioners</TabsTrigger>
+            <TabsTrigger value="verifications" className="gap-1.5">
+              Verifications
+              {pendingVerificationCount > 0 && (
+                <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                  {pendingVerificationCount}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
           </TabsList>
 
@@ -678,8 +726,148 @@ export default function Dashboard() {
               </div>
             )}
           </TabsContent>
+
+          {/* ── Verifications tab ──────────────────────────────────────── */}
+          <TabsContent value="verifications" className="space-y-4">
+            {verificationApplications.length === 0 ? (
+              <div className="bg-card rounded-lg border border-border/40 py-20 flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                  <Shield className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium text-foreground">No verification applications yet</h3>
+                <p className="text-sm text-muted-foreground mt-1">Applications from practitioners will appear here once submitted.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {verificationApplications.map((app) => {
+                  const practitioner = practitioners.find((p) => p.userId === app.practitionerUid);
+                  const name = practitioner?.name ?? app.practitionerUid;
+                  const statusCls =
+                    app.status === "pending"
+                      ? "bg-amber-100 text-amber-800 border-amber-200"
+                      : app.status === "approved"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      : "bg-red-100 text-red-800 border-red-200";
+                  return (
+                    <div key={app.id} className="bg-card rounded-lg border border-border/40 p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <Shield className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">{name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Submitted {new Date(app.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                              {app.reviewedAt && (
+                                <> · Reviewed {new Date(app.reviewedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className={`border ${statusCls} capitalize font-medium shrink-0`}>
+                          {app.status}
+                        </Badge>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Uploaded Documents</p>
+                        <div className="flex flex-wrap gap-3">
+                          {app.documents.certificates.map((url, i) => (
+                            <a key={`cert-${i}`} href={url} target="_blank" rel="noopener noreferrer" title={`Certificate ${i + 1}`}>
+                              <div className="relative">
+                                <img src={url} alt={`Certificate ${i + 1}`} className="w-20 h-20 object-cover rounded-md border border-border hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer" />
+                                <span className="absolute bottom-0 left-0 right-0 bg-black/55 text-white text-[9px] text-center py-0.5 rounded-b-md">Cert {i + 1}</span>
+                              </div>
+                            </a>
+                          ))}
+                          {app.documents.insurance ? (
+                            <a href={app.documents.insurance} target="_blank" rel="noopener noreferrer" title="Insurance">
+                              <div className="relative">
+                                <img src={app.documents.insurance} alt="Insurance" className="w-20 h-20 object-cover rounded-md border border-border hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer" />
+                                <span className="absolute bottom-0 left-0 right-0 bg-black/55 text-white text-[9px] text-center py-0.5 rounded-b-md">Insurance</span>
+                              </div>
+                            </a>
+                          ) : null}
+                          {app.documents.dbs ? (
+                            <a href={app.documents.dbs} target="_blank" rel="noopener noreferrer" title="DBS">
+                              <div className="relative">
+                                <img src={app.documents.dbs} alt="DBS" className="w-20 h-20 object-cover rounded-md border border-border hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer" />
+                                <span className="absolute bottom-0 left-0 right-0 bg-black/55 text-white text-[9px] text-center py-0.5 rounded-b-md">DBS</span>
+                              </div>
+                            </a>
+                          ) : null}
+                          {app.documents.certificates.length === 0 && !app.documents.insurance && !app.documents.dbs && (
+                            <p className="text-sm text-muted-foreground italic">No documents uploaded</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {app.status === "rejected" && app.rejectionNote && (
+                        <div className="bg-red-50 border border-red-100 rounded-md p-3">
+                          <p className="text-xs font-medium text-red-700 mb-1">Rejection note sent to practitioner</p>
+                          <p className="text-sm text-red-600">{app.rejectionNote}</p>
+                        </div>
+                      )}
+
+                      {app.status === "pending" && (
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => handleApproveVerification(app)}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                            onClick={() => handleOpenReject(app)}
+                          >
+                            <ShieldAlert className="h-4 w-4 mr-1.5" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </main>
+
+      {/* Reject verification dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={(o) => { if (!o) { setRejectDialogOpen(false); setRejectingApp(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Verification Application</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Optionally provide a reason — it will be shown to the practitioner so they can reapply correctly.
+            </p>
+            <textarea
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              rows={3}
+              placeholder="e.g. Insurance document appears expired. Please reapply with a current certificate."
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectDialogOpen(false); setRejectingApp(null); }}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmReject}>
+              Reject Application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <EventDialog
         open={eventDialogOpen}

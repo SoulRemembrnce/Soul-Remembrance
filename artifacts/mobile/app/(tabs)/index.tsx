@@ -67,7 +67,9 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const upcomingEvents = useMemo(getUpcomingEvents, []);
   const featured = upcomingEvents[0] ?? null;
-  const allPractitioners = realProfiles.map(profileToPractitioner);
+  const allPractitioners = [...realProfiles]
+    .sort((a, b) => (a.verified === b.verified ? 0 : a.verified ? -1 : 1))
+    .map(profileToPractitioner);
   const now = Date.now();
   const featuredPractitioners = realProfiles
     .filter((p) => p.featuredUntil && p.featuredUntil.toMillis() > now)

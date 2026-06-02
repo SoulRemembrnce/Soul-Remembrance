@@ -28,10 +28,12 @@ import { useColors } from "@/hooks/useColors";
 import { Practitioner } from "@/constants/data";
 import {
   FSPractitionerProfile,
+  FSVerificationApplication,
   profileToPractitioner,
   setFeaturedUntil,
   subscribePractitionerProfile,
   subscribePractitionerProfiles,
+  subscribeVerificationApplicationByUid,
   updatePractitionerPhotoURL,
   updatePractitionerStripeAccount,
   updatePractitionerSubscription,
@@ -89,6 +91,7 @@ export default function ProfileScreen() {
   const [clientPhotoUploading, setClientPhotoUploading] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+  const [verificationApp, setVerificationApp] = useState<FSVerificationApplication | null>(null);
 
   const handleChangeClientPhoto = () => {
     if (Platform.OS === "web") { pickClientPhoto("library"); return; }
@@ -135,6 +138,12 @@ export default function ProfileScreen() {
   useEffect(() => {
     return subscribePractitionerProfiles(setAllProfiles);
   }, []);
+
+  // Subscribe to own verification application status
+  useEffect(() => {
+    if (!userId) return;
+    return subscribeVerificationApplicationByUid(userId, setVerificationApp);
+  }, [userId]);
 
   // When the app returns to foreground, check if the Stripe subscription was completed
   useEffect(() => {
@@ -591,6 +600,67 @@ export default function ProfileScreen() {
                 <Text style={[styles.dashStatLabel, { color: colors.sage }]}>Per session</Text>
               </View>
             </View>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Get Verified */}
+            {!myProfile.verified && (
+              <TouchableOpacity
+                style={[
+                  styles.getVerifiedBtn,
+                  {
+                    backgroundColor:
+                      verificationApp?.status === "pending"
+                        ? `${colors.warmGold}15`
+                        : verificationApp?.status === "rejected"
+                        ? "#FEF2F2"
+                        : `${colors.deepIndigo}08`,
+                    borderColor:
+                      verificationApp?.status === "pending"
+                        ? colors.warmGold
+                        : verificationApp?.status === "rejected"
+                        ? "#FCA5A5"
+                        : colors.deepIndigo,
+                  },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push("/verification");
+                }}
+                disabled={verificationApp?.status === "pending"}
+                activeOpacity={0.85}
+              >
+                {verificationApp?.status === "pending" ? (
+                  <>
+                    <Feather name="clock" size={15} color={colors.warmGold} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.getVerifiedTitle, { color: colors.charcoal }]}>Verification pending</Text>
+                      <Text style={[styles.getVerifiedSub, { color: colors.sage }]}>Under review · usually 2–5 working days</Text>
+                    </View>
+                  </>
+                ) : verificationApp?.status === "rejected" ? (
+                  <>
+                    <Feather name="alert-circle" size={15} color="#E53E3E" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.getVerifiedTitle, { color: colors.charcoal }]}>Not approved · tap to reapply</Text>
+                      <Text style={[styles.getVerifiedSub, { color: colors.sage }]}>
+                        {verificationApp.rejectionNote || "See verification screen for details"}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={14} color={colors.sage} />
+                  </>
+                ) : (
+                  <>
+                    <Feather name="shield" size={15} color={colors.deepIndigo} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.getVerifiedTitle, { color: colors.charcoal }]}>Get Verified · £2.99</Text>
+                      <Text style={[styles.getVerifiedSub, { color: colors.sage }]}>One-time payment · appear at top of listings</Text>
+                    </View>
+                    <Feather name="chevron-right" size={14} color={colors.deepIndigo} />
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
 
             <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
 
@@ -1256,6 +1326,17 @@ const styles = StyleSheet.create({
   dashDivider: { height: 1, marginVertical: 14 },
   verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   verifiedText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  getVerifiedBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  getVerifiedTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  getVerifiedSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   subActiveRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4, gap: 10 },
   subActiveDot: { width: 10, height: 10, borderRadius: 5 },
   subActiveTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 1 },

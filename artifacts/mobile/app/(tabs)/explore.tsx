@@ -146,7 +146,10 @@ export default function ExploreScreen() {
   };
 
   const allPractitioners: Practitioner[] = useMemo(
-    () => realProfiles.map(profileToPractitioner) as Practitioner[],
+    () =>
+      [...realProfiles]
+        .sort((a, b) => (a.verified === b.verified ? 0 : a.verified ? -1 : 1))
+        .map(profileToPractitioner) as Practitioner[],
     [realProfiles]
   );
 

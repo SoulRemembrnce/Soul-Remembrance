@@ -20,3 +20,23 @@ export async function uploadAvatar(
   await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
   return getDownloadURL(storageRef);
 }
+
+/**
+ * Upload a verification document image to Firebase Storage.
+ * Path: verificationDocs/{userId}/{type}_{index}.jpg
+ */
+export async function uploadVerificationDoc(
+  userId: string,
+  localUri: string,
+  type: "certificate" | "insurance" | "dbs",
+  index = 0
+): Promise<string> {
+  const path = `verificationDocs/${userId}/${type}_${index}.jpg`;
+  const storageRef = ref(storage, path);
+
+  const resp = await fetch(localUri);
+  const blob = await resp.blob();
+
+  await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+  return getDownloadURL(storageRef);
+}

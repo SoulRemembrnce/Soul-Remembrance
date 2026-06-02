@@ -145,3 +145,59 @@ export function computeStats(practitioners: FSPractitionerProfile[]): AdminStats
 export function isFeaturedActive(p: FSPractitionerProfile): boolean {
   return !!p.featuredUntil && p.featuredUntil.toDate() > new Date();
 }
+
+// ── Verification Applications ───────────────────────────────────────────────
+
+export interface FSVerificationApplication {
+  id: string;
+  practitionerUid: string;
+  status: "pending" | "approved" | "rejected";
+  rejectionNote?: string;
+  documents: {
+    certificates: string[];
+    insurance: string;
+    dbs: string;
+  };
+  paymentIntentId: string;
+  submittedAt: string;
+  reviewedAt?: string;
+}
+
+export function subscribeVerificationApplications(
+  cb: (applications: FSVerificationApplication[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "verificationApplications"),
+      orderBy("submittedAt", "desc")
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSVerificationApplication)),
+    () => cb([])
+  );
+}
+
+export async function approveVerificationApplication(
+  applicationId: string,
+  practitionerUid: string
+): Promise<void> {
+  await Promise.all([
+    updateDoc(doc(db, "verificationApplications", applicationId), {
+      status: "approved",
+      reviewedAt: new Date().toISOString(),
+    }),
+    updateDoc(doc(db, "practitionerProfiles", practitionerUid), {
+      verified: true,
+    }),
+  ]);
+}
+
+export async function rejectVerificationApplication(
+  applicationId: string,
+  note?: string
+): Promise<void> {
+  await updateDoc(doc(db, "verificationApplications", applicationId), {
+    status: "rejected",
+    rejectionNote: note ?? "",
+    reviewedAt: new Date().toISOString(),
+  });
+}

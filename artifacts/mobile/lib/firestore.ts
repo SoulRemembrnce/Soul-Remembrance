@@ -960,3 +960,44 @@ export function subscribeSignedWaivers(
     () => cb([])
   );
 }
+
+// ─── Verification Applications ────────────────────────────────────────────────
+
+export interface FSVerificationApplication {
+  id: string;
+  practitionerUid: string;
+  status: "pending" | "approved" | "rejected";
+  rejectionNote?: string;
+  documents: {
+    certificates: string[];
+    insurance: string;
+    dbs: string;
+  };
+  paymentIntentId: string;
+  submittedAt: string;
+  reviewedAt?: string;
+}
+
+export async function createVerificationApplication(
+  data: Omit<FSVerificationApplication, "id" | "submittedAt">
+): Promise<string> {
+  const ref = doc(collection(db, "verificationApplications"));
+  await setDoc(ref, { ...data, id: ref.id, submittedAt: new Date().toISOString() });
+  return ref.id;
+}
+
+export function subscribeVerificationApplicationByUid(
+  uid: string,
+  cb: (app: FSVerificationApplication | null) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "verificationApplications"),
+      where("practitionerUid", "==", uid),
+      orderBy("submittedAt", "desc"),
+      limit(1)
+    ),
+    (snap) => cb(snap.empty ? null : (snap.docs[0].data() as FSVerificationApplication)),
+    () => cb(null)
+  );
+}

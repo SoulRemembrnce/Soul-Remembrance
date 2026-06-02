@@ -200,5 +200,17 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
+
+    // ── Verification applications ───────────────────────────────────────────
+    // Practitioners create their own; only admin can update (approve/reject).
+    match /verificationApplications/{id} {
+      allow read: if isSignedIn() && (
+        resource.data.practitionerUid == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.practitionerUid == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
   }
 }
