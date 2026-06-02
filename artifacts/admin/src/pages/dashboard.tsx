@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import {
   Loader2, LogOut, Search, Shield, ShieldAlert, Trash2, CheckCircle2,
   UserCheck, Play, Pause, SearchX, Star, StarOff, Plus, Pencil, CalendarDays, Tag,
+  FileSearch, Eye, XCircle,
 } from "lucide-react";
 import {
   FSPractitionerProfile, FSEvent, FSVerificationApplication,
@@ -12,6 +13,7 @@ import {
   computeStats, isFeaturedActive, verifyPractitioner, toggleSubscription,
   deletePractitioner, setFeaturedUntil, saveEvent, deleteEvent,
   approveVerificationApplication, rejectVerificationApplication,
+  rejectCredentialsReview,
   AdminStats,
 } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+
+// ── Credential document labels ────────────────────────────────────────────────
+const DOC_LABELS: Record<string, string> = {
+  qualification: "Qualification / Certificate",
+  insurance: "Professional Insurance",
+  membership: "Professional Body",
+  dbs: "DBS Check",
+};
 
 // ── Avatar colour palette for new events ─────────────────────────────────────
 const AVATAR_COLOURS: [string, string][] = [
@@ -229,6 +239,11 @@ export default function Dashboard() {
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<FSEvent | undefined>();
 
+  const [credentialPractitioner, setCredentialPractitioner] = useState<FSPractitionerProfile | null>(null);
+  const [credentialRejectionNote, setCredentialRejectionNote] = useState("");
+  const [credentialLoading, setCredentialLoading] = useState(false);
+  const [credentialRejecting, setCredentialRejecting] = useState(false);
+
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) setLocation("/");
   }, [user, isAdmin, loading, setLocation]);
@@ -258,9 +273,37 @@ export default function Dashboard() {
       if (statusFilter === "active") return p.subscriptionActive;
       if (statusFilter === "inactive") return !p.subscriptionActive;
       if (statusFilter === "featured") return isFeaturedActive(p);
+      if (statusFilter === "has-credentials") return !!p.credentialURLs && Object.keys(p.credentialURLs).length > 0;
       return true;
     });
   }, [practitioners, searchQuery, statusFilter]);
+
+  const handleApproveCredentials = async (p: FSPractitionerProfile) => {
+    setCredentialLoading(true);
+    try {
+      await verifyPractitioner(p.userId, true);
+      toast({ title: "Approved ✓", description: `${p.name} is now verified.` });
+      setCredentialPractitioner(null);
+    } catch {
+      toast({ title: "Error", description: "Failed to verify practitioner.", variant: "destructive" });
+    } finally {
+      setCredentialLoading(false);
+    }
+  };
+
+  const handleRejectCredentials = async (p: FSPractitionerProfile) => {
+    setCredentialRejecting(true);
+    try {
+      await rejectCredentialsReview(p.userId, credentialRejectionNote);
+      toast({ title: "Rejection saved", description: "The practitioner has been notified." });
+      setCredentialPractitioner(null);
+      setCredentialRejectionNote("");
+    } catch {
+      toast({ title: "Error", description: "Failed to save rejection.", variant: "destructive" });
+    } finally {
+      setCredentialRejecting(false);
+    }
+  };
 
   const handleVerifyToggle = async (p: FSPractitionerProfile) => {
     try {
@@ -438,6 +481,7 @@ export default function Dashboard() {
                     <SelectItem value="active">Active Subscription</SelectItem>
                     <SelectItem value="inactive">Inactive Subscription</SelectItem>
                     <SelectItem value="featured">Currently Featured</SelectItem>
+                    <SelectItem value="has-credentials">Has Uploaded Docs</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -503,6 +547,12 @@ export default function Dashboard() {
                                   {p.verified
                                     ? <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Verified</Badge>
                                     : <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Pending Review</Badge>}
+                                  {p.credentialURLs && Object.keys(p.credentialURLs).length > 0 && !p.verified && (
+                                    <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 gap-1 cursor-pointer" onClick={(e) => { e.stopPropagation(); setCredentialPractitioner(p); setCredentialRejectionNote(""); }}>
+                                      <FileSearch className="h-3 w-3" />
+                                      {Object.keys(p.credentialURLs).length} Doc{Object.keys(p.credentialURLs).length > 1 ? "s" : ""} to Review
+                                    </Badge>
+                                  )}
                                   {p.subscriptionActive
                                     ? <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Active Sub</Badge>
                                     : <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200">Inactive Sub</Badge>}
@@ -516,6 +566,16 @@ export default function Dashboard() {
                               </TableCell>
                               <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {p.credentialURLs && Object.keys(p.credentialURLs).length > 0 && (
+                                    <Button
+                                      variant="outline" size="sm"
+                                      onClick={(e) => { e.stopPropagation(); setCredentialPractitioner(p); setCredentialRejectionNote(""); }}
+                                      title="Review credential documents"
+                                      className="border-violet-200 text-violet-700 hover:bg-violet-50"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                   <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleVerifyToggle(p); }} title={p.verified ? "Remove Verification" : "Verify Practitioner"}>
                                     {p.verified ? <ShieldAlert className="h-4 w-4 text-amber-600" /> : <Shield className="h-4 w-4 text-emerald-600" />}
                                   </Button>
@@ -874,6 +934,110 @@ export default function Dashboard() {
         onClose={() => setEventDialogOpen(false)}
         existing={editingEvent}
       />
+
+      {/* ── Credential Review Dialog ───────────────────────────────── */}
+      <Dialog
+        open={!!credentialPractitioner}
+        onOpenChange={(o) => { if (!o) { setCredentialPractitioner(null); setCredentialRejectionNote(""); } }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSearch className="h-5 w-5 text-violet-600" />
+              Review Credentials — {credentialPractitioner?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            {/* Already verified notice */}
+            {credentialPractitioner?.verified && (
+              <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-700 text-sm">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                This practitioner is already verified. You can still view their documents below.
+              </div>
+            )}
+
+            {/* Prior rejection note */}
+            {credentialPractitioner?.credentialReviewNote && !credentialPractitioner.verified && (
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-800 text-sm">
+                <p className="font-medium mb-0.5">Previous rejection note:</p>
+                <p>{credentialPractitioner.credentialReviewNote}</p>
+              </div>
+            )}
+
+            {/* Document thumbnails */}
+            <div className="grid grid-cols-2 gap-3">
+              {credentialPractitioner && Object.entries(credentialPractitioner.credentialURLs ?? {}).map(([docId, url]) => (
+                <a key={docId} href={url} target="_blank" rel="noopener noreferrer" className="group block">
+                  <div className="border border-border rounded-lg overflow-hidden hover:border-violet-400 transition-colors">
+                    <div className="aspect-[4/3] bg-muted relative overflow-hidden">
+                      <img
+                        src={url}
+                        alt={DOC_LABELS[docId] ?? docId}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors flex items-center justify-center">
+                        <Eye className="h-7 w-7 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-background">
+                      <p className="text-xs font-semibold text-foreground">{DOC_LABELS[docId] ?? docId}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Click to open full size ↗</p>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+
+            {/* Rejection note textarea (only shown if not yet verified) */}
+            {credentialPractitioner && !credentialPractitioner.verified && (
+              <div>
+                <Label className="text-sm font-medium mb-1.5 block">
+                  Rejection note <span className="font-normal text-muted-foreground">(optional — shown to practitioner)</span>
+                </Label>
+                <textarea
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  rows={3}
+                  placeholder="e.g. Insurance document appears expired. Please reapply with a current certificate."
+                  value={credentialRejectionNote}
+                  onChange={(e) => setCredentialRejectionNote(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setCredentialPractitioner(null); setCredentialRejectionNote(""); }}>
+              Close
+            </Button>
+            {credentialPractitioner && !credentialPractitioner.verified && (
+              <>
+                <Button
+                  variant="outline"
+                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => handleRejectCredentials(credentialPractitioner)}
+                  disabled={credentialRejecting || credentialLoading}
+                >
+                  {credentialRejecting
+                    ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    : <XCircle className="h-4 w-4 mr-1.5" />}
+                  Reject
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => handleApproveCredentials(credentialPractitioner)}
+                  disabled={credentialLoading || credentialRejecting}
+                >
+                  {credentialLoading
+                    ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
+                  Approve & Verify
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

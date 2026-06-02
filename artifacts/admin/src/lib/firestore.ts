@@ -37,6 +37,8 @@ export interface FSPractitionerProfile {
   stripeAccountEnabled?: boolean;
   featuredUntil?: Timestamp;
   createdAt?: Timestamp;
+  credentialURLs?: Record<string, string>;
+  credentialReviewNote?: string;
 }
 
 export interface AdminStats {
@@ -199,5 +201,14 @@ export async function rejectVerificationApplication(
     status: "rejected",
     rejectionNote: note ?? "",
     reviewedAt: new Date().toISOString(),
+  });
+}
+
+export async function rejectCredentialsReview(
+  userId: string,
+  note?: string
+): Promise<void> {
+  await updateDoc(doc(db, "practitionerProfiles", userId), {
+    credentialReviewNote: note ?? "",
   });
 }
