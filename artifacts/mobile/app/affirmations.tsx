@@ -309,6 +309,13 @@ function MineTab({
         <Text style={[styles.centreBody, { color: colors.sage }]}>
           Favourite affirmations and write your own to build a personal collection that uplifts you daily.
         </Text>
+        <TouchableOpacity
+          style={[styles.emptyBtn, { backgroundColor: colors.deepIndigo }]}
+          onPress={() => router.push("/(tabs)/profile")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.emptyBtnText}>Sign in to your account</Text>
+        </TouchableOpacity>
       </View>
     );
   }

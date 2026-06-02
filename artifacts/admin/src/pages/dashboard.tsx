@@ -666,7 +666,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-3">
                             <div
                               className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                              style={{ background: `linear-gradient(135deg, ${ev.avatarColor[0]}, ${ev.avatarColor[1]})` }}
+                              style={{ background: ev.avatarColor ? `linear-gradient(135deg, ${ev.avatarColor[0]}, ${ev.avatarColor[1]})` : "linear-gradient(135deg, #2D1B69, #6B4FA8)" }}
                             >
                               {ev.hostInitials}
                             </div>
@@ -685,12 +685,12 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {ev.tags.slice(0, 3).map((t) => (
+                            {(ev.tags ?? []).slice(0, 3).map((t) => (
                               <span key={t} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                                 <Tag className="h-3 w-3" />{t}
                               </span>
                             ))}
-                            {ev.tags.length > 3 && <span className="text-xs text-muted-foreground">+{ev.tags.length - 3}</span>}
+                            {(ev.tags ?? []).length > 3 && <span className="text-xs text-muted-foreground">+{(ev.tags ?? []).length - 3}</span>}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">

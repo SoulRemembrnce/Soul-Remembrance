@@ -130,6 +130,13 @@ export default function GratitudeScreen() {
           <Text style={[styles.centreBody, { color: colors.sage }]}>
             Your gratitude list is private and saved securely to your account. Sign in to begin.
           </Text>
+          <TouchableOpacity
+            style={[styles.emptyBtn, { backgroundColor: colors.deepIndigo }]}
+            onPress={() => router.push("/(tabs)/profile")}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.emptyBtnText}>Sign in to your account</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView

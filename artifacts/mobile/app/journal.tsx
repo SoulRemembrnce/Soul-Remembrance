@@ -132,6 +132,13 @@ export default function JournalScreen() {
           <Text style={[styles.centreBody, { color: colors.sage }]}>
             Your journal is private and securely saved to your account. Sign in to start writing.
           </Text>
+          <TouchableOpacity
+            style={[styles.emptyBtn, { backgroundColor: colors.deepIndigo }]}
+            onPress={() => router.push("/(tabs)/profile")}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.emptyBtnText}>Sign in to your account</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView

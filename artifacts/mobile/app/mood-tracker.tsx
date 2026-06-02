@@ -249,6 +249,13 @@ export default function MoodTrackerScreen() {
           <Text style={[styles.centreBody, { color: colors.sage }]}>
             Daily check-ins help you understand your emotional patterns over time. Sign in to get started.
           </Text>
+          <TouchableOpacity
+            style={[styles.emptyBtn, { backgroundColor: colors.deepIndigo }]}
+            onPress={() => router.push("/(tabs)/profile")}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.emptyBtnText}>Sign in to your account</Text>
+          </TouchableOpacity>
         </View>
       ) : tab === "checkin" ? (
         /* ── CHECK-IN TAB ─────────────────────────────────────────────────── */
