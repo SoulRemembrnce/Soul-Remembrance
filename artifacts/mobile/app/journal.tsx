@@ -83,8 +83,14 @@ export default function JournalScreen() {
       });
       setShowModal(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert("Error", "Could not save entry. Please try again.");
+    } catch (err: unknown) {
+      console.error("[Journal] Save error:", err);
+      const code = (err as { code?: string })?.code;
+      if (code === "permission-denied") {
+        Alert.alert("Permission Denied", "Your account doesn't have write access yet. Please check your Firestore security rules in the Firebase Console.");
+      } else {
+        Alert.alert("Error", "Could not save entry. Please try again.");
+      }
     } finally {
       setSaving(false);
     }

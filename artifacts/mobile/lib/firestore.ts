@@ -1038,7 +1038,7 @@ export function subscribeJournalEntries(
         })
       );
     },
-    () => cb([])
+    (err) => { console.warn("[Journal] Firestore read error:", err.code, err.message); cb([]); }
   );
 }
 
