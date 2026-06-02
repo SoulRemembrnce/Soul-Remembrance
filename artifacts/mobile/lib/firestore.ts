@@ -872,3 +872,91 @@ export function subscribeUserProfile(
     () => cb({})
   );
 }
+
+// ─── Waiver Templates ─────────────────────────────────────────────────────────
+
+export interface FSWaiverTemplate {
+  id: string;
+  practitionerNumericId: number;
+  practitionerUid: string;
+  practitionerName: string;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+
+export async function createWaiverTemplate(
+  data: Omit<FSWaiverTemplate, "id" | "createdAt">
+): Promise<string> {
+  const ref = doc(collection(db, "waiverTemplates"));
+  await setDoc(ref, { ...data, id: ref.id, createdAt: new Date().toISOString() });
+  return ref.id;
+}
+
+export async function getWaiverByNumericId(
+  numericId: number
+): Promise<FSWaiverTemplate | null> {
+  const snap = await getDocs(
+    query(
+      collection(db, "waiverTemplates"),
+      where("practitionerNumericId", "==", numericId),
+      limit(1)
+    )
+  );
+  return snap.empty ? null : (snap.docs[0].data() as FSWaiverTemplate);
+}
+
+export function subscribePractitionerWaivers(
+  practitionerUid: string,
+  cb: (templates: FSWaiverTemplate[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "waiverTemplates"),
+      where("practitionerUid", "==", practitionerUid),
+      orderBy("createdAt", "desc")
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSWaiverTemplate)),
+    () => cb([])
+  );
+}
+
+export async function deleteWaiverTemplate(templateId: string): Promise<void> {
+  await deleteDoc(doc(db, "waiverTemplates", templateId));
+}
+
+// ─── Waiver Signatures ────────────────────────────────────────────────────────
+
+export interface FSWaiverSignature {
+  id: string;
+  userId: string;
+  templateId: string;
+  practitionerNumericId: number;
+  practitionerName: string;
+  waiverTitle: string;
+  signedName: string;
+  agreedAt: string;
+}
+
+export async function saveWaiverSignature(
+  data: Omit<FSWaiverSignature, "id" | "agreedAt">
+): Promise<string> {
+  const ref = doc(collection(db, "waiverSignatures"));
+  await setDoc(ref, { ...data, id: ref.id, agreedAt: new Date().toISOString() });
+  return ref.id;
+}
+
+export function subscribeSignedWaivers(
+  userId: string,
+  cb: (signatures: FSWaiverSignature[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "waiverSignatures"),
+      where("userId", "==", userId),
+      orderBy("agreedAt", "desc")
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSWaiverSignature)),
+    () => cb([])
+  );
+}

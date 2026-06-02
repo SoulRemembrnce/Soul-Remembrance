@@ -92,6 +92,8 @@ function RootLayoutNav() {
         <Stack.Screen name="new-message" options={{ headerShown: false, presentation: "modal" }} />
         <Stack.Screen name="meditation" options={{ headerShown: false }} />
         <Stack.Screen name="journal" options={{ headerShown: false }} />
+        <Stack.Screen name="practitioner-waivers" options={{ headerShown: false }} />
+        <Stack.Screen name="saved-waivers" options={{ headerShown: false }} />
       </Stack>
     </>
   );

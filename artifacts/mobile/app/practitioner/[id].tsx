@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -23,10 +24,13 @@ import {
   FSAvailabilitySlot,
   FSPractitionerProfile,
   FSService,
+  FSWaiverTemplate,
   createConversation,
   getPractitionerProfileByNumericId,
+  getWaiverByNumericId,
   markSlotBooked,
   profileToPractitioner,
+  saveWaiverSignature,
   subscribeAvailability,
   subscribeServices,
 } from "@/lib/firestore";
@@ -67,6 +71,13 @@ export default function PractitionerScreen() {
   const [firestoreProfile, setFirestoreProfile] = useState<FSPractitionerProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
+  // Waiver state
+  const [waiverTemplate, setWaiverTemplate] = useState<FSWaiverTemplate | null>(null);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [waiverSignedName, setWaiverSignedName] = useState("");
+  const [waiverAgreed, setWaiverAgreed] = useState(false);
+  const [waiverSigned, setWaiverSigned] = useState(false);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -96,6 +107,12 @@ export default function PractitionerScreen() {
       setLoadingSlots(false);
     });
     return unsub;
+  }, [practitioner?.id]);
+
+  // ── Waiver template ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!practitioner) return;
+    getWaiverByNumericId(practitioner.id).then(setWaiverTemplate).catch(() => {});
   }, [practitioner?.id]);
 
   // ── Services subscription ─────────────────────────────────────────────────
@@ -295,6 +312,33 @@ export default function PractitionerScreen() {
     } finally {
       setPaymentLoading(false);
     }
+  };
+
+  // ── Waiver flow ───────────────────────────────────────────────────────────
+  const handleBookingPress = () => {
+    if (waiverTemplate && !waiverSigned) {
+      setShowWaiverModal(true);
+    } else {
+      handleConfirmBooking();
+    }
+  };
+
+  const handleWaiverSign = () => {
+    if (!waiverAgreed || !waiverSignedName.trim() || !waiverTemplate || !practitioner) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (userId) {
+      saveWaiverSignature({
+        userId,
+        templateId: waiverTemplate.id,
+        practitionerNumericId: practitioner.id,
+        practitionerName: practitioner.name,
+        waiverTitle: waiverTemplate.title,
+        signedName: waiverSignedName.trim(),
+      }).catch(console.warn);
+    }
+    setWaiverSigned(true);
+    setShowWaiverModal(false);
+    handleConfirmBooking();
   };
 
   // ── Reviews computed values ──────────────────────────────
@@ -644,7 +688,7 @@ export default function PractitionerScreen() {
             <Text style={[styles.paymentError, { color: "#E53E3E" }]}>{paymentError}</Text>
           )}
           <TouchableOpacity
-            onPress={handleConfirmBooking}
+            onPress={handleBookingPress}
             disabled={!canConfirm || paymentLoading}
             style={[
               styles.confirmBtn,
@@ -658,6 +702,108 @@ export default function PractitionerScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* ── Waiver Signing Modal ─────────────────────────────────────── */}
+        <Modal visible={showWaiverModal} animationType="slide" transparent>
+          <View style={styles.waiverOverlay}>
+            <View style={[styles.waiverSheet, { backgroundColor: colors.softWhite }]}>
+              {/* Sheet header */}
+              <View style={[styles.waiverSheetHeader, { borderBottomColor: colors.cream }]}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Feather name="file-text" size={16} color={colors.deepIndigo} />
+                  <Text style={[styles.waiverSheetTitle, { color: colors.charcoal }]}>
+                    Waiver & Consent Form
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowWaiverModal(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="x" size={20} color={colors.sage} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Waiver title */}
+              <Text style={[styles.waiverDocTitle, { color: colors.deepIndigo }]}>
+                {waiverTemplate?.title}
+              </Text>
+              <Text style={[styles.waiverPractName, { color: colors.sage }]}>
+                Issued by {practitioner?.name}
+              </Text>
+
+              {/* Waiver body */}
+              <ScrollView style={styles.waiverBodyScroll} showsVerticalScrollIndicator>
+                <Text style={[styles.waiverBodyText, { color: colors.charcoal }]}>
+                  {waiverTemplate?.content}
+                </Text>
+                <View style={{ height: 12 }} />
+              </ScrollView>
+
+              <View style={styles.waiverFooter}>
+                {/* Agree checkbox */}
+                <TouchableOpacity
+                  style={styles.waiverCheckRow}
+                  onPress={() => setWaiverAgreed((v) => !v)}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[
+                      styles.waiverCheckBox,
+                      {
+                        borderColor: colors.deepIndigo,
+                        backgroundColor: waiverAgreed ? colors.deepIndigo : "transparent",
+                      },
+                    ]}
+                  >
+                    {waiverAgreed && <Feather name="check" size={11} color="#fff" />}
+                  </View>
+                  <Text style={[styles.waiverCheckLabel, { color: colors.charcoal }]}>
+                    I have read and agree to this waiver
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Signature input */}
+                <Text style={[styles.waiverSigLabel, { color: colors.sage }]}>
+                  Type your full name to sign
+                </Text>
+                <TextInput
+                  style={[
+                    styles.waiverSigInput,
+                    {
+                      borderColor: waiverSignedName.trim() ? colors.deepIndigo : colors.blush,
+                      color: colors.charcoal,
+                      backgroundColor: colors.cream,
+                      fontStyle: waiverSignedName.trim() ? "italic" : "normal",
+                    },
+                  ]}
+                  placeholder="Your full name"
+                  placeholderTextColor={colors.sage}
+                  value={waiverSignedName}
+                  onChangeText={setWaiverSignedName}
+                  autoCapitalize="words"
+                />
+
+                {/* Sign button */}
+                <TouchableOpacity
+                  style={[
+                    styles.waiverSignBtn,
+                    {
+                      backgroundColor:
+                        waiverAgreed && waiverSignedName.trim()
+                          ? colors.deepIndigo
+                          : colors.blush,
+                    },
+                  ]}
+                  disabled={!waiverAgreed || !waiverSignedName.trim()}
+                  onPress={handleWaiverSign}
+                >
+                  <Feather name="lock" size={14} color="#fff" />
+                  <Text style={styles.waiverSignBtnText}>Sign & Continue to Payment</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -1356,6 +1502,39 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 4,
   },
+  // Waiver modal
+  waiverOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
+  waiverSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "88%", paddingBottom: 8 },
+  waiverSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 18,
+    borderBottomWidth: 1,
+  },
+  waiverSheetTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  waiverDocTitle: { fontSize: 17, fontFamily: "Inter_700Bold", paddingHorizontal: 18, paddingTop: 14 },
+  waiverPractName: { fontSize: 12, fontFamily: "Inter_400Regular", paddingHorizontal: 18, paddingBottom: 10 },
+  waiverBodyScroll: { maxHeight: 180, paddingHorizontal: 18 },
+  waiverBodyText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  waiverFooter: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4, gap: 12 },
+  waiverCheckRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  waiverCheckBox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 2,
+    alignItems: "center", justifyContent: "center",
+  },
+  waiverCheckLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  waiverSigLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5 },
+  waiverSigInput: {
+    borderWidth: 1.5, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 11,
+    fontSize: 15, fontFamily: "Inter_600SemiBold",
+  },
+  waiverSignBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, borderRadius: 12, paddingVertical: 14, marginBottom: 8,
+  },
+  waiverSignBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   // Confirmed screen
   confHeader: {
     paddingHorizontal: 20,

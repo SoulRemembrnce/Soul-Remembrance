@@ -159,5 +159,46 @@ service cloud.firestore {
     match /pushTokens/{userId} {
       allow read, write: if isOwner(userId);
     }
+
+    // ── Following ──────────────────────────────────────────────────────────
+    match /following/{id} {
+      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && isOwner(resource.data.userId);
+      allow update: if false;
+    }
+
+    // ── User profiles (retreat counts, etc.) ───────────────────────────────
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+
+      match /journal/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ── Waiver templates (practitioner-authored) ───────────────────────────
+    // Public read so the booking screen can fetch them without auth.
+    // Only the owning practitioner can create/delete their own waivers.
+    match /waiverTemplates/{id} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.practitionerUid == request.auth.uid;
+      allow delete: if isSignedIn()
+        && resource.data.practitionerUid == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.practitionerUid == request.auth.uid;
+    }
+
+    // ── Waiver signatures (client-signed records) ──────────────────────────
+    // Clients can create and read their own signed waivers.
+    match /waiverSignatures/{id} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
   }
 }

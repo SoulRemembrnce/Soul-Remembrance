@@ -40,6 +40,7 @@ import { usePaymentSheet } from "@/hooks/usePaymentSheet";
 import { uploadAvatar } from "@/lib/storage";
 
 const MENU_ITEMS = [
+  { icon: "file-text", label: "Signed Waivers", route: "/saved-waivers" },
   { icon: "credit-card", label: "Payment Methods", route: "/payment-methods" },
   { icon: "settings", label: "Settings", route: "/settings" },
   { icon: "help-circle", label: "Help & Support", route: "/help" },
@@ -611,6 +612,30 @@ export default function ProfileScreen() {
               <Feather name="briefcase" size={16} color={colors.deepIndigo} />
               <Text style={[styles.availabilityBtnText, { color: colors.deepIndigo }]}>
                 Manage Services
+              </Text>
+              <Feather name="chevron-right" size={14} color={colors.deepIndigo} />
+            </TouchableOpacity>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Waivers & Forms */}
+            <TouchableOpacity
+              style={[styles.availabilityBtn, { borderColor: colors.deepIndigo }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push({
+                  pathname: "/practitioner-waivers",
+                  params: {
+                    numericId: String(myProfile.numericId),
+                    name: myProfile.name,
+                  },
+                });
+              }}
+              activeOpacity={0.85}
+            >
+              <Feather name="file-text" size={16} color={colors.deepIndigo} />
+              <Text style={[styles.availabilityBtnText, { color: colors.deepIndigo }]}>
+                Waivers & Forms
               </Text>
               <Feather name="chevron-right" size={14} color={colors.deepIndigo} />
             </TouchableOpacity>
