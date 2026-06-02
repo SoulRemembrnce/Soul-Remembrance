@@ -3,6 +3,25 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "./firebase";
 
 /**
+ * Upload a vision board photo to Firebase Storage and return the public download URL.
+ * Path: visionBoard/{userId}/{itemId}.jpg
+ */
+export async function uploadVisionBoardImage(
+  userId: string,
+  localUri: string,
+  itemId: string
+): Promise<string> {
+  const path = `visionBoard/${userId}/${itemId}.jpg`;
+  const storageRef = ref(storage, path);
+
+  const resp = await fetch(localUri);
+  const blob = await resp.blob();
+
+  await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+  return getDownloadURL(storageRef);
+}
+
+/**
  * Upload a local image URI to Firebase Storage and return the public download URL.
  * Path: avatars/{role}/{userId}.jpg
  */

@@ -1046,6 +1046,107 @@ export async function deleteJournalEntry(uid: string, entryId: string): Promise<
   await deleteDoc(doc(db, "users", uid, "journal", entryId));
 }
 
+// ─── Gratitude ────────────────────────────────────────────────────────────────
+
+export interface FSGratitudeEntry {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
+export async function addGratitudeEntry(uid: string, text: string): Promise<string> {
+  const ref = doc(collection(db, "users", uid, "gratitude"));
+  await setDoc(ref, { text, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export function subscribeGratitudeEntries(
+  uid: string,
+  cb: (entries: FSGratitudeEntry[]) => void
+): () => void {
+  const q = query(
+    collection(db, "users", uid, "gratitude"),
+    orderBy("createdAt", "desc"),
+    limit(200)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const ts = data.createdAt as Timestamp | null;
+          return {
+            id: d.id,
+            text: data.text ?? "",
+            createdAt: ts ? ts.toDate().toISOString() : new Date().toISOString(),
+          };
+        })
+      );
+    },
+    () => cb([])
+  );
+}
+
+export async function deleteGratitudeEntry(uid: string, entryId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", uid, "gratitude", entryId));
+}
+
+// ─── Vision Board ─────────────────────────────────────────────────────────────
+
+export interface FSVisionBoardItem {
+  id: string;
+  imageUrl: string;
+  caption: string;
+  createdAt: string;
+}
+
+export async function addVisionBoardItem(
+  uid: string,
+  item: { imageUrl: string; caption: string }
+): Promise<string> {
+  const ref = doc(collection(db, "users", uid, "visionBoard"));
+  await setDoc(ref, {
+    imageUrl: item.imageUrl,
+    caption: item.caption,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export function subscribeVisionBoardItems(
+  uid: string,
+  cb: (items: FSVisionBoardItem[]) => void
+): () => void {
+  const q = query(
+    collection(db, "users", uid, "visionBoard"),
+    orderBy("createdAt", "desc"),
+    limit(100)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const ts = data.createdAt as Timestamp | null;
+          return {
+            id: d.id,
+            imageUrl: data.imageUrl ?? "",
+            caption: data.caption ?? "",
+            createdAt: ts ? ts.toDate().toISOString() : new Date().toISOString(),
+          };
+        })
+      );
+    },
+    () => cb([])
+  );
+}
+
+export async function deleteVisionBoardItem(uid: string, itemId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", uid, "visionBoard", itemId));
+}
+
 // ─── Following ────────────────────────────────────────────────────────────────
 
 export function subscribeFollowing(

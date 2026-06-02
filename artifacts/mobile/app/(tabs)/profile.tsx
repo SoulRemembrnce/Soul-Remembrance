@@ -1038,6 +1038,34 @@ export default function ProfileScreen() {
             <Text style={[styles.mindSub, { color: colors.sage }]}>Reflect & write freely</Text>
           </TouchableOpacity>
         </View>
+        <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
+          <TouchableOpacity
+            style={[styles.mindCard, {
+              backgroundColor: `${colors.purpleMid}12`,
+              borderWidth: 1,
+              borderColor: `${colors.purpleMid}28`,
+            }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/gratitude"); }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.mindIcon}>✨</Text>
+            <Text style={[styles.mindTitle, { color: colors.charcoal }]}>Gratitude</Text>
+            <Text style={[styles.mindSub, { color: colors.sage }]}>Count your blessings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.mindCard, {
+              backgroundColor: `${colors.deepIndigo}10`,
+              borderWidth: 1,
+              borderColor: `${colors.deepIndigo}20`,
+            }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/vision-board"); }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.mindIcon}>🌟</Text>
+            <Text style={[styles.mindTitle, { color: colors.charcoal }]}>Vision Board</Text>
+            <Text style={[styles.mindSub, { color: colors.sage }]}>Manifest your dreams</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Account Menu */}

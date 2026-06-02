@@ -175,6 +175,14 @@ service cloud.firestore {
       match /journal/{entryId} {
         allow read, write: if isOwner(userId);
       }
+
+      match /gratitude/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /visionBoard/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ── Waiver templates (practitioner-authored) ───────────────────────────
