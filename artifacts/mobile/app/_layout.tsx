@@ -94,6 +94,7 @@ function RootLayoutNav() {
         <Stack.Screen name="journal" options={{ headerShown: false }} />
         <Stack.Screen name="gratitude" options={{ headerShown: false }} />
         <Stack.Screen name="vision-board" options={{ headerShown: false }} />
+        <Stack.Screen name="mood-tracker" options={{ headerShown: false }} />
         <Stack.Screen name="practitioner-waivers" options={{ headerShown: false }} />
         <Stack.Screen name="saved-waivers" options={{ headerShown: false }} />
         <Stack.Screen name="verification" options={{ headerShown: false }} />

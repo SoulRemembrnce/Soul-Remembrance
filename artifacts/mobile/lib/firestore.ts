@@ -1147,6 +1147,63 @@ export async function deleteVisionBoardItem(uid: string, itemId: string): Promis
   await deleteDoc(doc(db, "users", uid, "visionBoard", itemId));
 }
 
+// ─── Mood Tracker ─────────────────────────────────────────────────────────────
+
+export interface FSMoodCheckin {
+  id: string;
+  mood: string;
+  moodLabel: string;
+  moodScore: number;
+  note: string;
+  dateKey: string;
+  createdAt: string;
+}
+
+export async function addMoodCheckin(
+  uid: string,
+  entry: { mood: string; moodLabel: string; moodScore: number; note: string; dateKey: string }
+): Promise<string> {
+  const ref = doc(collection(db, "users", uid, "moodCheckins"));
+  await setDoc(ref, { ...entry, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export function subscribeMoodCheckins(
+  uid: string,
+  cb: (entries: FSMoodCheckin[]) => void
+): () => void {
+  const q = query(
+    collection(db, "users", uid, "moodCheckins"),
+    orderBy("createdAt", "desc"),
+    limit(90)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const ts = data.createdAt as Timestamp | null;
+          return {
+            id: d.id,
+            mood: data.mood ?? "😌",
+            moodLabel: data.moodLabel ?? "Calm",
+            moodScore: data.moodScore ?? 5,
+            note: data.note ?? "",
+            dateKey: data.dateKey ?? "",
+            createdAt: ts ? ts.toDate().toISOString() : new Date().toISOString(),
+          };
+        })
+      );
+    },
+    () => cb([])
+  );
+}
+
+export async function deleteMoodCheckin(uid: string, entryId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", uid, "moodCheckins", entryId));
+}
+
 // ─── Following ────────────────────────────────────────────────────────────────
 
 export function subscribeFollowing(

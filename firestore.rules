@@ -183,6 +183,10 @@ service cloud.firestore {
       match /visionBoard/{itemId} {
         allow read, write: if isOwner(userId);
       }
+
+      match /moodCheckins/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ── Waiver templates (practitioner-authored) ───────────────────────────

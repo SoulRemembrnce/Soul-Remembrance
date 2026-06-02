@@ -1066,6 +1066,20 @@ export default function ProfileScreen() {
             <Text style={[styles.mindSub, { color: colors.sage }]}>Manifest your dreams</Text>
           </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          style={[styles.moodCard, { backgroundColor: colors.deepIndigo }]}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/mood-tracker"); }}
+          activeOpacity={0.85}
+        >
+          <View style={styles.moodCardLeft}>
+            <Text style={styles.moodCardEmojis}>😌 🌟 💜 🌊 😄</Text>
+            <Text style={[styles.mindTitle, { color: "#fff", marginTop: 8 }]}>Mood Tracker</Text>
+            <Text style={[styles.mindSub, { color: "rgba(255,255,255,0.6)" }]}>Daily check-in & emotional patterns</Text>
+          </View>
+          <View style={styles.moodCardBadge}>
+            <Text style={styles.moodCardBadgeText}>Daily</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Account Menu */}
@@ -1445,6 +1459,11 @@ const styles = StyleSheet.create({
   mindIcon: { fontSize: 28, marginBottom: 8 },
   mindTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
   mindSub: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  moodCard: { borderRadius: 18, padding: 18, marginTop: 12, flexDirection: "row", alignItems: "center" },
+  moodCardLeft: { flex: 1 },
+  moodCardEmojis: { fontSize: 22, letterSpacing: 2, marginBottom: 2 },
+  moodCardBadge: { backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  moodCardBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
   // ── Journey stats ──────────────────────────────────────────
   journeyCard: {
     flexDirection: "row",
