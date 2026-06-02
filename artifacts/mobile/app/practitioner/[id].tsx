@@ -463,12 +463,35 @@ export default function PractitionerScreen() {
               </Text>
             </View>
           )}
+          {selectedService?.isRetreat && (
+            <View style={[styles.noticeBanner, { backgroundColor: `${colors.warmGold}15`, borderColor: `${colors.warmGold}40`, borderWidth: 1, marginTop: 12 }]}>
+              <View style={[styles.reminderIconWrap, { backgroundColor: colors.warmGold }]}>
+                <Feather name="users" size={16} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.reminderTitle, { color: colors.warmGold }]}>
+                  You're in the retreat chat!
+                </Text>
+                <Text style={[styles.noticeText, { color: colors.sage }]}>
+                  Head to Messages to connect with other attendees in your group.
+                </Text>
+              </View>
+            </View>
+          )}
           <TouchableOpacity
             style={[styles.primaryBtn, { backgroundColor: colors.deepIndigo }]}
             onPress={() => { setScreen("detail"); router.back(); }}
           >
             <Text style={styles.primaryBtnText}>Back to Explore</Text>
           </TouchableOpacity>
+          {selectedService?.isRetreat && (
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.warmGold, marginTop: 10 }]}
+              onPress={() => { router.push("/(tabs)/messages" as any); }}
+            >
+              <Text style={styles.primaryBtnText}>Go to Group Chat</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
     );
@@ -564,7 +587,25 @@ export default function PractitionerScreen() {
                             {svc.online ? "Online" : "In-person"}
                           </Text>
                         </View>
+                        {svc.isRetreat && (
+                          <View
+                            style={[
+                              styles.svcTag,
+                              { backgroundColor: active ? "rgba(201,168,76,0.3)" : `${colors.warmGold}18` },
+                            ]}
+                          >
+                            <Feather name="users" size={10} color={active ? "#F5D97A" : colors.warmGold} />
+                            <Text style={[styles.svcTagText, { color: active ? "#F5D97A" : colors.warmGold }]}>
+                              Group retreat
+                            </Text>
+                          </View>
+                        )}
                       </View>
+                      {svc.isRetreat && active && (
+                        <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontFamily: "Inter_400Regular", marginTop: 6 }}>
+                          You'll join a shared group chat with other attendees
+                        </Text>
+                      )}
                     </View>
                     <Text style={[styles.svcPrice, { color: active ? "#fff" : colors.deepIndigo }]}>
                       £{svc.price % 1 === 0 ? svc.price : svc.price.toFixed(2)}

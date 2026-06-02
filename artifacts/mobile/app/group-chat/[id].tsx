@@ -87,7 +87,7 @@ export default function GroupChatScreen() {
     setInput("");
     setSending(true);
     try {
-      await sendGroupMessage(id, userId, userName ?? "Member", userInitials, text);
+      await sendGroupMessage(id, userId, userName ?? "Member", userInitials, text, chat?.memberUids ?? []);
     } finally {
       setSending(false);
     }

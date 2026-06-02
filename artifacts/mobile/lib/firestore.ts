@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   limit,
   onSnapshot,
   orderBy,
@@ -582,7 +583,8 @@ export async function sendGroupMessage(
   senderId: string,
   senderName: string,
   senderInitials: string,
-  text: string
+  text: string,
+  memberUids: string[] = []
 ): Promise<void> {
   const msgId = `${senderId}_${Date.now()}`;
   await setDoc(doc(db, "groupChats", chatId, "messages", msgId), {
@@ -593,9 +595,17 @@ export async function sendGroupMessage(
     senderInitials,
     createdAt: serverTimestamp(),
   });
+  // Build unread increments for all members except the sender
+  const unreadIncrements: Record<string, ReturnType<typeof increment>> = {};
+  for (const uid of memberUids) {
+    if (uid !== senderId) {
+      unreadIncrements[`unreadCounts.${uid}`] = increment(1);
+    }
+  }
   await updateDoc(doc(db, "groupChats", chatId), {
     lastMessage: text,
     lastMessageAt: serverTimestamp(),
+    ...unreadIncrements,
   });
 }
 
