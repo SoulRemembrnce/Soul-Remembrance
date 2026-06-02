@@ -1,20 +1,19 @@
 {
   "expo": {
     "name": "Soul Remembrance",
-    "slug": "mobile",
+    "slug": "soul-remembrance",
+    "owner": "soulremembrance",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "cover",
       "backgroundColor": "#2D1B69"
     },
-
     "ios": {
       "bundleIdentifier": "com.soulremembrance.app",
       "buildNumber": "1",
@@ -25,7 +24,9 @@
         "NSPhotoLibraryUsageDescription": "Soul Remembrance accesses your photo library so you can choose a profile photo.",
         "NSCalendarsUsageDescription": "Soul Remembrance uses your calendar to add booked sessions and send you reminders.",
         "NSUserNotificationsUsageDescription": "Soul Remembrance sends you booking confirmations, session reminders, and messages from your practitioners.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "entitlements": {
         "aps-environment": "production"
@@ -34,24 +35,31 @@
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
-            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
-            "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
-            "NSPrivacyAccessedAPITypeReasons": ["E174.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
           }
         ]
       }
     },
-
     "android": {
       "package": "com.soulremembrance.app",
       "versionCode": 1,
@@ -69,15 +77,14 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
-
     "web": {
       "favicon": "./assets/images/icon.png",
       "bundler": "metro"
     },
-
     "plugins": [
       [
         "expo-router",
@@ -118,10 +125,14 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7cd7cf1c-753a-4136-864a-20b9b81b03e8"
+      }
     }
   }
 }
