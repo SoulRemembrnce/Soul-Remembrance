@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { LotusOutlineIcon } from "@/components/icons/LotusOutlineIcon";
 import { AshTreeOutlineIcon } from "@/components/icons/AshTreeOutlineIcon";
+import { HouseOutlineIcon } from "@/components/icons/HouseOutlineIcon";
 
 function NativeTabLayout() {
   return (
@@ -90,7 +91,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="house" tintColor={color} size={22} />
             ) : (
-              <Feather name="home" size={21} color={color} />
+              <HouseOutlineIcon color={color} size={22} />
             ),
         }}
       />
