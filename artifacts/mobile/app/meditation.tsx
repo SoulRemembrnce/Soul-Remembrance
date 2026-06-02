@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
+import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -234,7 +235,10 @@ export default function MeditationScreen() {
         >
           <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.9)" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Meditate</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <LotusIcon size={22} />
+          <Text style={styles.headerTitle}>Meditate</Text>
+        </View>
         <View style={styles.statsChip}>
           <Text style={styles.statsChipText}>
             {totalSessions} {totalSessions === 1 ? "session" : "sessions"}

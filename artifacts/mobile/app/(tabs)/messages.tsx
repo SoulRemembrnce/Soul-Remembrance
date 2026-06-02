@@ -1,4 +1,5 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
+import { LotusIcon } from "@/components/LotusIcon";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -79,7 +80,10 @@ export default function MessagesScreen() {
       >
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.headerTitle}>Messages</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 }}>
+              <LotusIcon size={22} />
+              <Text style={styles.headerTitle}>Messages</Text>
+            </View>
             {totalUnread > 0 && (
               <Text style={styles.headerSub}>{totalUnread} unread</Text>
             )}

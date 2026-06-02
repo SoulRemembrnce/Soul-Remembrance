@@ -1,4 +1,5 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
+import { LotusIcon } from "@/components/LotusIcon";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { ReviewModal, type ReviewTarget } from "@/components/ReviewModal";
 import { Feather } from "@expo/vector-icons";

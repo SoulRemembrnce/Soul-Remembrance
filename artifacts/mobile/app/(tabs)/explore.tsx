@@ -1,4 +1,5 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
+import { LotusIcon } from "@/components/LotusIcon";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -235,7 +236,10 @@ export default function ExploreScreen() {
         style={[styles.header, { paddingTop: topPad + 14 }]}
       >
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Explore</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <LotusIcon size={22} />
+            <Text style={styles.headerTitle}>Explore</Text>
+          </View>
           <View style={styles.headerActions}>
             {/* Near Me button */}
             <TouchableOpacity

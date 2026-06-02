@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -226,7 +227,10 @@ export default function MoodTrackerScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerLabel}>EMOTIONAL WELLNESS</Text>
-          <Text style={styles.headerTitle}>Mood Tracker</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 2 }}>
+            <LotusIcon size={20} />
+            <Text style={styles.headerTitle}>Mood Tracker</Text>
+          </View>
           {entries.length > 0 && (
             <Text style={styles.headerSub}>{entries.length} check-ins recorded</Text>
           )}

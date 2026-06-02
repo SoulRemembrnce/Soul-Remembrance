@@ -1,4 +1,5 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
+import { LotusIcon } from "@/components/LotusIcon";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -93,7 +94,10 @@ export default function HomeScreen() {
       >
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.headerEyebrow}>SOUL REMEMBRANCE</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 2 }}>
+              <LotusIcon size={22} />
+              <Text style={styles.headerEyebrow}>SOUL REMEMBRANCE</Text>
+            </View>
             <Text style={styles.headerTitle}>Welcome, {userName}</Text>
           </View>
           <TouchableOpacity style={styles.notifBtn} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}>

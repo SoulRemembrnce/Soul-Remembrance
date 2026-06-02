@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -116,7 +117,10 @@ export default function GratitudeScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerLabel}>MY GRATITUDES</Text>
-          <Text style={styles.headerTitle}>Gratitude List</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 2 }}>
+            <LotusIcon size={20} />
+            <Text style={styles.headerTitle}>Gratitude List</Text>
+          </View>
           <Text style={styles.headerSub}>
             {entries.length} {entries.length === 1 ? "blessing" : "blessings"} recorded
           </Text>

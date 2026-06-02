@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
@@ -123,7 +124,10 @@ export default function VisionBoardScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerLabel}>MANIFESTING</Text>
-          <Text style={styles.headerTitle}>Vision Board</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 2 }}>
+            <LotusIcon size={20} />
+            <Text style={styles.headerTitle}>Vision Board</Text>
+          </View>
           <Text style={styles.headerSub}>
             {items.length} {items.length === 1 ? "intention" : "intentions"} set
           </Text>

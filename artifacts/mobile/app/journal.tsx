@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -118,7 +119,10 @@ export default function JournalScreen() {
           <Feather name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>My Journal</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 2 }}>
+            <LotusIcon size={20} />
+            <Text style={styles.headerTitle}>My Journal</Text>
+          </View>
           <Text style={styles.headerSub}>
             {entries.length} {entries.length === 1 ? "entry" : "entries"}
           </Text>

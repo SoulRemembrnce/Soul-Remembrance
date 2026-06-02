@@ -1,4 +1,5 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
+import { LotusIcon } from "@/components/LotusIcon";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -266,7 +267,10 @@ export default function CommunityScreen() {
         colors={[colors.deepIndigo, colors.indigo2]}
         style={[styles.header, { paddingTop: topPad + 14 }]}
       >
-        <Text style={styles.headerTitle}>Community</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 }}>
+          <LotusIcon size={22} />
+          <Text style={styles.headerTitle}>Community</Text>
+        </View>
         <Text style={styles.headerSub}>Connect · Share · Heal Together</Text>
       </LinearGradient>
 

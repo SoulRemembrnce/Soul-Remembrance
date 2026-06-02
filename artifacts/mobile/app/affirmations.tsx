@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -465,7 +466,10 @@ export default function AffirmationsScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerLabel}>DAILY AFFIRMATIONS</Text>
-          <Text style={styles.headerTitle}>Affirmations</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 2 }}>
+            <LotusIcon size={20} />
+            <Text style={styles.headerTitle}>Affirmations</Text>
+          </View>
           <Text style={styles.headerSub}>Words that heal and uplift</Text>
         </View>
         {tab === "mine" && !isAnonymous && (
