@@ -24,11 +24,16 @@ import { auth } from "@/lib/firebase";
 import {
   addBookingToFirestore,
   addFavoriteToFirestore,
+  addFollowingToFirestore,
   addReviewToFirestore,
   FSBooking,
+  FSUserProfile,
   removeFavoriteFromFirestore,
+  removeFollowingFromFirestore,
   subscribeBookings,
   subscribeFavorites,
+  subscribeFollowing,
+  subscribeUserProfile,
 } from "@/lib/firestore";
 import { seedDatabaseIfEmpty } from "@/lib/seed";
 import {
@@ -68,6 +73,8 @@ interface AppContextValue {
   updatePhotoURL: (url: string) => Promise<void>;
   favorites: Set<number>;
   toggleFavorite: (id: number) => void;
+  following: Set<number>;
+  toggleFollowing: (id: number) => void;
   bookings: Booking[];
   addBooking: (booking: Booking) => void;
   goingEvents: Set<number>;
@@ -76,6 +83,7 @@ interface AppContextValue {
   userReviews: Review[];
   addReview: (review: Review) => void;
   dbReady: boolean;
+  retreatsAttended: number;
 }
 
 const AppContext = createContext<AppContextValue>({
@@ -90,6 +98,8 @@ const AppContext = createContext<AppContextValue>({
   updatePhotoURL: async () => {},
   favorites: new Set(),
   toggleFavorite: () => {},
+  following: new Set(),
+  toggleFollowing: () => {},
   bookings: [],
   addBooking: () => {},
   goingEvents: new Set(),
@@ -98,17 +108,20 @@ const AppContext = createContext<AppContextValue>({
   userReviews: [],
   addReview: () => {},
   dbReady: false,
+  retreatsAttended: 0,
 });
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const [following, setFollowing] = useState<Set<number>>(new Set());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [goingEvents, setGoingEvents] = useState<Set<number>>(new Set());
   const [notificationsGranted, setNotificationsGranted] = useState(false);
   const [userReviews, setUserReviews] = useState<Review[]>([]);
   const [dbReady, setDbReady] = useState(false);
   const [localPhotoURL, setLocalPhotoURL] = useState<string | null>(null);
+  const [retreatsAttended, setRetreatsAttended] = useState(0);
 
   const dataUnsubsRef = useRef<Array<() => void>>([]);
 
@@ -204,6 +217,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       subscribeFavorites(user.uid, (ids) => setFavorites(new Set(ids)))
     );
 
+    dataUnsubsRef.current.push(
+      subscribeFollowing(user.uid, (ids) => setFollowing(new Set(ids)))
+    );
+
+    dataUnsubsRef.current.push(
+      subscribeUserProfile(user.uid, (p) => setRetreatsAttended(p.retreatsAttended ?? 0))
+    );
+
     return () => {
       dataUnsubsRef.current.forEach((u) => u());
       dataUnsubsRef.current = [];
@@ -221,6 +242,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dataUnsubsRef.current = [];
     setBookings([]);
     setFavorites(new Set());
+    setFollowing(new Set());
+    setRetreatsAttended(0);
     await firebaseSignOut(auth);
     // onAuthStateChanged will trigger anonymous sign-in automatically
   }, []);
@@ -236,6 +259,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } else {
           next.add(id);
           addFavoriteToFirestore(user.uid, id).catch(console.warn);
+        }
+        return next;
+      });
+    },
+    [user]
+  );
+
+  const toggleFollowing = useCallback(
+    (id: number) => {
+      if (!user) return;
+      setFollowing((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+          removeFollowingFromFirestore(user.uid, id).catch(console.warn);
+        } else {
+          next.add(id);
+          addFollowingToFirestore(user.uid, id).catch(console.warn);
         }
         return next;
       });
@@ -287,6 +328,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updatePhotoURL,
         favorites,
         toggleFavorite,
+        following,
+        toggleFollowing,
         bookings,
         addBooking,
         goingEvents,
@@ -295,6 +338,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         userReviews,
         addReview,
         dbReady,
+        retreatsAttended,
       }}
     >
       {children}

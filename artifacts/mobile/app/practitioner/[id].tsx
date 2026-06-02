@@ -39,7 +39,7 @@ export default function PractitionerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { userId, email: userEmail, favorites, toggleFavorite, addBooking, bookings, userReviews, addReview, userName } = useApp();
+  const { userId, email: userEmail, favorites, toggleFavorite, following, toggleFollowing, addBooking, bookings, userReviews, addReview, userName } = useApp();
   const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
 
   const [screen, setScreen] = useState<Screen>("detail");
@@ -664,6 +664,7 @@ export default function PractitionerScreen() {
 
   // Detail screen
   const isFav = favorites.has(practitioner.id);
+  const isFollowing = following.has(practitioner.id);
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
@@ -675,12 +676,23 @@ export default function PractitionerScreen() {
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
               <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.85)" />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => { toggleFavorite(practitioner.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-              style={styles.backBtn}
-            >
-              <Feather name="heart" size={18} color={isFav ? "#ff6b6b" : "rgba(255,255,255,0.85)"} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => { toggleFollowing(practitioner.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                style={[styles.followPill, isFollowing && styles.followPillActive]}
+              >
+                {isFollowing && <Feather name="check" size={11} color="#fff" style={{ marginRight: 4 }} />}
+                <Text style={[styles.followPillText, isFollowing && { color: "#fff" }]}>
+                  {isFollowing ? "Following" : "Follow"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { toggleFavorite(practitioner.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                style={styles.backBtn}
+              >
+                <Feather name="heart" size={18} color={isFav ? "#ff6b6b" : "rgba(255,255,255,0.85)"} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <LinearGradient colors={practitioner.avatarColor as [string, string]} style={styles.detailAvatar}>
@@ -973,6 +985,25 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  followPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  followPillActive: {
+    backgroundColor: "#C9A84C",
+    borderColor: "#C9A84C",
+  },
+  followPillText: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
   },
   detailAvatar: {
     width: 80,

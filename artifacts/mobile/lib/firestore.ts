@@ -820,3 +820,55 @@ export function subscribeJournalEntries(
 export async function deleteJournalEntry(uid: string, entryId: string): Promise<void> {
   await deleteDoc(doc(db, "users", uid, "journal", entryId));
 }
+
+// ─── Following ────────────────────────────────────────────────────────────────
+
+export function subscribeFollowing(
+  uid: string,
+  cb: (ids: number[]) => void
+): () => void {
+  const q = query(collection(db, "following"), where("userId", "==", uid));
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(snap.docs.map((d) => (d.data() as { practitionerId: number }).practitionerId));
+    },
+    () => cb([])
+  );
+}
+
+export async function addFollowingToFirestore(
+  userId: string,
+  practitionerId: number
+): Promise<void> {
+  await setDoc(doc(db, "following", `${userId}_${practitionerId}`), {
+    userId,
+    practitionerId,
+  });
+}
+
+export async function removeFollowingFromFirestore(
+  userId: string,
+  practitionerId: number
+): Promise<void> {
+  await deleteDoc(doc(db, "following", `${userId}_${practitionerId}`));
+}
+
+// ─── User Profile ─────────────────────────────────────────────────────────────
+
+export interface FSUserProfile {
+  retreatsAttended?: number;
+}
+
+export function subscribeUserProfile(
+  uid: string,
+  cb: (profile: FSUserProfile) => void
+): () => void {
+  return onSnapshot(
+    doc(db, "users", uid),
+    (snap) => {
+      cb(snap.exists() ? (snap.data() as FSUserProfile) : {});
+    },
+    () => cb({})
+  );
+}

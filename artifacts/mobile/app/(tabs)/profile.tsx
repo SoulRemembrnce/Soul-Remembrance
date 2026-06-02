@@ -69,10 +69,10 @@ export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const {
-    bookings, favorites, userReviews,
+    bookings, favorites, following, userReviews,
     isAnonymous, displayName, email, photoURL,
     signInWithGoogle, signOut, userId, updatePhotoURL,
-    notificationsGranted,
+    notificationsGranted, goingEvents, retreatsAttended,
   } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const sessionsY = useRef(0);
@@ -397,6 +397,24 @@ export default function ProfileScreen() {
           </View>
         </View>
       </LinearGradient>
+
+      {/* Journey Stats */}
+      <View style={[styles.journeyCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+        <View style={styles.journeyItem}>
+          <Text style={[styles.journeyNum, { color: colors.deepIndigo }]}>{following.size}</Text>
+          <Text style={[styles.journeyLabel, { color: colors.sage }]}>Following</Text>
+        </View>
+        <View style={[styles.journeyDivider, { backgroundColor: colors.blush }]} />
+        <View style={styles.journeyItem}>
+          <Text style={[styles.journeyNum, { color: colors.deepIndigo }]}>{goingEvents.size}</Text>
+          <Text style={[styles.journeyLabel, { color: colors.sage }]}>Events</Text>
+        </View>
+        <View style={[styles.journeyDivider, { backgroundColor: colors.blush }]} />
+        <View style={styles.journeyItem}>
+          <Text style={[styles.journeyNum, { color: colors.deepIndigo }]}>{retreatsAttended}</Text>
+          <Text style={[styles.journeyLabel, { color: colors.sage }]}>Retreats</Text>
+        </View>
+      </View>
 
       {/* Sign in with Google — shown only when anonymous */}
       {isAnonymous && (
@@ -1293,4 +1311,23 @@ const styles = StyleSheet.create({
   mindIcon: { fontSize: 28, marginBottom: 8 },
   mindTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
   mindSub: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  // ── Journey stats ──────────────────────────────────────────
+  journeyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginTop: -18,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  journeyItem: { flex: 1, alignItems: "center" },
+  journeyNum: { fontSize: 20, fontFamily: "Inter_700Bold", marginBottom: 2 },
+  journeyLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  journeyDivider: { width: 1, height: 28 },
 });
