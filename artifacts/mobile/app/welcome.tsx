@@ -218,12 +218,12 @@ export default function WelcomeScreen() {
                 <TouchableOpacity
                   onPress={() => setShowPassword((v) => !v)}
                   style={styles.eyeBtn}
-                  hitSlop={12}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 >
                   <Feather
                     name={showPassword ? "eye-off" : "eye"}
-                    size={18}
-                    color={showPassword ? "#C9A84C" : "rgba(255,255,255,0.55)"}
+                    size={20}
+                    color={showPassword ? "#C9A84C" : "rgba(255,255,255,0.65)"}
                   />
                 </TouchableOpacity>
               </View>
@@ -379,7 +379,11 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   eyeBtn: {
-    paddingLeft: 10,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
 
   forgotBtn: { alignSelf: "flex-end", marginTop: -4 },
