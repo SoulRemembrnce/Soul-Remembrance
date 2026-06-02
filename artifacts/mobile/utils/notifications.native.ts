@@ -1,10 +1,11 @@
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-// setNotificationHandler must be called at module level, but crashes on Android Expo Go.
-// Wrap in try/catch so the rest of the app still loads.
+// expo-notifications removed push support from Expo Go on Android in SDK 53.
+// Use require() so a thrown error at load time doesn't crash the whole app.
+let Notifications: typeof import("expo-notifications") | null = null;
 try {
+  Notifications = require("expo-notifications") as typeof import("expo-notifications");
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -12,13 +13,14 @@ try {
       shouldSetBadge: false,
       shouldShowBanner: true,
       shouldShowList: true,
-    } as Notifications.NotificationBehavior),
+    } as any),
   });
 } catch {
-  // Android Expo Go: push notifications removed in SDK 53 — safe to ignore
+  // Expo Go Android SDK 53 — notifications unavailable, app still loads fine
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (!Notifications) return false;
   try {
     const existing = await Notifications.getPermissionsAsync();
     const isGranted = (p: unknown) => (p as any)?.granted === true || (p as any)?.status === "granted";
@@ -30,9 +32,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
-// ── Push token registration ───────────────────────────────────────────────────
-
 export async function registerPushToken(): Promise<string | null> {
+  if (!Notifications) return null;
   try {
     if (!Device.isDevice) return null;
     if (Platform.OS === "android") {
@@ -52,8 +53,6 @@ export async function registerPushToken(): Promise<string | null> {
   }
 }
 
-// ── Send push via Expo Push API (no server needed) ────────────────────────────
-
 export async function sendExpoPush(
   expoPushToken: string,
   title: string,
@@ -72,15 +71,14 @@ export async function sendExpoPush(
       body: JSON.stringify({ to: expoPushToken, title, body, data, sound: "default" }),
     });
   } catch {
-    // Best-effort — never block the UI
+    // Best-effort
   }
 }
-
-// ── Notification tap listener (deep-link routing) ─────────────────────────────
 
 export function addNotificationTapListener(
   handler: (data: Record<string, unknown>) => void
 ): () => void {
+  if (!Notifications) return () => {};
   try {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data ?? {};
@@ -91,8 +89,6 @@ export function addNotificationTapListener(
     return () => {};
   }
 }
-
-// ── Local booking reminders ───────────────────────────────────────────────────
 
 function parseSessionDate(dateStr: string, timeStr: string): Date | null {
   const now = new Date();
@@ -141,6 +137,7 @@ export async function scheduleBookingReminders(
   timeStr: string
 ): Promise<ReminderResult> {
   const result: ReminderResult = { dayBefore: false, hourBefore: false };
+  if (!Notifications) return result;
   try {
     const granted = await requestNotificationPermission();
     if (!granted) return result;
@@ -163,7 +160,7 @@ export async function scheduleBookingReminders(
           sound: true,
           data: { bookingId, type: "day-before", screen: "sessions" },
         },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: dayBeforeSecs },
+        trigger: { type: (Notifications as any).SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: dayBeforeSecs },
       });
       result.dayBefore = true;
     }
@@ -178,7 +175,7 @@ export async function scheduleBookingReminders(
           sound: true,
           data: { bookingId, type: "hour-before", screen: "sessions" },
         },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: hourBeforeSecs },
+        trigger: { type: (Notifications as any).SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: hourBeforeSecs },
       });
       result.hourBefore = true;
     }
@@ -189,6 +186,7 @@ export async function scheduleBookingReminders(
 }
 
 export async function cancelBookingReminders(bookingId: string): Promise<void> {
+  if (!Notifications) return;
   try {
     await Promise.all([
       Notifications.cancelScheduledNotificationAsync(`${bookingId}-day`),

@@ -136,9 +136,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const dataUnsubsRef = useRef<Array<() => void>>([]);
 
   // ── Google OAuth request ───────────────────────────────────────────────────
+  // androidClientId is required on Android (including Expo Go) — fall back to
+  // webClientId so the hook doesn't crash. Google sign-in on Android requires a
+  // proper EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID for production builds.
   const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "not-configured";
+  const googleAndroidClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? googleClientId;
   const [, response, promptAsync] = Google.useAuthRequest({
     webClientId: googleClientId,
+    androidClientId: googleAndroidClientId,
   });
 
   // Process Google auth response
