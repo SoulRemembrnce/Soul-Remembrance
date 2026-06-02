@@ -220,11 +220,9 @@ export default function WelcomeScreen() {
                   style={styles.eyeBtn}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 >
-                  <Feather
-                    name={showPassword ? "eye-off" : "eye"}
-                    size={20}
-                    color={showPassword ? "#C9A84C" : "rgba(255,255,255,0.65)"}
-                  />
+                  <Text style={styles.eyeBtnText}>
+                    {showPassword ? "Hide" : "Show"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -379,11 +377,14 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   eyeBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     flexShrink: 0,
+  },
+  eyeBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: "#C9A84C",
   },
 
   forgotBtn: { alignSelf: "flex-end", marginTop: -4 },

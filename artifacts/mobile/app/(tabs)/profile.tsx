@@ -634,13 +634,11 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 onPress={() => setShowPasswordModal(v => !v)}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                style={{ paddingHorizontal: 6, flexShrink: 0 }}
               >
-                <Feather
-                  name={showPasswordModal ? "eye-off" : "eye"}
-                  size={20}
-                  color={showPasswordModal ? colors.deepIndigo : colors.sage}
-                />
+                <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.deepIndigo }}>
+                  {showPasswordModal ? "Hide" : "Show"}
+                </Text>
               </TouchableOpacity>
             </View>
 
