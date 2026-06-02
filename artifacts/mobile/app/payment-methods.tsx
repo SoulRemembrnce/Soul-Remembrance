@@ -73,7 +73,7 @@ export default function PaymentMethodsScreen() {
           {
             icon: "lock",
             title: "Refunds",
-            body: "For refunds or payment queries, please contact support from the Help & Support menu.",
+            body: "Refunds are arranged directly with your practitioner. If you need further assistance, please reach out via the Help & Support menu.",
           },
         ].map((item, i) => (
           <View
