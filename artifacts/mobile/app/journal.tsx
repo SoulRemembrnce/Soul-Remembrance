@@ -130,7 +130,7 @@ export default function JournalScreen() {
           <Text style={styles.bigEmoji}>📔</Text>
           <Text style={[styles.centreTitle, { color: colors.charcoal }]}>Sign in to journal</Text>
           <Text style={[styles.centreBody, { color: colors.sage }]}>
-            Your journal is private and securely saved to your account. Sign in with Google to start writing.
+            Your journal is private and securely saved to your account. Sign in to start writing.
           </Text>
         </View>
       ) : (
