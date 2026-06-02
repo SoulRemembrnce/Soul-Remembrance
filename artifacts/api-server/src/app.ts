@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import webhooksRouter from "./routes/webhooks";
+import legalRouter from "./routes/legal";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -36,5 +37,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// Legal pages — served at /privacy and /terms (no /api prefix)
+app.use(legalRouter);
 
 export default app;
