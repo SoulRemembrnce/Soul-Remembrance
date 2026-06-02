@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -220,6 +221,7 @@ export default function MoodTrackerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
+      <AshTreeBackground />
       {/* Header */}
       <LinearGradient colors={[colors.deepIndigo, colors.indigo2]} style={[styles.header, { paddingTop: topPad + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>

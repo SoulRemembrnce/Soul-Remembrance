@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
+import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -225,6 +226,7 @@ export default function MeditationScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#1A0E45" }}>
+      <AshTreeBackground />
       <LinearGradient
         colors={["#1A0E45", "#2D1B69"]}
         style={[styles.header, { paddingTop: topPad + 12 }]}

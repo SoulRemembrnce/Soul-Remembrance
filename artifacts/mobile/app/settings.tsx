@@ -1,3 +1,4 @@
+import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -28,6 +29,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
+      <AshTreeBackground />
       <LinearGradient
         colors={[colors.deepIndigo, colors.indigo2]}
         style={[styles.header, { paddingTop: topPad + 12 }]}

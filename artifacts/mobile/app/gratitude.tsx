@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { LotusIcon } from "@/components/LotusIcon";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -108,6 +109,7 @@ export default function GratitudeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
+      <AshTreeBackground />
       <LinearGradient
         colors={[colors.deepIndigo, colors.indigo2]}
         style={[styles.header, { paddingTop: topPad + 12 }]}
