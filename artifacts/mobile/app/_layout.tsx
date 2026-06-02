@@ -7,7 +7,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef } from "react";
 import { Platform } from "react-native";
@@ -15,19 +15,35 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AppProvider } from "@/contexts/AppContext";
+import { AppProvider, useApp } from "@/contexts/AppContext";
 import { StripeProviderWrapper } from "@/components/StripeProviderWrapper";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+// ── Auth redirect ─────────────────────────────────────────────────────────────
+// Keeps users on /welcome until they sign in; after sign-in sends them to tabs.
+function AuthRedirect() {
+  const { isAnonymous } = useApp();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    const onWelcome = segments[0] === "welcome";
+    const onLegal = segments[0] === "privacy" || segments[0] === "terms";
+
+    if (isAnonymous && !onWelcome && !onLegal) {
+      router.replace("/welcome" as any);
+    } else if (!isAnonymous && onWelcome) {
+      router.replace("/(tabs)" as any);
+    }
+  }, [isAnonymous, segments]);
+
+  return null;
+}
+
 // ── Notification deep-link handler ────────────────────────────────────────────
-// Lives inside Stack so useRouter() is available.
-// Handles three cases:
-//   1. Cold start  — app was closed; user tapped notification to open it
-//   2. Background  — app was backgrounded; user tapped notification
-//   3. (Foreground notifications just display the alert; no navigation needed)
 function NotificationDeepLink() {
   const router = useRouter();
   const handled = useRef<string | null>(null);
@@ -36,18 +52,15 @@ function NotificationDeepLink() {
     const path = data?.router as string | undefined;
     if (!path || handled.current === path) return;
     handled.current = path;
-    // Small delay so the navigator is fully mounted before pushing
     setTimeout(() => {
       try {
         router.push(path as any);
       } catch {
-        // Fallback to tabs root if path is invalid
         router.replace("/(tabs)" as any);
       }
     }, 300);
   }
 
-  // Case 1: Cold start — check for a notification that launched the app
   useEffect(() => {
     if (Platform.OS === "web") return;
     try {
@@ -62,7 +75,6 @@ function NotificationDeepLink() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Case 2: Background — app already running, user taps notification
   useEffect(() => {
     if (Platform.OS === "web") return;
     try {
@@ -83,9 +95,13 @@ function NotificationDeepLink() {
 function RootLayoutNav() {
   return (
     <>
+      <AuthRedirect />
       <NotificationDeepLink />
       <Stack screenOptions={{ headerBackTitle: "Back" }}>
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy" options={{ headerShown: false }} />
+        <Stack.Screen name="terms" options={{ headerShown: false }} />
         <Stack.Screen name="practitioner/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, presentation: "modal" }} />
