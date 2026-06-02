@@ -94,6 +94,7 @@ export default function ProfileScreen() {
   const [emailAuthLoading, setEmailAuthLoading] = useState(false);
   const [emailAuthError, setEmailAuthError] = useState("");
   const [resetSent, setResetSent] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const openEmailModal = useCallback((mode: "signin" | "signup") => {
     setEmailMode(mode);
@@ -102,6 +103,7 @@ export default function ProfileScreen() {
     setNameInput("");
     setEmailAuthError("");
     setResetSent(false);
+    setShowPasswordModal(false);
     setEmailModalVisible(true);
   }, []);
 
@@ -618,16 +620,29 @@ export default function ProfileScreen() {
               returnKeyType="next"
             />
 
-            <TextInput
-              style={[styles.emailInput, { color: colors.charcoal, borderColor: colors.blush, backgroundColor: colors.softWhite }]}
-              placeholder="Password (min. 6 characters)"
-              placeholderTextColor={colors.sage}
-              value={passwordInput}
-              onChangeText={v => { setPasswordInput(v); setEmailAuthError(""); }}
-              secureTextEntry
-              returnKeyType="done"
-              onSubmitEditing={handleEmailAuth}
-            />
+            <View style={[styles.emailInput, styles.passwordRow, { borderColor: colors.blush, backgroundColor: colors.softWhite }]}>
+              <TextInput
+                style={{ flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", color: colors.charcoal }}
+                placeholder="Password (min. 6 characters)"
+                placeholderTextColor={colors.sage}
+                value={passwordInput}
+                onChangeText={v => { setPasswordInput(v); setEmailAuthError(""); }}
+                secureTextEntry={!showPasswordModal}
+                returnKeyType="done"
+                onSubmitEditing={handleEmailAuth}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPasswordModal(v => !v)}
+                hitSlop={12}
+                style={{ paddingLeft: 8 }}
+              >
+                <Feather
+                  name={showPasswordModal ? "eye-off" : "eye"}
+                  size={18}
+                  color={showPasswordModal ? colors.deepIndigo : colors.sage}
+                />
+              </TouchableOpacity>
+            </View>
 
             {/* Error / reset sent */}
             {emailAuthError !== "" && (
@@ -1514,6 +1529,7 @@ const styles = StyleSheet.create({
   emailModeBtn: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: "center" },
   emailModeBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   emailInput: { borderWidth: 1, borderRadius: 14, padding: 14, fontSize: 15, fontFamily: "Inter_400Regular", marginBottom: 12 },
+  passwordRow: { flexDirection: "row", alignItems: "center" },
   emailError: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12, textAlign: "center" },
   emailSubmitBtn: { borderRadius: 14, padding: 15, alignItems: "center", justifyContent: "center", minHeight: 50 },
   emailSubmitText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
