@@ -95,6 +95,7 @@ function RootLayoutNav() {
         <Stack.Screen name="practitioner-waivers" options={{ headerShown: false }} />
         <Stack.Screen name="saved-waivers" options={{ headerShown: false }} />
         <Stack.Screen name="verification" options={{ headerShown: false }} />
+        <Stack.Screen name="group-chat/[id]" options={{ headerShown: false }} />
       </Stack>
     </>
   );

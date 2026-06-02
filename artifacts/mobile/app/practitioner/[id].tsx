@@ -26,6 +26,7 @@ import {
   FSService,
   FSWaiverTemplate,
   createConversation,
+  createOrJoinRetreatChat,
   getPractitionerProfileByNumericId,
   getWaiverByNumericId,
   markSlotBooked,
@@ -243,13 +244,30 @@ export default function PractitionerScreen() {
 
       // ── Step 5: Create messaging conversation ───────────────────────────
       if (userId) {
-        createConversation(
-          userId,
-          practitioner.id,
-          practitioner.name,
-          practitioner.initials,
-          practitioner.avatarColor as [string, string]
-        ).catch(console.warn);
+        if (selectedService?.isRetreat && selectedService.id) {
+          const initials = userName
+            ? userName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+            : "?";
+          createOrJoinRetreatChat(
+            userId,
+            userName ?? "Member",
+            initials,
+            selectedService.id,
+            practitioner.id,
+            practitioner.name,
+            practitioner.initials,
+            practitioner.avatarColor as [string, string],
+            selectedService.name
+          ).catch(console.warn);
+        } else {
+          createConversation(
+            userId,
+            practitioner.id,
+            practitioner.name,
+            practitioner.initials,
+            practitioner.avatarColor as [string, string]
+          ).catch(console.warn);
+        }
       }
 
       // ── Step 6: Send booking confirmation emails ─────────────────────────

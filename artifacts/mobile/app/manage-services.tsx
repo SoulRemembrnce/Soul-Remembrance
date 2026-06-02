@@ -49,6 +49,7 @@ type ServiceFormData = {
   durationMinutes: number;
   price: string;
   online: boolean;
+  isRetreat: boolean;
 };
 
 const EMPTY_FORM: ServiceFormData = {
@@ -57,6 +58,7 @@ const EMPTY_FORM: ServiceFormData = {
   durationMinutes: 60,
   price: "",
   online: true,
+  isRetreat: false,
 };
 
 export default function ManageServicesScreen() {
@@ -105,6 +107,7 @@ export default function ManageServicesScreen() {
         durationMinutes: svc.durationMinutes,
         price: String(svc.price),
         online: svc.online,
+        isRetreat: svc.isRetreat ?? false,
       },
       saving: false,
     });
@@ -137,6 +140,7 @@ export default function ManageServicesScreen() {
       durationMinutes: form.durationMinutes,
       price: parsedPrice,
       online: form.online,
+      isRetreat: form.isRetreat,
     };
     try {
       if (editing) {
@@ -256,6 +260,12 @@ export default function ManageServicesScreen() {
                         {svc.online ? "Online" : "In-person"}
                       </Text>
                     </View>
+                    {svc.isRetreat && (
+                      <View style={[styles.serviceTag, { backgroundColor: `${colors.warmGold}18` }]}>
+                        <Feather name="users" size={10} color={colors.warmGold} />
+                        <Text style={[styles.serviceTagText, { color: colors.warmGold }]}>Retreat</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <View style={styles.servicePriceCol}>
@@ -388,6 +398,34 @@ export default function ManageServicesScreen() {
                   );
                 })}
               </View>
+
+              <Text style={styles.fieldLabel}>Type</Text>
+              <TouchableOpacity
+                style={[
+                  styles.retreatToggle,
+                  modal.form.isRetreat
+                    ? { backgroundColor: "#C9A84C18", borderColor: "#C9A84C" }
+                    : { backgroundColor: "#FAF5FF", borderColor: "#DDD0F0" },
+                ]}
+                onPress={() => {
+                  updateForm({ isRetreat: !modal.form.isRetreat });
+                  Haptics.selectionAsync();
+                }}
+                activeOpacity={0.8}
+              >
+                <Feather name="users" size={15} color={modal.form.isRetreat ? "#C9A84C" : "#B0A8C8"} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={[styles.retreatToggleTitle, { color: modal.form.isRetreat ? "#C9A84C" : "#7B5EA7" }]}>
+                    Retreat / Group Session
+                  </Text>
+                  <Text style={styles.retreatToggleSub}>
+                    Creates a shared group chat for everyone who books
+                  </Text>
+                </View>
+                <View style={[styles.retreatCheck, { backgroundColor: modal.form.isRetreat ? "#C9A84C" : "#DDD0F0" }]}>
+                  <Feather name="check" size={12} color="#fff" />
+                </View>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.saveBtn, { opacity: modal.saving ? 0.6 : 1 }]}
@@ -614,6 +652,31 @@ const styles = StyleSheet.create({
   formatOptionText: {
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
+  },
+  retreatToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+    marginBottom: 20,
+  },
+  retreatToggleTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  retreatToggleSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "#B0A8C8",
+    marginTop: 2,
+  },
+  retreatCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
   },
   saveBtn: {
     backgroundColor: "#2D1B69",

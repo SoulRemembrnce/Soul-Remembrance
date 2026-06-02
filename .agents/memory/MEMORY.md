@@ -1,3 +1,4 @@
 - [Firestore onSnapshot error handlers](firestore-snapshot-errors.md) — all onSnapshot calls must have an error handler or permission-denied throws as uncaught exception
 - [React hooks ordering in practitioner screen](hooks-ordering.md) — useMemo/useCallback must precede any early returns; crash was hidden by mock data
 - [Firestore rules deploy](firestore-rules-deploy.md) — rules file is correct locally but must be deployed via Firebase Console or CLI; Firebase CLI needs interactive auth
+- [Retreat group chat data model](retreat-group-chat.md) — groupChats/{retreat_practId_serviceId} with memberUids array for access control; group-chat/[id] screen subscribes via subscribeGroupChats to find its own doc

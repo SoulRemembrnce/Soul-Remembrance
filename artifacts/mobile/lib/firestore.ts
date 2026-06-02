@@ -97,6 +97,7 @@ export interface FSService {
   price: number;
   online: boolean;
   active: boolean;
+  isRetreat?: boolean;
   createdAt?: Timestamp;
 }
 
@@ -471,6 +472,140 @@ export async function markConversationRead(
   conversationId: string
 ): Promise<void> {
   await updateDoc(doc(db, "conversations", conversationId), { unreadCount: 0 });
+}
+
+// ─── Group Chats (Retreat Communities) ───────────────────────────────────────
+
+export interface FSGroupChat {
+  id: string;
+  retreatTitle: string;
+  serviceId: string;
+  practitionerId: number;
+  practitionerName: string;
+  practitionerInitials: string;
+  avatarColor: [string, string];
+  memberUids: string[];
+  memberNames: Record<string, string>;
+  memberInitials: Record<string, string>;
+  lastMessage: string;
+  lastMessageAt: Timestamp | null;
+  unreadCounts: Record<string, number>;
+  createdAt: Timestamp;
+}
+
+export interface FSGroupMessage {
+  id: string;
+  text: string;
+  senderId: string;
+  senderName: string;
+  senderInitials: string;
+  createdAt: Timestamp;
+}
+
+export async function createOrJoinRetreatChat(
+  userId: string,
+  userName: string,
+  userInitials: string,
+  serviceId: string,
+  practitionerId: number,
+  practitionerName: string,
+  practitionerInitials: string,
+  avatarColor: [string, string],
+  retreatTitle: string
+): Promise<string> {
+  const chatId = `retreat_${practitionerId}_${serviceId}`;
+  const ref = doc(db, "groupChats", chatId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      id: chatId,
+      retreatTitle,
+      serviceId,
+      practitionerId,
+      practitionerName,
+      practitionerInitials,
+      avatarColor,
+      memberUids: [userId],
+      memberNames: { [userId]: userName },
+      memberInitials: { [userId]: userInitials },
+      lastMessage: `${userName} joined the retreat`,
+      lastMessageAt: serverTimestamp(),
+      unreadCounts: {},
+      createdAt: serverTimestamp(),
+    });
+  } else {
+    await updateDoc(ref, {
+      memberUids: arrayUnion(userId),
+      [`memberNames.${userId}`]: userName,
+      [`memberInitials.${userId}`]: userInitials,
+      lastMessage: `${userName} joined the retreat`,
+      lastMessageAt: serverTimestamp(),
+    });
+  }
+  return chatId;
+}
+
+export function subscribeGroupChats(
+  userId: string,
+  cb: (chats: FSGroupChat[]) => void
+): () => void {
+  const q = query(
+    collection(db, "groupChats"),
+    where("memberUids", "array-contains", userId),
+    orderBy("lastMessageAt", "desc")
+  );
+  return onSnapshot(
+    q,
+    (snap) => { cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FSGroupChat)); },
+    () => { cb([]); }
+  );
+}
+
+export function subscribeGroupMessages(
+  chatId: string,
+  cb: (msgs: FSGroupMessage[]) => void
+): () => void {
+  const q = query(
+    collection(db, "groupChats", chatId, "messages"),
+    orderBy("createdAt", "asc"),
+    limit(200)
+  );
+  return onSnapshot(
+    q,
+    (snap) => { cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FSGroupMessage)); },
+    () => { cb([]); }
+  );
+}
+
+export async function sendGroupMessage(
+  chatId: string,
+  senderId: string,
+  senderName: string,
+  senderInitials: string,
+  text: string
+): Promise<void> {
+  const msgId = `${senderId}_${Date.now()}`;
+  await setDoc(doc(db, "groupChats", chatId, "messages", msgId), {
+    id: msgId,
+    text,
+    senderId,
+    senderName,
+    senderInitials,
+    createdAt: serverTimestamp(),
+  });
+  await updateDoc(doc(db, "groupChats", chatId), {
+    lastMessage: text,
+    lastMessageAt: serverTimestamp(),
+  });
+}
+
+export async function markGroupChatRead(
+  chatId: string,
+  userId: string
+): Promise<void> {
+  await updateDoc(doc(db, "groupChats", chatId), {
+    [`unreadCounts.${userId}`]: 0,
+  });
 }
 
 // ─── Availability ─────────────────────────────────────────────────────────────
