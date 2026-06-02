@@ -99,6 +99,9 @@ export interface FSService {
   online: boolean;
   active: boolean;
   isRetreat?: boolean;
+  capacity?: number;
+  bookedCount?: number;
+  waitlistCount?: number;
   createdAt?: Timestamp;
 }
 
@@ -512,12 +515,21 @@ export async function createOrJoinRetreatChat(
   practitionerName: string,
   practitionerInitials: string,
   avatarColor: [string, string],
-  retreatTitle: string
+  retreatTitle: string,
+  practitionerUid?: string
 ): Promise<string> {
   const chatId = `retreat_${practitionerId}_${serviceId}`;
   const ref = doc(db, "groupChats", chatId);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
+    const memberUids = [userId];
+    const memberNames: Record<string, string> = { [userId]: userName };
+    const memberInits: Record<string, string> = { [userId]: userInitials };
+    if (practitionerUid && practitionerUid !== userId) {
+      memberUids.push(practitionerUid);
+      memberNames[practitionerUid] = practitionerName;
+      memberInits[practitionerUid] = practitionerInitials;
+    }
     await setDoc(ref, {
       id: chatId,
       retreatTitle,
@@ -526,22 +538,29 @@ export async function createOrJoinRetreatChat(
       practitionerName,
       practitionerInitials,
       avatarColor,
-      memberUids: [userId],
-      memberNames: { [userId]: userName },
-      memberInitials: { [userId]: userInitials },
+      memberUids,
+      memberNames,
+      memberInitials: memberInits,
       lastMessage: `${userName} joined the retreat`,
       lastMessageAt: serverTimestamp(),
       unreadCounts: {},
       createdAt: serverTimestamp(),
     });
   } else {
-    await updateDoc(ref, {
-      memberUids: arrayUnion(userId),
-      [`memberNames.${userId}`]: userName,
-      [`memberInitials.${userId}`]: userInitials,
+    const updates: Record<string, any> = {
       lastMessage: `${userName} joined the retreat`,
       lastMessageAt: serverTimestamp(),
-    });
+      [`memberNames.${userId}`]: userName,
+      [`memberInitials.${userId}`]: userInitials,
+    };
+    if (practitionerUid && practitionerUid !== userId) {
+      updates.memberUids = arrayUnion(userId, practitionerUid);
+      updates[`memberNames.${practitionerUid}`] = practitionerName;
+      updates[`memberInitials.${practitionerUid}`] = practitionerInitials;
+    } else {
+      updates.memberUids = arrayUnion(userId);
+    }
+    await updateDoc(ref, updates);
   }
   return chatId;
 }
@@ -616,6 +635,67 @@ export async function markGroupChatRead(
   await updateDoc(doc(db, "groupChats", chatId), {
     [`unreadCounts.${userId}`]: 0,
   });
+}
+
+// ─── Waitlist ─────────────────────────────────────────────────────────────────
+
+export interface FSWaitlistEntry {
+  id: string;
+  serviceId: string;
+  practitionerId: number;
+  practitionerUid: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userInitials: string;
+  joinedAt: Timestamp;
+}
+
+export async function incrementServiceBookedCount(serviceId: string): Promise<void> {
+  await updateDoc(doc(db, "services", serviceId), { bookedCount: increment(1) });
+}
+
+export async function joinWaitlist(
+  entry: Omit<FSWaitlistEntry, "id" | "joinedAt">
+): Promise<void> {
+  const id = `${entry.userId}_${entry.serviceId}`;
+  await setDoc(doc(db, "waitlist", id), {
+    ...entry,
+    id,
+    joinedAt: serverTimestamp(),
+  });
+  await updateDoc(doc(db, "services", entry.serviceId), { waitlistCount: increment(1) });
+}
+
+export async function leaveWaitlist(serviceId: string, userId: string): Promise<void> {
+  const id = `${userId}_${serviceId}`;
+  await deleteDoc(doc(db, "waitlist", id));
+  await updateDoc(doc(db, "services", serviceId), { waitlistCount: increment(-1) });
+}
+
+export async function getUserWaitlistEntry(
+  serviceId: string,
+  userId: string
+): Promise<FSWaitlistEntry | null> {
+  const snap = await getDoc(doc(db, "waitlist", `${userId}_${serviceId}`));
+  if (!snap.exists()) return null;
+  return snap.data() as FSWaitlistEntry;
+}
+
+export function subscribeWaitlistByService(
+  serviceId: string,
+  cb: (entries: FSWaitlistEntry[]) => void
+): () => void {
+  const q = query(
+    collection(db, "waitlist"),
+    where("serviceId", "==", serviceId),
+    orderBy("joinedAt", "asc")
+  );
+  return onSnapshot(
+    q,
+    (snap) => { cb(snap.docs.map((d) => d.data() as FSWaitlistEntry)); },
+    () => { cb([]); }
+  );
 }
 
 // ─── Availability ─────────────────────────────────────────────────────────────

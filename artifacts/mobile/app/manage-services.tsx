@@ -21,9 +21,11 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import {
   FSService,
+  FSWaitlistEntry,
   addService,
   deleteService,
   subscribeServices,
+  subscribeWaitlistByService,
   updateService,
 } from "@/lib/firestore";
 
@@ -50,6 +52,7 @@ type ServiceFormData = {
   price: string;
   online: boolean;
   isRetreat: boolean;
+  capacity: string;
 };
 
 const EMPTY_FORM: ServiceFormData = {
@@ -59,6 +62,7 @@ const EMPTY_FORM: ServiceFormData = {
   price: "",
   online: true,
   isRetreat: false,
+  capacity: "",
 };
 
 export default function ManageServicesScreen() {
@@ -91,6 +95,15 @@ export default function ManageServicesScreen() {
   }>({ visible: false, editing: null, form: EMPTY_FORM, saving: false });
 
   const nameRef = useRef<TextInput>(null);
+  const [waitlistEntries, setWaitlistEntries] = useState<FSWaitlistEntry[]>([]);
+
+  useEffect(() => {
+    if (!modal.visible || !modal.editing?.isRetreat || !modal.editing?.id) {
+      setWaitlistEntries([]);
+      return;
+    }
+    return subscribeWaitlistByService(modal.editing.id, setWaitlistEntries);
+  }, [modal.visible, modal.editing?.id, modal.editing?.isRetreat]);
 
   function openAdd() {
     setModal({ visible: true, editing: null, form: EMPTY_FORM, saving: false });
@@ -108,6 +121,7 @@ export default function ManageServicesScreen() {
         price: String(svc.price),
         online: svc.online,
         isRetreat: svc.isRetreat ?? false,
+      capacity: svc.capacity != null ? String(svc.capacity) : "",
       },
       saving: false,
     });
@@ -133,6 +147,12 @@ export default function ManageServicesScreen() {
       Alert.alert("Invalid price", "Please enter a valid price.");
       return;
     }
+    const parsedCapacity = form.isRetreat && form.capacity.trim()
+      ? parseInt(form.capacity.trim(), 10) : undefined;
+    if (parsedCapacity !== undefined && (isNaN(parsedCapacity) || parsedCapacity < 1)) {
+      Alert.alert("Invalid capacity", "Please enter a valid number of spots (e.g. 20).");
+      return;
+    }
     setModal((m) => ({ ...m, saving: true }));
     const data = {
       name: form.name.trim(),
@@ -141,6 +161,7 @@ export default function ManageServicesScreen() {
       price: parsedPrice,
       online: form.online,
       isRetreat: form.isRetreat,
+      ...(parsedCapacity ? { capacity: parsedCapacity } : {}),
     };
     try {
       if (editing) {
@@ -264,6 +285,22 @@ export default function ManageServicesScreen() {
                       <View style={[styles.serviceTag, { backgroundColor: `${colors.warmGold}18` }]}>
                         <Feather name="users" size={10} color={colors.warmGold} />
                         <Text style={[styles.serviceTagText, { color: colors.warmGold }]}>Retreat</Text>
+                      </View>
+                    )}
+                    {svc.isRetreat && svc.capacity != null && (
+                      <View style={[styles.serviceTag, { backgroundColor: `${colors.deepIndigo}12` }]}>
+                        <Feather name="users" size={10} color={colors.deepIndigo} />
+                        <Text style={[styles.serviceTagText, { color: colors.deepIndigo }]}>
+                          {svc.bookedCount ?? 0}/{svc.capacity} spots
+                        </Text>
+                      </View>
+                    )}
+                    {svc.isRetreat && (svc.waitlistCount ?? 0) > 0 && (
+                      <View style={[styles.serviceTag, { backgroundColor: "#E53E3E14" }]}>
+                        <Feather name="clock" size={10} color="#C53030" />
+                        <Text style={[styles.serviceTagText, { color: "#C53030" }]}>
+                          {svc.waitlistCount} waitlisted
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -427,6 +464,21 @@ export default function ManageServicesScreen() {
                 </View>
               </TouchableOpacity>
 
+              {modal.form.isRetreat && (
+                <>
+                  <Text style={styles.fieldLabel}>Max Attendees (optional)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={modal.form.capacity}
+                    onChangeText={(t) => updateForm({ capacity: t.replace(/[^0-9]/g, "") })}
+                    placeholder="e.g. 20  —  leave blank for unlimited"
+                    placeholderTextColor="#B0A8C8"
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                  />
+                </>
+              )}
+
               <TouchableOpacity
                 style={[styles.saveBtn, { opacity: modal.saving ? 0.6 : 1 }]}
                 onPress={handleSave}
@@ -441,6 +493,27 @@ export default function ManageServicesScreen() {
                   </Text>
                 )}
               </TouchableOpacity>
+              {modal.editing?.isRetreat && waitlistEntries.length > 0 && (
+                <View style={styles.waitlistSection}>
+                  <View style={styles.waitlistSectionHeader}>
+                    <Feather name="clock" size={13} color="#C9A84C" />
+                    <Text style={styles.waitlistSectionTitle}>
+                      Waitlist ({waitlistEntries.length})
+                    </Text>
+                  </View>
+                  {waitlistEntries.map((entry) => (
+                    <View key={entry.id} style={styles.waitlistRow}>
+                      <View style={styles.waitlistAvatar}>
+                        <Text style={styles.waitlistInitials}>{entry.userInitials}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.waitlistName}>{entry.userName}</Text>
+                        <Text style={styles.waitlistEmail}>{entry.userEmail}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
               <View style={{ height: 20 }} />
             </ScrollView>
           </View>
@@ -688,5 +761,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_700Bold",
     color: "#fff",
+  },
+  waitlistSection: {
+    marginTop: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#DDD0F0",
+    overflow: "hidden",
+  },
+  waitlistSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    padding: 11,
+    backgroundColor: "#C9A84C10",
+  },
+  waitlistSectionTitle: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: "#C9A84C",
+  },
+  waitlistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    borderTopWidth: 1,
+    borderTopColor: "#DDD0F0",
+  },
+  waitlistAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#DDD0F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  waitlistInitials: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 11,
+    color: "#2D1B69",
+  },
+  waitlistName: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: "#2C2C2C",
+  },
+  waitlistEmail: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    color: "#8A7050",
+    marginTop: 1,
   },
 });

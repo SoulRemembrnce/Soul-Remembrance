@@ -25,6 +25,8 @@ import {
   subscribeGroupChats,
   subscribeGroupMessages,
 } from "@/lib/firestore";
+import { getPushTokenForUserId } from "@/lib/firestore";
+import { sendExpoPush } from "@/utils/notifications";
 
 function relativeTime(ts: any): string {
   if (!ts) return "";
@@ -88,6 +90,24 @@ export default function GroupChatScreen() {
     setSending(true);
     try {
       await sendGroupMessage(id, userId, userName ?? "Member", userInitials, text, chat?.memberUids ?? []);
+      // Push-notify all other group members (fire-and-forget)
+      if (chat) {
+        const otherUids = chat.memberUids.filter((uid) => uid !== userId);
+        otherUids.forEach(async (uid) => {
+          try {
+            const token = await getPushTokenForUserId(uid);
+            if (token) {
+              const preview = text.length > 100 ? text.slice(0, 100) + "…" : text;
+              await sendExpoPush(
+                token,
+                `${userName ?? "Someone"} · ${chat.retreatTitle}`,
+                preview,
+                { router: `/group-chat/${id}` }
+              );
+            }
+          } catch { /* ignore */ }
+        });
+      }
     } finally {
       setSending(false);
     }

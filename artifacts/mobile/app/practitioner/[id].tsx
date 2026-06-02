@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Platform,
   Pressable,
@@ -25,8 +26,13 @@ import {
   FSPractitionerProfile,
   FSService,
   FSWaiverTemplate,
+  FSWaitlistEntry,
   createConversation,
   createOrJoinRetreatChat,
+  getUserWaitlistEntry,
+  incrementServiceBookedCount,
+  joinWaitlist,
+  leaveWaitlist,
   getPractitionerProfileByNumericId,
   getWaiverByNumericId,
   markSlotBooked,
@@ -53,6 +59,8 @@ export default function PractitionerScreen() {
   const [reminders, setReminders] = useState<ReminderResult | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [waitlistEntry, setWaitlistEntry] = useState<FSWaitlistEntry | null>(null);
+  const [joiningWaitlist, setJoiningWaitlist] = useState(false);
 
   // Reviews state
   const [showAllReviews, setShowAllReviews] = useState(false);
@@ -128,6 +136,17 @@ export default function PractitionerScreen() {
     });
   }, [practitioner?.id]);
 
+  // ── Waitlist status for selected retreat service ───────────────────────────
+  useEffect(() => {
+    if (!userId || !selectedService?.isRetreat || !selectedService.id) {
+      setWaitlistEntry(null);
+      return;
+    }
+    getUserWaitlistEntry(selectedService.id, userId)
+      .then(setWaitlistEntry)
+      .catch(() => {});
+  }, [userId, selectedService?.id, selectedService?.isRetreat]);
+
   // ── Derived availability (must be before any early returns — React hook rules) ──
   const availDates = useMemo(() => {
     const map = new Map<string, { label: string; iso: string; hasOpen: boolean }>();
@@ -160,6 +179,55 @@ export default function PractitionerScreen() {
       </View>
     );
   }
+
+  const handleJoinWaitlist = async () => {
+    if (!userId || !selectedService?.id || !userEmail) return;
+    setJoiningWaitlist(true);
+    try {
+      const initials = userName
+        ? userName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+        : "?";
+      await joinWaitlist({
+        serviceId: selectedService.id,
+        practitionerId: practitioner.id,
+        practitionerUid: firestoreProfile?.userId ?? "",
+        userId,
+        userName: userName ?? "Member",
+        userEmail,
+        userInitials: initials,
+      });
+      setWaitlistEntry({
+        id: `${userId}_${selectedService.id}`,
+        serviceId: selectedService.id,
+        practitionerId: practitioner.id,
+        practitionerUid: firestoreProfile?.userId ?? "",
+        userId,
+        userName: userName ?? "Member",
+        userEmail,
+        userInitials: initials,
+        joinedAt: {} as any,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert("Error", "Could not join the waitlist. Please try again.");
+    } finally {
+      setJoiningWaitlist(false);
+    }
+  };
+
+  const handleLeaveWaitlist = async () => {
+    if (!userId || !selectedService?.id) return;
+    setJoiningWaitlist(true);
+    try {
+      await leaveWaitlist(selectedService.id, userId);
+      setWaitlistEntry(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    } catch {
+      Alert.alert("Error", "Could not leave the waitlist. Please try again.");
+    } finally {
+      setJoiningWaitlist(false);
+    }
+  };
 
   const handleConfirmBooking = async () => {
     if (!selectedDate || !selectedTime) return;
@@ -257,8 +325,10 @@ export default function PractitionerScreen() {
             practitioner.name,
             practitioner.initials,
             practitioner.avatarColor as [string, string],
-            selectedService.name
+            selectedService.name,
+            firestoreProfile?.userId
           ).catch(console.warn);
+          incrementServiceBookedCount(selectedService.id).catch(console.warn);
         } else {
           createConversation(
             userId,
@@ -503,6 +573,11 @@ export default function PractitionerScreen() {
       !!selectedDate &&
       !!selectedTime &&
       (services.length === 0 || !!selectedService);
+    const isAtCapacity = Boolean(
+      selectedService?.isRetreat &&
+      selectedService.capacity != null &&
+      (selectedService.bookedCount ?? 0) >= selectedService.capacity
+    );
     return (
       <View style={{ flex: 1, backgroundColor: colors.softWhite }}>
         <LinearGradient
@@ -746,20 +821,55 @@ export default function PractitionerScreen() {
           {paymentError && (
             <Text style={[styles.paymentError, { color: "#E53E3E" }]}>{paymentError}</Text>
           )}
-          <TouchableOpacity
-            onPress={handleBookingPress}
-            disabled={!canConfirm || paymentLoading}
-            style={[
-              styles.confirmBtn,
-              { backgroundColor: canConfirm && !paymentLoading ? colors.deepIndigo : colors.blush },
-            ]}
-          >
-            {paymentLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
+          {isAtCapacity ? (
+            waitlistEntry ? (
+              <>
+                <View style={[styles.waitlistBanner, { backgroundColor: `${colors.warmGold}14`, borderColor: `${colors.warmGold}50` }]}>
+                  <Feather name="clock" size={14} color={colors.warmGold} />
+                  <Text style={[styles.waitlistBannerText, { color: colors.warmGold }]}>
+                    You're on the waitlist — we'll let you know if a spot opens
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleLeaveWaitlist}
+                  disabled={joiningWaitlist}
+                  style={[styles.confirmBtn, { backgroundColor: colors.blush }]}
+                >
+                  <Text style={[styles.confirmBtnText, { color: colors.sage }]}>Leave waitlist</Text>
+                </TouchableOpacity>
+              </>
             ) : (
-              <Text style={styles.confirmBtnText}>Pay £{effectivePrice} · Confirm Booking</Text>
-            )}
-          </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleJoinWaitlist}
+                disabled={!canConfirm || joiningWaitlist}
+                style={[
+                  styles.confirmBtn,
+                  { backgroundColor: canConfirm && !joiningWaitlist ? colors.warmGold : colors.blush },
+                ]}
+              >
+                {joiningWaitlist ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>This retreat is full · Join Waitlist</Text>
+                )}
+              </TouchableOpacity>
+            )
+          ) : (
+            <TouchableOpacity
+              onPress={handleBookingPress}
+              disabled={!canConfirm || paymentLoading}
+              style={[
+                styles.confirmBtn,
+                { backgroundColor: canConfirm && !paymentLoading ? colors.deepIndigo : colors.blush },
+              ]}
+            >
+              {paymentLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.confirmBtnText}>Pay £{effectivePrice} · Confirm Booking</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── Waiver Signing Modal ─────────────────────────────────────── */}
@@ -1560,6 +1670,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
     paddingHorizontal: 4,
+  },
+  waitlistBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+  },
+  waitlistBannerText: {
+    flex: 1,
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    lineHeight: 18,
   },
   // Waiver modal
   waiverOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },

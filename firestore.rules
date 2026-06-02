@@ -201,6 +201,22 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ── Waitlist ───────────────────────────────────────────────────────────
+    // Clients can create/delete their own entry; practitioners can read entries
+    // for their services (matched via practitionerUid field).
+    match /waitlist/{id} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.practitionerUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+    }
+
     // ── Group Chats (Retreat Communities) ─────────────────────────────────
     // Only members (by UID in memberUids array) can read/write.
     match /groupChats/{chatId} {
