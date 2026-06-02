@@ -4,7 +4,7 @@ uploads = []
 id = "Q4klGy0j3VeZookjX23Ji"
 uri = "file://artifacts/mobile/assets/images/icon.png"
 type = "image"
-title = "soul_remembrance_icon_clean"
+title = "generated_image"
 
 [[generated]]
 id = "V5jgJCVtqkXIGbJmSwCD6"
@@ -16,19 +16,19 @@ title = "ash tree botanical illustration"
 id = "Lz2iHplRbMaz4GGMK9-RY"
 uri = "file://artifacts/mobile/assets/images/splash.png"
 type = "image"
-title = "soul_remembrance_splash_clean"
+title = "generated_image"
 
 [[generated]]
 id = "rIkmpAzd71Op5krPkp1Ye"
 uri = "file://artifacts/mobile/assets/images/adaptive-icon.png"
 type = "image"
-title = "soul_remembrance_adaptive_icon"
+title = "generated_image"
 
 [[outputs]]
 id = "MYyB6jTF0J5BePPhMd_L8"
 uri = "file://artifacts/mobile/assets/images/icon.png"
 type = "image"
-title = "App Icon (1024×1024)"
+title = "App Icon (iOS + Android)"
 
 [[outputs]]
 id = "9UaPfEcTkMy0TcSlqnrPf"
@@ -40,10 +40,28 @@ title = "Splash Screen"
 id = "_NAVVwKqfLfQd-YXMDFjC"
 uri = "file://artifacts/mobile/assets/images/adaptive-icon.png"
 type = "image"
-title = "Android Adaptive Icon (transparent)"
+title = "Android Adaptive Icon Foreground"
 
 [[outputs]]
 id = "8h5LuNmjDnSBWakpTWUEc"
 uri = "file://artifacts/mobile/STORE_LISTING.md"
 type = "text"
 title = "Store Listing — App Store & Google Play copy"
+
+[[outputs]]
+id = "-PwBYIGVEHWY12NRYWgLg"
+uri = "file://screenshots/meditation.jpg"
+type = "image"
+title = "Screenshot — Meditation Screen"
+
+[[outputs]]
+id = "IyCBRk757L89h6D0Lj67J"
+uri = "file://screenshots/explore.jpg"
+type = "image"
+title = "Screenshot — Explore Screen"
+
+[[outputs]]
+id = "m6Ix9i0kVEYXMxskXAcEK"
+uri = "file://screenshots/community.jpg"
+type = "image"
+title = "Screenshot — Community Screen"
