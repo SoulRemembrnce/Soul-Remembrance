@@ -92,6 +92,28 @@ export default function SettingsScreen() {
           ))}
         </View>
 
+        <Text style={[styles.sectionLabel, { color: colors.warmGold, marginTop: 24 }]}>LEGAL</Text>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+          {[
+            { icon: "shield", label: "Privacy Policy", route: "/privacy" },
+            { icon: "file-text", label: "Terms of Service", route: "/terms" },
+          ].map((item, i, arr) => (
+            <TouchableOpacity
+              key={item.label}
+              style={[
+                styles.row,
+                i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.blush },
+              ]}
+              onPress={() => router.push(item.route as any)}
+              activeOpacity={0.7}
+            >
+              <Feather name={item.icon as any} size={16} color={colors.deepIndigo} style={{ marginRight: 10 }} />
+              <Text style={[styles.rowTitle, { color: colors.charcoal, flex: 1 }]}>{item.label}</Text>
+              <Feather name="chevron-right" size={14} color={colors.blush} />
+            </TouchableOpacity>
+          ))}
+        </View>
+
       </ScrollView>
     </View>
   );
