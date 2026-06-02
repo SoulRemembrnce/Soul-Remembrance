@@ -1,6 +1,7 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { LotusIcon } from "@/components/LotusIcon";
 import { Feather } from "@expo/vector-icons";
+import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -257,11 +258,23 @@ export default function ExploreScreen() {
               {nearMeLoading ? (
                 <ActivityIndicator size={13} color="#fff" />
               ) : (
-                <Feather
-                  name="navigation"
-                  size={13}
-                  color={nearMeActive ? colors.deepIndigo : "#fff"}
-                />
+                <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                    stroke={nearMeActive ? colors.deepIndigo : "#fff"}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                  <Circle
+                    cx="12"
+                    cy="9"
+                    r="2.5"
+                    stroke={nearMeActive ? colors.deepIndigo : "#fff"}
+                    strokeWidth={2}
+                    fill="none"
+                  />
+                </Svg>
               )}
               <Text
                 style={[
@@ -288,11 +301,19 @@ export default function ExploreScreen() {
                     { backgroundColor: viewMode === mode ? "#fff" : "transparent" },
                   ]}
                 >
-                  <Feather
-                    name={mode === "list" ? "list" : "map"}
-                    size={14}
-                    color={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"}
-                  />
+                  {mode === "list" ? (
+                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                      <Line x1="3" y1="6" x2="21" y2="6" stroke={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"} strokeWidth={2} strokeLinecap="round" />
+                      <Line x1="3" y1="12" x2="21" y2="12" stroke={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"} strokeWidth={2} strokeLinecap="round" />
+                      <Line x1="3" y1="18" x2="21" y2="18" stroke={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"} strokeWidth={2} strokeLinecap="round" />
+                    </Svg>
+                  ) : (
+                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                      <Path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" stroke={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"} strokeWidth={1.8} strokeLinejoin="round" fill="none" />
+                      <Line x1="9" y1="3" x2="9" y2="21" stroke={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"} strokeWidth={1.8} />
+                      <Line x1="15" y1="6" x2="15" y2="21" stroke={viewMode === mode ? colors.deepIndigo : "rgba(255,255,255,0.75)"} strokeWidth={1.8} />
+                    </Svg>
+                  )}
                   <Text
                     style={[
                       styles.viewToggleTxt,
