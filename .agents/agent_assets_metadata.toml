@@ -65,3 +65,9 @@ id = "m6Ix9i0kVEYXMxskXAcEK"
 uri = "file://screenshots/community.jpg"
 type = "image"
 title = "Screenshot — Community Screen"
+
+[[outputs]]
+id = "Fh6crgUcspus1Oi-Ph-nn"
+uri = "file://expo-qr.png"
+type = "image"
+title = "Expo Go QR Code"
