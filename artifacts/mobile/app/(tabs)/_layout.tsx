@@ -5,32 +5,12 @@ import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Image, Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-
-function LotusTabIcon({ color }: { color: string }) {
-  return (
-    <Image
-      source={require("../../assets/images/icon.png")}
-      tintColor={color}
-      style={{ width: 24, height: 24, borderRadius: 4 }}
-      resizeMode="contain"
-    />
-  );
-}
-
-function AshTreeTabIcon({ color }: { color: string }) {
-  return (
-    <Image
-      source={require("../../assets/images/ash-tree.png")}
-      tintColor={color}
-      style={{ width: 26, height: 26 }}
-      resizeMode="contain"
-    />
-  );
-}
+import { LotusOutlineIcon } from "@/components/icons/LotusOutlineIcon";
+import { AshTreeOutlineIcon } from "@/components/icons/AshTreeOutlineIcon";
 
 function NativeTabLayout() {
   return (
@@ -99,7 +79,7 @@ function ClassicTabLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => <LotusTabIcon color={color} />,
+          tabBarIcon: ({ color }) => <LotusOutlineIcon color={color} size={22} />,
         }}
       />
       <Tabs.Screen
@@ -130,12 +110,7 @@ function ClassicTabLayout() {
         name="community"
         options={{
           title: "Community",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="tree" tintColor={color} size={22} />
-            ) : (
-              <AshTreeTabIcon color={color} />
-            ),
+          tabBarIcon: ({ color }) => <AshTreeOutlineIcon color={color} size={22} />,
         }}
       />
       <Tabs.Screen
