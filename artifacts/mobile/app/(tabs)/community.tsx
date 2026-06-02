@@ -1,6 +1,7 @@
 import { AshTreeBackground } from "@/components/AshTreeBackground";
 import { LotusIcon } from "@/components/LotusIcon";
 import { Feather } from "@expo/vector-icons";
+import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
@@ -193,8 +194,15 @@ export default function CommunityScreen() {
 
         <View style={[styles.postActions, { borderTopColor: colors.cream }]}>
           <TouchableOpacity onPress={() => handleToggleLike(post)} style={styles.actionBtn}>
-            <Feather name="heart" size={16} color={liked ? "#E55" : colors.sage} />
-            <Text style={[styles.actionCount, { color: liked ? "#E55" : colors.sage }]}>
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill={liked ? "#E55555" : "none"}>
+              <Path
+                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"
+                stroke={liked ? "#E55555" : colors.sage}
+                strokeWidth={1.8}
+                strokeLinejoin="round"
+              />
+            </Svg>
+            <Text style={[styles.actionCount, { color: liked ? "#E55555" : colors.sage }]}>
               {post.likedBy.length}
             </Text>
           </TouchableOpacity>
@@ -205,11 +213,25 @@ export default function CommunityScreen() {
             }}
             style={styles.actionBtn}
           >
-            <Feather name="message-circle" size={16} color={colors.sage} />
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                stroke={colors.sage}
+                strokeWidth={1.8}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            </Svg>
             <Text style={[styles.actionCount, { color: colors.sage }]}>{post.comments.length}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn}>
-            <Feather name="share-2" size={16} color={colors.sage} />
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+              <Circle cx="18" cy="5" r="3" stroke={colors.sage} strokeWidth={1.8} />
+              <Circle cx="6" cy="12" r="3" stroke={colors.sage} strokeWidth={1.8} />
+              <Circle cx="18" cy="19" r="3" stroke={colors.sage} strokeWidth={1.8} />
+              <Line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke={colors.sage} strokeWidth={1.8} strokeLinecap="round" />
+              <Line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke={colors.sage} strokeWidth={1.8} strokeLinecap="round" />
+            </Svg>
           </TouchableOpacity>
         </View>
 
@@ -248,7 +270,10 @@ export default function CommunityScreen() {
                   onPress={() => handleComment(post.id)}
                   style={[styles.sendBtn, { backgroundColor: colors.deepIndigo }]}
                 >
-                  <Feather name="send" size={14} color="#fff" />
+                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                    <Path d="M22 2L11 13" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
                 </TouchableOpacity>
               </View>
             ) : (
