@@ -21,6 +21,17 @@ function LotusTabIcon({ color }: { color: string }) {
   );
 }
 
+function AshTreeTabIcon({ color }: { color: string }) {
+  return (
+    <Image
+      source={require("../../assets/images/ash-tree.png")}
+      tintColor={color}
+      style={{ width: 26, height: 26 }}
+      resizeMode="contain"
+    />
+  );
+}
+
 function NativeTabLayout() {
   return (
     <NativeTabs>
@@ -37,7 +48,7 @@ function NativeTabLayout() {
         <Label>Explore</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="community">
-        <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
+        <Icon sf={{ default: "tree", selected: "tree.fill" }} />
         <Label>Community</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="messages">
@@ -121,9 +132,9 @@ function ClassicTabLayout() {
           title: "Community",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person.2" tintColor={color} size={22} />
+              <SymbolView name="tree" tintColor={color} size={22} />
             ) : (
-              <Feather name="users" size={21} color={color} />
+              <AshTreeTabIcon color={color} />
             ),
         }}
       />
