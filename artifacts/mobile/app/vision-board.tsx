@@ -84,8 +84,14 @@ export default function VisionBoardScreen() {
       setPendingUri(null);
       setCaption("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert("Error", "Could not save your photo. Please try again.");
+    } catch (err: unknown) {
+      console.error("[VisionBoard] Save error:", err);
+      const code = (err as { code?: string })?.code;
+      if (code === "permission-denied") {
+        Alert.alert("Permission Denied", "Please update your Firestore security rules in the Firebase Console to allow writes to users/{uid}/visionBoard.");
+      } else {
+        Alert.alert("Error", "Could not save your photo. Please try again.");
+      }
     } finally {
       setUploading(false);
     }

@@ -196,8 +196,14 @@ export default function MoodTrackerScreen() {
       setNote("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTab("history");
-    } catch {
-      Alert.alert("Error", "Could not save check-in. Please try again.");
+    } catch (err: unknown) {
+      console.error("[MoodTracker] Save error:", err);
+      const code = (err as { code?: string })?.code;
+      if (code === "permission-denied") {
+        Alert.alert("Permission Denied", "Please update your Firestore security rules in the Firebase Console to allow writes to users/{uid}/moodCheckins.");
+      } else {
+        Alert.alert("Error", "Could not save check-in. Please try again.");
+      }
     } finally {
       setSaving(false);
     }

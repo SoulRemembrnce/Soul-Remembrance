@@ -1084,7 +1084,7 @@ export function subscribeGratitudeEntries(
         })
       );
     },
-    () => cb([])
+    (err) => { console.warn("[Gratitude] Firestore read error:", err.code, err.message); cb([]); }
   );
 }
 
@@ -1139,7 +1139,7 @@ export function subscribeVisionBoardItems(
         })
       );
     },
-    () => cb([])
+    (err) => { console.warn("[VisionBoard] Firestore read error:", err.code, err.message); cb([]); }
   );
 }
 
@@ -1196,7 +1196,7 @@ export function subscribeMoodCheckins(
         })
       );
     },
-    () => cb([])
+    (err) => { console.warn("[MoodTracker] Firestore read error:", err.code, err.message); cb([]); }
   );
 }
 

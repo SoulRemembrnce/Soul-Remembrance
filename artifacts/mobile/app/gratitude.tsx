@@ -80,8 +80,14 @@ export default function GratitudeScreen() {
       await addGratitudeEntry(userId, draftText.trim());
       setShowModal(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert("Error", "Could not save. Please try again.");
+    } catch (err: unknown) {
+      console.error("[Gratitude] Save error:", err);
+      const code = (err as { code?: string })?.code;
+      if (code === "permission-denied") {
+        Alert.alert("Permission Denied", "Please update your Firestore security rules in the Firebase Console to allow writes to users/{uid}/gratitude.");
+      } else {
+        Alert.alert("Error", "Could not save. Please try again.");
+      }
     } finally {
       setSaving(false);
     }
