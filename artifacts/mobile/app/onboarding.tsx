@@ -17,11 +17,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import * as ImagePicker from "expo-image-picker";
+
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { MODALITIES } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { savePractitionerProfile } from "@/lib/firestore";
+import { uploadCredentialDoc } from "@/lib/storage";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -55,7 +58,8 @@ export default function OnboardingScreen() {
     name: "", title: "", location: "", years: "", bio: "",
     modalities: [], rate: "", agreedTerms: false, photoURL: "",
   });
-  const [addedDocs, setAddedDocs] = useState<string[]>([]);
+  const [uploadedDocs, setUploadedDocs] = useState<Record<string, string>>({});
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -132,6 +136,7 @@ export default function OnboardingScreen() {
             verified: false,
             subscriptionActive: true,
             ...(data.photoURL && { photoURL: data.photoURL }),
+            ...(Object.keys(uploadedDocs).length > 0 && { credentialURLs: uploadedDocs }),
             email: email ?? undefined,
           });
         }
@@ -159,9 +164,33 @@ export default function OnboardingScreen() {
         : [...d.modalities, m],
     }));
   };
-  const toggleDoc = (id: string) => {
-    setAddedDocs((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
+  const uploadDoc = async (id: string) => {
+    if (uploadingDoc) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+
+    if (!userId) {
+      Alert.alert("Sign in required", "Please sign in to upload credentials.");
+      return;
+    }
+
+    setUploadingDoc(id);
+    try {
+      const url = await uploadCredentialDoc(userId, result.assets[0].uri, id);
+      setUploadedDocs((prev) => ({ ...prev, [id]: url }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert("Upload failed", err.message ?? "Could not upload document. Please try again.");
+    } finally {
+      setUploadingDoc(null);
+    }
   };
 
   return (
@@ -306,25 +335,36 @@ export default function OnboardingScreen() {
             <Text style={[styles.fieldLabel, { color: colors.warmGold }]}>ADD DOCUMENTS</Text>
             <View style={styles.docGrid}>
               {DOC_TYPES.map((dt) => {
-                const added = addedDocs.includes(dt.id);
+                const uploaded = !!uploadedDocs[dt.id];
+                const isUploading = uploadingDoc === dt.id;
                 return (
                   <TouchableOpacity
                     key={dt.id}
-                    onPress={() => toggleDoc(dt.id)}
+                    onPress={() => uploadDoc(dt.id)}
+                    disabled={!!uploadingDoc}
                     style={[
                       styles.docCard,
                       {
-                        backgroundColor: added ? `${colors.deepIndigo}10` : colors.card,
-                        borderColor: added ? colors.deepIndigo : colors.blush,
+                        backgroundColor: uploaded ? "#F0FAF4" : colors.card,
+                        borderColor: uploaded ? "#2ECC71" : isUploading ? colors.deepIndigo : colors.blush,
+                        opacity: uploadingDoc && !isUploading ? 0.5 : 1,
                       },
                     ]}
                   >
-                    <View style={[styles.docIcon, { backgroundColor: `${colors.deepIndigo}15` }]}>
-                      <Feather name={dt.icon} size={20} color={colors.deepIndigo} />
+                    <View style={[styles.docIcon, { backgroundColor: uploaded ? "#2ECC7118" : `${colors.deepIndigo}15` }]}>
+                      {isUploading ? (
+                        <ActivityIndicator size="small" color={colors.deepIndigo} />
+                      ) : (
+                        <Feather
+                          name={uploaded ? "check-circle" : dt.icon}
+                          size={20}
+                          color={uploaded ? "#2ECC71" : colors.deepIndigo}
+                        />
+                      )}
                     </View>
                     <Text style={[styles.docLabel, { color: colors.charcoal }]}>{dt.label}</Text>
-                    <Text style={[styles.docAction, { color: added ? "#2ECC71" : colors.deepIndigo }]}>
-                      {added ? "Added" : "+ Add"}
+                    <Text style={[styles.docAction, { color: uploaded ? "#2ECC71" : colors.deepIndigo }]}>
+                      {isUploading ? "Uploading…" : uploaded ? "Uploaded ✓" : "Upload photo"}
                     </Text>
                   </TouchableOpacity>
                 );

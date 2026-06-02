@@ -427,6 +427,7 @@ export default function ProfileScreen() {
         colors={[colors.deepIndigo, colors.indigo2]}
         style={[styles.header, { paddingTop: topPad + 16 }]}
       >
+        <LotusIcon size={20} style={{ alignSelf: "center", marginBottom: 10, opacity: 0.65 }} />
         <TouchableOpacity onPress={handleChangeClientPhoto} style={styles.avatarWrap} activeOpacity={0.85}>
           {photoURL ? (
             <Image

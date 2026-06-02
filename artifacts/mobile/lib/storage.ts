@@ -59,3 +59,23 @@ export async function uploadVerificationDoc(
   await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
   return getDownloadURL(storageRef);
 }
+
+/**
+ * Upload a practitioner credential document image to Firebase Storage.
+ * Path: credentials/{userId}/{docId}.jpg
+ * docId: "qualification" | "insurance" | "membership" | "dbs"
+ */
+export async function uploadCredentialDoc(
+  userId: string,
+  localUri: string,
+  docId: string
+): Promise<string> {
+  const path = `credentials/${userId}/${docId}.jpg`;
+  const storageRef = ref(storage, path);
+
+  const resp = await fetch(localUri);
+  const blob = await resp.blob();
+
+  await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+  return getDownloadURL(storageRef);
+}

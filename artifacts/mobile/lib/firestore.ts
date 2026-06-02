@@ -861,6 +861,7 @@ export interface FSPractitionerProfile {
   stripeAccountEnabled?: boolean;
   featuredUntil?: Timestamp;
   createdAt?: Timestamp;
+  credentialURLs?: Record<string, string>;
 }
 
 export function profileToPractitioner(p: FSPractitionerProfile) {
