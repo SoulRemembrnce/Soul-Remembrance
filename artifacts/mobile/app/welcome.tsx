@@ -4,7 +4,7 @@ import { useApp } from "@/contexts/AppContext";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,19 +20,22 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type Mode = "landing" | "signin" | "signup";
+type Mode = "signin" | "signup";
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
-  const { isAnonymous, signInWithGoogle, signInWithEmail, signUpWithEmail } = useApp();
+  const { isAnonymous, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset } = useApp();
 
-  const [mode, setMode] = useState<Mode>("landing");
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const passwordRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (!isAnonymous) {
@@ -45,14 +48,18 @@ export default function WelcomeScreen() {
     signInWithGoogle();
   }, [signInWithGoogle]);
 
-  const handleEmail = useCallback(async () => {
+  const handleSubmit = useCallback(async () => {
     setErrorMsg(null);
-    if (!email.trim() || !password.trim()) {
-      setErrorMsg("Please fill in all fields.");
-      return;
-    }
     if (mode === "signup" && !displayName.trim()) {
       setErrorMsg("Please enter your name.");
+      return;
+    }
+    if (!email.trim()) {
+      setErrorMsg("Please enter your email address.");
+      return;
+    }
+    if (!password.trim()) {
+      setErrorMsg("Please enter your password.");
       return;
     }
     if (password.length < 6) {
@@ -82,20 +89,25 @@ export default function WelcomeScreen() {
     }
   }, [mode, email, password, displayName, signInWithEmail, signUpWithEmail]);
 
-  const handleForgot = useCallback(() => {
+  const handleForgot = useCallback(async () => {
     if (!email.trim()) {
-      Alert.alert("Reset password", "Enter your email above first, then tap Forgot password.");
+      Alert.alert("Reset password", "Enter your email address above first, then tap Forgot password.");
       return;
     }
-    Alert.alert("Reset email sent", `Check ${email} for a password reset link.`);
-  }, [email]);
+    try {
+      await sendPasswordReset(email.trim());
+      Alert.alert("Reset email sent", `Check ${email.trim()} for a password reset link.`);
+    } catch {
+      Alert.alert("Error", "Could not send reset email. Check the address and try again.");
+    }
+  }, [email, sendPasswordReset]);
 
   const switchMode = useCallback((next: Mode) => {
     setMode(next);
     setErrorMsg(null);
+    setPassword("");
+    setShowPassword(false);
   }, []);
-
-  const isLanding = mode === "landing";
 
   return (
     <View style={styles.root}>
@@ -105,228 +117,176 @@ export default function WelcomeScreen() {
       />
       <AshTreeBackground />
 
-      {isLanding ? (
-        /* ── Landing ─────────────────────────────────────────────────────── */
-        <View
-          style={[
-            styles.landingInner,
-            { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 },
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 },
           ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
+          {/* ── Logo ───────────────────────────────────────────────────── */}
           <View style={styles.logoWrap}>
-            <LotusIcon size={88} />
+            <LotusIcon size={80} />
             <Text style={styles.appName}>Soul Remembrance</Text>
             <Text style={styles.tagline}>
-              Discover healing practitioners.{"\n"}Book sessions. Grow within.
+              {mode === "signin"
+                ? "Welcome back. Sign in to continue."
+                : "Create your account to get started."}
             </Text>
           </View>
 
-          <View style={styles.btnStack}>
-            <GoogleButton onPress={handleGoogle} />
+          {/* ── Google ─────────────────────────────────────────────────── */}
+          <TouchableOpacity style={styles.googleBtn} onPress={handleGoogle} activeOpacity={0.85}>
+            <View style={styles.googleIconWrap}>
+              <Text style={styles.googleG}>G</Text>
+            </View>
+            <Text style={styles.googleBtnText}>Continue with Google</Text>
+          </TouchableOpacity>
 
-            <Divider />
-
-            <TouchableOpacity
-              style={styles.emailBtn}
-              onPress={() => switchMode("signin")}
-              activeOpacity={0.85}
-            >
-              <Feather name="mail" size={18} color="#fff" />
-              <Text style={styles.emailBtnText}>Sign in with email</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.createBtn}
-              onPress={() => switchMode("signup")}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.createBtnText}>Create an account</Text>
-            </TouchableOpacity>
+          {/* ── Divider ────────────────────────────────────────────────── */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
           </View>
 
-          <LegalRow />
-        </View>
-      ) : (
-        /* ── Email form ───────────────────────────────────────────────────── */
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
-          <ScrollView
-            contentContainerStyle={[
-              styles.formScroll,
-              { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 32 },
-            ]}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => switchMode("landing")}
-            >
-              <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.8)" />
-            </TouchableOpacity>
-
-            <View style={styles.formLogoRow}>
-              <LotusIcon size={52} />
-              <Text style={styles.formTitle}>
-                {mode === "signin" ? "Welcome back" : "Create account"}
-              </Text>
-              <Text style={styles.formSub}>
-                {mode === "signin"
-                  ? "Sign in to your Soul Remembrance account"
-                  : "Join Soul Remembrance today"}
-              </Text>
-            </View>
-
-            <GoogleButton onPress={handleGoogle} />
-            <Divider />
-
-            <View style={styles.fieldsWrap}>
-              {mode === "signup" && (
-                <FormField label="Full name">
-                  <Feather name="user" size={16} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+          {/* ── Fields ─────────────────────────────────────────────────── */}
+          <View style={styles.fieldsWrap}>
+            {/* Name — signup only */}
+            {mode === "signup" && (
+              <View style={styles.fieldWrap}>
+                <Text style={styles.fieldLabel}>Full name</Text>
+                <View style={styles.inputRow}>
+                  <Feather name="user" size={16} color="rgba(255,255,255,0.45)" style={styles.inputIcon} />
                   <TextInput
+                    ref={nameRef}
                     style={styles.input}
                     placeholder="Your name"
-                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
                     value={displayName}
                     onChangeText={setDisplayName}
                     autoCapitalize="words"
                     returnKeyType="next"
+                    onSubmitEditing={() => passwordRef.current?.focus()}
                   />
-                </FormField>
-              )}
+                </View>
+              </View>
+            )}
 
-              <FormField label="Email address">
-                <Feather name="mail" size={16} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+            {/* Email */}
+            <View style={styles.fieldWrap}>
+              <Text style={styles.fieldLabel}>Email address</Text>
+              <View style={styles.inputRow}>
+                <Feather name="mail" size={16} color="rgba(255,255,255,0.45)" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="you@example.com"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
                   returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
                 />
-              </FormField>
+              </View>
+            </View>
 
-              <FormField label="Password">
-                <Feather name="lock" size={16} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+            {/* Password — with eye toggle */}
+            <View style={styles.fieldWrap}>
+              <Text style={styles.fieldLabel}>Password</Text>
+              <View style={styles.inputRow}>
+                <Feather name="lock" size={16} color="rgba(255,255,255,0.45)" style={styles.inputIcon} />
                 <TextInput
+                  ref={passwordRef}
                   style={[styles.input, { flex: 1 }]}
                   placeholder={mode === "signup" ? "Min. 6 characters" : "Your password"}
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   returnKeyType="done"
-                  onSubmitEditing={handleEmail}
+                  onSubmitEditing={handleSubmit}
                 />
-                <TouchableOpacity onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
+                <TouchableOpacity
+                  onPress={() => setShowPassword((v) => !v)}
+                  style={styles.eyeBtn}
+                  hitSlop={12}
+                >
                   <Feather
                     name={showPassword ? "eye-off" : "eye"}
-                    size={16}
-                    color="rgba(255,255,255,0.45)"
+                    size={18}
+                    color={showPassword ? "#C9A84C" : "rgba(255,255,255,0.55)"}
                   />
                 </TouchableOpacity>
-              </FormField>
-
-              {mode === "signin" && (
-                <TouchableOpacity style={styles.forgotBtn} onPress={handleForgot}>
-                  <Text style={styles.forgotText}>Forgot password?</Text>
-                </TouchableOpacity>
-              )}
-
-              {errorMsg != null && (
-                <View style={styles.errorBox}>
-                  <Feather name="alert-circle" size={14} color="#FCA5A5" />
-                  <Text style={styles.errorText}>{errorMsg}</Text>
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={[styles.submitBtn, loading && { opacity: 0.7 }]}
-                onPress={handleEmail}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.submitBtnText}>
-                    {mode === "signin" ? "Sign in" : "Create account"}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <Pressable
-                style={styles.switchRow}
-                onPress={() => switchMode(mode === "signin" ? "signup" : "signin")}
-              >
-                <Text style={styles.switchText}>
-                  {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
-                </Text>
-                <Text style={styles.switchLink}>
-                  {mode === "signin" ? "Create one" : "Sign in"}
-                </Text>
-              </Pressable>
+              </View>
             </View>
 
-            <LegalRow style={{ marginTop: 24 }} />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      )}
-    </View>
-  );
-}
+            {/* Forgot password */}
+            {mode === "signin" && (
+              <TouchableOpacity style={styles.forgotBtn} onPress={handleForgot}>
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </TouchableOpacity>
+            )}
 
-// ── Small sub-components (no hooks — safe to use in both branches) ────────────
+            {/* Error */}
+            {errorMsg != null && (
+              <View style={styles.errorBox}>
+                <Feather name="alert-circle" size={14} color="#FCA5A5" />
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            )}
 
-function GoogleButton({ onPress }: { onPress: () => void }) {
-  return (
-    <TouchableOpacity style={styles.googleBtn} onPress={onPress} activeOpacity={0.85}>
-      <View style={styles.googleIconWrap}>
-        <Text style={styles.googleG}>G</Text>
-      </View>
-      <Text style={styles.googleBtnText}>Continue with Google</Text>
-    </TouchableOpacity>
-  );
-}
+            {/* Submit */}
+            <TouchableOpacity
+              style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#1A0E42" size="small" />
+              ) : (
+                <Text style={styles.submitBtnText}>
+                  {mode === "signin" ? "Sign in" : "Create account"}
+                </Text>
+              )}
+            </TouchableOpacity>
 
-function Divider() {
-  return (
-    <View style={styles.dividerRow}>
-      <View style={[styles.dividerLine, { backgroundColor: "rgba(255,255,255,0.18)" }]} />
-      <Text style={styles.dividerText}>or</Text>
-      <View style={[styles.dividerLine, { backgroundColor: "rgba(255,255,255,0.18)" }]} />
-    </View>
-  );
-}
+            {/* Switch mode */}
+            <Pressable
+              style={styles.switchRow}
+              onPress={() => switchMode(mode === "signin" ? "signup" : "signin")}
+            >
+              <Text style={styles.switchText}>
+                {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
+              </Text>
+              <Text style={styles.switchLink}>
+                {mode === "signin" ? "Create one" : "Sign in"}
+              </Text>
+            </Pressable>
+          </View>
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.inputWrap}>{children}</View>
-    </View>
-  );
-}
-
-function LegalRow({ style }: { style?: object }) {
-  return (
-    <View style={[styles.legalRow, style]}>
-      <Text style={styles.legalText}>By continuing you agree to our </Text>
-      <TouchableOpacity onPress={() => router.push("/terms" as any)}>
-        <Text style={styles.legalLink}>Terms</Text>
-      </TouchableOpacity>
-      <Text style={styles.legalText}> and </Text>
-      <TouchableOpacity onPress={() => router.push("/privacy" as any)}>
-        <Text style={styles.legalLink}>Privacy Policy</Text>
-      </TouchableOpacity>
+          {/* ── Privacy ────────────────────────────────────────────────── */}
+          <View style={styles.legalRow}>
+            <Text style={styles.legalText}>By continuing you agree to our </Text>
+            <TouchableOpacity onPress={() => router.push("/terms" as any)}>
+              <Text style={styles.legalLink}>Terms</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalText}> and </Text>
+            <TouchableOpacity onPress={() => router.push("/privacy" as any)}>
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -336,28 +296,26 @@ function LegalRow({ style }: { style?: object }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#1A0E42" },
 
-  landingInner: {
-    flex: 1,
+  scroll: {
     paddingHorizontal: 28,
-    justifyContent: "space-between",
+    gap: 20,
   },
-  logoWrap: { alignItems: "center", gap: 14 },
+
+  logoWrap: { alignItems: "center", gap: 12 },
   appName: {
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: "Inter_700Bold",
     color: "#fff",
     letterSpacing: 0.3,
     textAlign: "center",
   },
   tagline: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(255,255,255,0.55)",
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: 20,
   },
-
-  btnStack: { gap: 12 },
 
   googleBtn: {
     flexDirection: "row",
@@ -387,86 +345,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginVertical: 2,
   },
-  dividerLine: { flex: 1, height: 1 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.18)" },
   dividerText: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     color: "rgba(255,255,255,0.4)",
   },
 
-  emailBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 14,
-    paddingVertical: 14,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-  },
-  emailBtnText: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    color: "#fff",
-  },
-
-  createBtn: {
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  createBtnText: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-    color: "#C9A84C",
-  },
-
-  legalRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  legalText: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.4)",
-  },
-  legalLink: {
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    color: "rgba(255,255,255,0.65)",
-    textDecorationLine: "underline",
-  },
-
-  formScroll: { paddingHorizontal: 24, gap: 0 },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-  },
-  formLogoRow: { alignItems: "center", gap: 10, marginBottom: 28 },
-  formTitle: {
-    fontSize: 24,
-    fontFamily: "Inter_700Bold",
-    color: "#fff",
-    textAlign: "center",
-  },
-  formSub: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.55)",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-
-  fieldsWrap: { gap: 14, marginTop: 16 },
+  fieldsWrap: { gap: 14 },
   fieldWrap: { gap: 6 },
   fieldLabel: {
     fontSize: 12,
@@ -474,7 +361,7 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.65)",
     letterSpacing: 0.3,
   },
-  inputWrap: {
+  inputRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.09)",
@@ -490,6 +377,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
     color: "#fff",
+  },
+  eyeBtn: {
+    paddingLeft: 10,
   },
 
   forgotBtn: { alignSelf: "flex-end", marginTop: -4 },
@@ -522,7 +412,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
   },
   submitBtnText: {
     fontSize: 15,
@@ -534,7 +423,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   switchText: {
     fontSize: 13,
@@ -545,5 +434,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",
     color: "#C9A84C",
+  },
+
+  legalRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  legalText: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.4)",
+  },
+  legalLink: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.65)",
+    textDecorationLine: "underline",
   },
 });
