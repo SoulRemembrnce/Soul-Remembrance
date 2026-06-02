@@ -1204,6 +1204,101 @@ export async function deleteMoodCheckin(uid: string, entryId: string): Promise<v
   await deleteDoc(doc(db, "users", uid, "moodCheckins", entryId));
 }
 
+// ─── Affirmations ─────────────────────────────────────────────────────────────
+
+export interface FSFavouriteAffirmation {
+  id: string;
+  text: string;
+  category: string;
+  affirmationId: string;
+  addedAt: string;
+}
+
+export interface FSCustomAffirmation {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
+export async function addFavouriteAffirmation(
+  uid: string,
+  entry: { text: string; category: string; affirmationId: string }
+): Promise<string> {
+  const ref = doc(collection(db, "users", uid, "affirmationFavourites"));
+  await setDoc(ref, { ...entry, addedAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function removeFavouriteAffirmation(uid: string, docId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", uid, "affirmationFavourites", docId));
+}
+
+export function subscribeFavouriteAffirmations(
+  uid: string,
+  cb: (entries: FSFavouriteAffirmation[]) => void
+): () => void {
+  const q = query(
+    collection(db, "users", uid, "affirmationFavourites"),
+    orderBy("addedAt", "desc")
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const ts = data.addedAt as Timestamp | null;
+          return {
+            id: d.id,
+            text: data.text ?? "",
+            category: data.category ?? "",
+            affirmationId: data.affirmationId ?? "",
+            addedAt: ts ? ts.toDate().toISOString() : new Date().toISOString(),
+          };
+        })
+      );
+    },
+    () => cb([])
+  );
+}
+
+export async function addCustomAffirmation(uid: string, text: string): Promise<string> {
+  const ref = doc(collection(db, "users", uid, "customAffirmations"));
+  await setDoc(ref, { text, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function deleteCustomAffirmation(uid: string, docId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", uid, "customAffirmations", docId));
+}
+
+export function subscribeCustomAffirmations(
+  uid: string,
+  cb: (entries: FSCustomAffirmation[]) => void
+): () => void {
+  const q = query(
+    collection(db, "users", uid, "customAffirmations"),
+    orderBy("createdAt", "desc")
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const ts = data.createdAt as Timestamp | null;
+          return {
+            id: d.id,
+            text: data.text ?? "",
+            createdAt: ts ? ts.toDate().toISOString() : new Date().toISOString(),
+          };
+        })
+      );
+    },
+    () => cb([])
+  );
+}
+
 // ─── Following ────────────────────────────────────────────────────────────────
 
 export function subscribeFollowing(

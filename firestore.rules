@@ -187,6 +187,14 @@ service cloud.firestore {
       match /moodCheckins/{entryId} {
         allow read, write: if isOwner(userId);
       }
+
+      match /affirmationFavourites/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /customAffirmations/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ── Waiver templates (practitioner-authored) ───────────────────────────

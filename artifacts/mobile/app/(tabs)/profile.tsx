@@ -1080,6 +1080,20 @@ export default function ProfileScreen() {
             <Text style={styles.moodCardBadgeText}>Daily</Text>
           </View>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.moodCard, { backgroundColor: colors.warmGold, marginTop: 10 }]}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/affirmations"); }}
+          activeOpacity={0.85}
+        >
+          <View style={styles.moodCardLeft}>
+            <Text style={styles.moodCardEmojis}>🌸 ✨ 🌿 🔥 🌙</Text>
+            <Text style={[styles.mindTitle, { color: "#fff", marginTop: 8 }]}>Affirmations</Text>
+            <Text style={[styles.mindSub, { color: "rgba(255,255,255,0.65)" }]}>Daily words that heal & uplift</Text>
+          </View>
+          <View style={styles.moodCardBadge}>
+            <Text style={styles.moodCardBadgeText}>36 total</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Account Menu */}
