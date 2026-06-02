@@ -8,16 +8,19 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   AppState,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -74,11 +77,79 @@ export default function ProfileScreen() {
   const {
     bookings, favorites, following, userReviews,
     isAnonymous, displayName, email, photoURL,
-    signInWithGoogle, signOut, userId, updatePhotoURL,
+    signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset,
+    signOut, userId, updatePhotoURL,
     notificationsGranted, goingEvents, retreatsAttended,
   } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const sessionsY = useRef(0);
+
+  // ── Email auth modal state ──────────────────────────────────────────────────
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [emailMode, setEmailMode] = useState<"signin" | "signup">("signin");
+  const [emailInput, setEmailInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [emailAuthLoading, setEmailAuthLoading] = useState(false);
+  const [emailAuthError, setEmailAuthError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+
+  const openEmailModal = useCallback((mode: "signin" | "signup") => {
+    setEmailMode(mode);
+    setEmailInput("");
+    setPasswordInput("");
+    setNameInput("");
+    setEmailAuthError("");
+    setResetSent(false);
+    setEmailModalVisible(true);
+  }, []);
+
+  const handleEmailAuth = useCallback(async () => {
+    const trimEmail = emailInput.trim();
+    const trimName = nameInput.trim();
+    if (!trimEmail || !passwordInput) {
+      setEmailAuthError("Please enter your email and password.");
+      return;
+    }
+    if (passwordInput.length < 6) {
+      setEmailAuthError("Password must be at least 6 characters.");
+      return;
+    }
+    setEmailAuthLoading(true);
+    setEmailAuthError("");
+    try {
+      if (emailMode === "signup") {
+        await signUpWithEmail(trimEmail, passwordInput, trimName);
+      } else {
+        await signInWithEmail(trimEmail, passwordInput);
+      }
+      setEmailModalVisible(false);
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/email-already-in-use") setEmailAuthError("An account already exists with this email. Try signing in instead.");
+      else if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") setEmailAuthError("Incorrect email or password.");
+      else if (code === "auth/invalid-email") setEmailAuthError("Please enter a valid email address.");
+      else if (code === "auth/too-many-requests") setEmailAuthError("Too many attempts. Please try again later.");
+      else setEmailAuthError("Something went wrong. Please try again.");
+    } finally {
+      setEmailAuthLoading(false);
+    }
+  }, [emailMode, emailInput, passwordInput, nameInput, signInWithEmail, signUpWithEmail]);
+
+  const handlePasswordReset = useCallback(async () => {
+    const trimEmail = emailInput.trim();
+    if (!trimEmail) { setEmailAuthError("Enter your email above first."); return; }
+    setEmailAuthLoading(true);
+    try {
+      await sendPasswordReset(trimEmail);
+      setResetSent(true);
+      setEmailAuthError("");
+    } catch {
+      setEmailAuthError("Could not send reset email. Check the address and try again.");
+    } finally {
+      setEmailAuthLoading(false);
+    }
+  }, [emailInput, sendPasswordReset]);
 
   const [sessionTab, setSessionTab] = useState<"upcoming" | "past">("upcoming");
   const [myProfile, setMyProfile] = useState<FSPractitionerProfile | null>(null);
@@ -426,42 +497,173 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Sign in with Google — shown only when anonymous */}
+      {/* Sign in section — shown only when anonymous */}
       {isAnonymous && (
         <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          {/* Google */}
           <TouchableOpacity
             style={[styles.googleBtn, { backgroundColor: colors.card, borderColor: colors.cream }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              signInWithGoogle();
-            }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); signInWithGoogle(); }}
             activeOpacity={0.85}
           >
             <GoogleColorIcon size={20} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.googleBtnTitle, { color: colors.charcoal }]}>
-                Continue with Google
-              </Text>
-              <Text style={[styles.googleBtnSub, { color: colors.sage }]}>
-                Save your bookings and favourites across devices
-              </Text>
+              <Text style={[styles.googleBtnTitle, { color: colors.charcoal }]}>Continue with Google</Text>
+              <Text style={[styles.googleBtnSub, { color: colors.sage }]}>Save your bookings and favourites across devices</Text>
             </View>
             <Feather name="arrow-right" size={16} color={colors.sage} />
           </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.authDivider}>
+            <View style={[styles.authDividerLine, { backgroundColor: colors.blush }]} />
+            <Text style={[styles.authDividerText, { color: colors.sage }]}>or</Text>
+            <View style={[styles.authDividerLine, { backgroundColor: colors.blush }]} />
+          </View>
+
+          {/* Email sign-in */}
           <TouchableOpacity
-            onPress={() => router.push("/privacy")}
+            style={[styles.emailBtn, { backgroundColor: colors.deepIndigo }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openEmailModal("signin"); }}
+            activeOpacity={0.85}
+          >
+            <Feather name="mail" size={18} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.emailBtnTitle}>Sign in with Email</Text>
+              <Text style={styles.emailBtnSub}>Use your email address and password</Text>
+            </View>
+            <Feather name="arrow-right" size={16} color="rgba(255,255,255,0.5)" />
+          </TouchableOpacity>
+
+          {/* Create account link */}
+          <TouchableOpacity
+            onPress={() => { Haptics.selectionAsync(); openEmailModal("signup"); }}
             style={{ alignItems: "center", marginTop: 14 }}
             activeOpacity={0.7}
           >
             <Text style={[styles.googleBtnSub, { color: colors.sage }]}>
+              New here?{" "}
+              <Text style={{ color: colors.deepIndigo, fontFamily: "Inter_600SemiBold" }}>Create a free account</Text>
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push("/privacy")}
+            style={{ alignItems: "center", marginTop: 10 }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.googleBtnSub, { color: colors.sage }]}>
               By continuing you agree to our{" "}
-              <Text style={{ color: colors.deepIndigo, fontFamily: "Inter_600SemiBold" }}>
-                Privacy Policy
-              </Text>
+              <Text style={{ color: colors.deepIndigo, fontFamily: "Inter_600SemiBold" }}>Privacy Policy</Text>
             </Text>
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Email auth modal */}
+      <Modal
+        visible={emailModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEmailModalVisible(false)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <TouchableOpacity
+            style={styles.emailModalOverlay}
+            activeOpacity={1}
+            onPress={() => setEmailModalVisible(false)}
+          />
+          <View style={[styles.emailModalSheet, { backgroundColor: colors.card }]}>
+            <View style={[styles.emailModalHandle, { backgroundColor: colors.blush }]} />
+
+            {/* Mode toggle */}
+            <View style={[styles.emailModeToggle, { backgroundColor: colors.cream }]}>
+              {(["signin", "signup"] as const).map(m => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.emailModeBtn, emailMode === m && { backgroundColor: colors.deepIndigo }]}
+                  onPress={() => { setEmailMode(m); setEmailAuthError(""); setResetSent(false); }}
+                >
+                  <Text style={[styles.emailModeBtnText, { color: emailMode === m ? "#fff" : colors.sage }]}>
+                    {m === "signin" ? "Sign In" : "Create Account"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Name — create account only */}
+            {emailMode === "signup" && (
+              <TextInput
+                style={[styles.emailInput, { color: colors.charcoal, borderColor: colors.blush, backgroundColor: colors.softWhite }]}
+                placeholder="Your name (optional)"
+                placeholderTextColor={colors.sage}
+                value={nameInput}
+                onChangeText={setNameInput}
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+            )}
+
+            <TextInput
+              style={[styles.emailInput, { color: colors.charcoal, borderColor: colors.blush, backgroundColor: colors.softWhite }]}
+              placeholder="Email address"
+              placeholderTextColor={colors.sage}
+              value={emailInput}
+              onChangeText={v => { setEmailInput(v); setEmailAuthError(""); setResetSent(false); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+            />
+
+            <TextInput
+              style={[styles.emailInput, { color: colors.charcoal, borderColor: colors.blush, backgroundColor: colors.softWhite }]}
+              placeholder="Password (min. 6 characters)"
+              placeholderTextColor={colors.sage}
+              value={passwordInput}
+              onChangeText={v => { setPasswordInput(v); setEmailAuthError(""); }}
+              secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={handleEmailAuth}
+            />
+
+            {/* Error / reset sent */}
+            {emailAuthError !== "" && (
+              <Text style={[styles.emailError, { color: colors.destructive }]}>{emailAuthError}</Text>
+            )}
+            {resetSent && (
+              <Text style={[styles.emailError, { color: "#16A34A" }]}>Reset email sent — check your inbox.</Text>
+            )}
+
+            {/* Submit */}
+            <TouchableOpacity
+              style={[styles.emailSubmitBtn, { backgroundColor: colors.deepIndigo, opacity: emailAuthLoading ? 0.6 : 1 }]}
+              onPress={handleEmailAuth}
+              disabled={emailAuthLoading}
+              activeOpacity={0.85}
+            >
+              {emailAuthLoading
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={styles.emailSubmitText}>{emailMode === "signin" ? "Sign In" : "Create Account"}</Text>}
+            </TouchableOpacity>
+
+            {/* Forgot password — sign-in mode only */}
+            {emailMode === "signin" && !resetSent && (
+              <TouchableOpacity
+                onPress={handlePasswordReset}
+                style={{ alignItems: "center", marginTop: 12 }}
+                disabled={emailAuthLoading}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.googleBtnSub, { color: colors.sage }]}>
+                  Forgot your password?{" "}
+                  <Text style={{ color: colors.deepIndigo, fontFamily: "Inter_600SemiBold" }}>Reset it</Text>
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Practitioner Dashboard — shown when user is a practitioner */}
       {myProfile && !isAnonymous && (
@@ -1293,6 +1495,26 @@ const styles = StyleSheet.create({
   statNum: { color: "#fff", fontSize: 22, fontFamily: "Inter_700Bold" },
   statLabel: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   statDivider: { width: 1, height: 30 },
+  // ── Email auth ────────────────────────────────────────────
+  authDivider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 14 },
+  authDividerLine: { flex: 1, height: 1 },
+  authDividerText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  emailBtn: {
+    borderRadius: 18, padding: 16, flexDirection: "row", alignItems: "center", gap: 14,
+    shadowColor: "#000", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 3,
+  },
+  emailBtnTitle: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  emailBtnSub: { color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "Inter_400Regular" },
+  emailModalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
+  emailModalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40 },
+  emailModalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+  emailModeToggle: { flexDirection: "row", borderRadius: 14, padding: 4, marginBottom: 18 },
+  emailModeBtn: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: "center" },
+  emailModeBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  emailInput: { borderWidth: 1, borderRadius: 14, padding: 14, fontSize: 15, fontFamily: "Inter_400Regular", marginBottom: 12 },
+  emailError: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12, textAlign: "center" },
+  emailSubmitBtn: { borderRadius: 14, padding: 15, alignItems: "center", justifyContent: "center", minHeight: 50 },
+  emailSubmitText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
   // ── Google sign-in card ───────────────────────────────────
   googleBtn: {
     borderRadius: 18,

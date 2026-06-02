@@ -1,11 +1,15 @@
 import * as Google from "expo-auth-session/build/providers/Google";
 import * as WebBrowser from "expo-web-browser";
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
+  createUserWithEmailAndPassword,
   linkWithCredential,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInAnonymously,
   signInWithCredential,
+  signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
   User,
@@ -69,6 +73,9 @@ interface AppContextValue {
   email: string | null;
   photoURL: string | null;
   signInWithGoogle: () => void;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   updatePhotoURL: (url: string) => Promise<void>;
   favorites: Set<number>;
@@ -94,6 +101,9 @@ const AppContext = createContext<AppContextValue>({
   email: null,
   photoURL: null,
   signInWithGoogle: () => {},
+  signInWithEmail: async () => {},
+  signUpWithEmail: async () => {},
+  sendPasswordReset: async () => {},
   signOut: async () => {},
   updatePhotoURL: async () => {},
   favorites: new Set(),
@@ -237,6 +247,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     promptAsync();
   }, [promptAsync]);
 
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    const currentUser = auth.currentUser;
+    if (currentUser?.isAnonymous) {
+      const credential = EmailAuthProvider.credential(email, password);
+      try {
+        await linkWithCredential(currentUser, credential);
+      } catch {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
+    }
+  }, []);
+
+  const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string) => {
+    const currentUser = auth.currentUser;
+    if (currentUser?.isAnonymous) {
+      const credential = EmailAuthProvider.credential(email, password);
+      try {
+        const result = await linkWithCredential(currentUser, credential);
+        if (displayName.trim()) {
+          await updateProfile(result.user, { displayName: displayName.trim() });
+        }
+      } catch {
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        if (displayName.trim()) {
+          await updateProfile(result.user, { displayName: displayName.trim() });
+        }
+      }
+    } else {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      if (displayName.trim()) {
+        await updateProfile(result.user, { displayName: displayName.trim() });
+      }
+    }
+  }, []);
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  }, []);
+
   const signOut = useCallback(async () => {
     dataUnsubsRef.current.forEach((u) => u());
     dataUnsubsRef.current = [];
@@ -324,6 +375,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         email: user?.email ?? null,
         photoURL: localPhotoURL ?? user?.photoURL ?? null,
         signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
+        sendPasswordReset,
         signOut,
         updatePhotoURL,
         favorites,
