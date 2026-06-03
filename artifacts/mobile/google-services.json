@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "384463054245",
+    "firebase_url": "https://soul-remembrance-default-rtdb.firebaseio.com",
+    "project_id": "soul-remembrance",
+    "storage_bucket": "soul-remembrance.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:384463054245:android:54884b875ff644dda7744c",
+        "android_client_info": {
+          "package_name": "com.soulremembrance.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "384463054245-qsekvv7mif2ltj2tddr79ikuj95t3d4g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBhRIXwFqyIU6Bwdtzyhodc50llqcQ4Byw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "384463054245-qsekvv7mif2ltj2tddr79ikuj95t3d4g.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
