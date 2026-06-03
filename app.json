@@ -4,6 +4,9 @@
       "eas": {
         "projectId": "207f3d18-0b1c-4a55-9e79-a6a59f4a88c8"
       }
+    },
+    "android": {
+      "package": "com.soulremembrance.workspace"
     }
   }
 }
