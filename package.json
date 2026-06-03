@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.26.1",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "eas-build-pre-install": "node -e \"require('fs').writeFileSync('pnpm-workspace.yaml','packages:\\n  - artifacts/mobile\\n  - lib/*\\n  - lib/integrations/*\\n  - scripts\\n\\ncatalog:\\n  \\'@tanstack/react-query\\': ^5.90.21\\n  react: 19.1.0\\n  react-dom: 19.1.0\\n  zod: ^3.25.76\\n  tsx: ^4.21.0\\n  drizzle-orm: ^0.45.2\\n\\nautoInstallPeers: false\\n')\" && rm -f pnpm-lock.yaml && pnpm install --no-frozen-lockfile",
+    "eas-build-pre-install": "node eas-pre-install.js && rm -f pnpm-lock.yaml && pnpm install --no-frozen-lockfile",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
