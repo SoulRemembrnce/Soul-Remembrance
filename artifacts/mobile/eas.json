@@ -16,15 +16,14 @@
     },
     "preview": {
       "distribution": "internal",
+      "image": "ubuntu-22.04-jdk-17-ndk-r27c",
       "android": {
-        "image": "latest",
         "buildType": "apk"
       },
       "ios": {
         "resourceClass": "m-medium"
       },
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64",
         "EXPO_PUBLIC_API_URL": "https://102b5183-a7e8-4344-a9b9-706cb6ccd5d1-00-18dy4bplbxrmf.worf.replit.dev"
       }
     },
