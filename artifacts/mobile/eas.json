@@ -16,6 +16,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "image": "latest",
       "ios": {
         "resourceClass": "m-medium"
       },
