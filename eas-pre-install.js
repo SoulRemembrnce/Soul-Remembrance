@@ -62,6 +62,13 @@ autoInstallPeers: false
 fs.writeFileSync('pnpm-workspace.yaml', workspace);
 console.log('Wrote clean pnpm-workspace.yaml for EAS build');
 
+// Enable hoisting so expo binary is available from workspace root
+const npmrc = fs.existsSync('.npmrc') ? fs.readFileSync('.npmrc', 'utf8') : '';
+if (!npmrc.includes('shamefully-hoist')) {
+  fs.writeFileSync('.npmrc', npmrc + '\nshamefully-hoist=true\n');
+  console.log('Enabled shamefully-hoist in .npmrc for EAS build');
+}
+
 const dirs = [
   'artifacts/mobile',
   ...fs.readdirSync('lib').map(d => `lib/${d}`).filter(d => fs.existsSync(`${d}/package.json`)),
