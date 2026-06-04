@@ -87,7 +87,6 @@
       "bundler": "metro"
     },
     "plugins": [
-      "./plugins/withJava17",
       [
         "expo-router",
         {
