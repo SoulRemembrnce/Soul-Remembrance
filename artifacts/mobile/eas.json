@@ -16,8 +16,8 @@
     },
     "preview": {
       "distribution": "internal",
-      "image": "ubuntu-22.04-jdk-17-ndk-r25c",
       "android": {
+        "image": "ubuntu-22.04-jdk-17-ndk-r25c",
         "buildType": "apk"
       },
       "ios": {
