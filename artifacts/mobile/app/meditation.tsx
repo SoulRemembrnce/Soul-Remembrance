@@ -8,6 +8,7 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -27,6 +28,39 @@ const STORAGE_KEYS = {
 
 const TIME_PRESETS = [5, 10, 15, 20, 30] as const;
 
+const GUIDED_MEDITATIONS = [
+  {
+    category: "Breathing",
+    emoji: "💨",
+    gradient: ["#6B4FA8", "#4A3080"] as [string, string],
+    items: [
+      { title: "4-7-8 Breathing", desc: "Deep nervous system reset", duration: "10 min", url: "https://www.youtube.com/results?search_query=4+7+8+breathing+guided+meditation" },
+      { title: "Box Breathing", desc: "Calm & sharpen your focus", duration: "8 min", url: "https://www.youtube.com/results?search_query=box+breathing+guided+meditation+calm" },
+      { title: "Coherent Breathing", desc: "Balance heart & mind", duration: "15 min", url: "https://www.youtube.com/results?search_query=coherent+breathing+5+5+guided+meditation" },
+    ],
+  },
+  {
+    category: "Relaxing",
+    emoji: "🌊",
+    gradient: ["#2D6A8A", "#1D4E6B"] as [string, string],
+    items: [
+      { title: "Body Scan", desc: "Release tension head to toe", duration: "20 min", url: "https://www.youtube.com/results?search_query=body+scan+guided+relaxation+meditation" },
+      { title: "Nature Sounds", desc: "Rain, forest & ocean calm", duration: "60 min", url: "https://www.youtube.com/results?search_query=nature+sounds+calming+music+meditation+rain" },
+      { title: "Yoga Nidra", desc: "Sleep-based deep rest", duration: "30 min", url: "https://www.youtube.com/results?search_query=yoga+nidra+guided+sleep+meditation" },
+    ],
+  },
+  {
+    category: "Manifest & Abundance",
+    emoji: "✨",
+    gradient: ["#9E6B10", "#C9A84C"] as [string, string],
+    items: [
+      { title: "Abundance Mindset", desc: "Attract wealth & positivity", duration: "15 min", url: "https://www.youtube.com/results?search_query=abundance+mindset+guided+meditation" },
+      { title: "Law of Attraction", desc: "Visualise your dream life", duration: "20 min", url: "https://www.youtube.com/results?search_query=law+of+attraction+visualization+guided+meditation" },
+      { title: "Morning Manifestation", desc: "Set intentions for the day", duration: "10 min", url: "https://www.youtube.com/results?search_query=morning+manifestation+meditation+guided" },
+    ],
+  },
+];
+
 const PATTERNS = {
   box: {
     label: "Box Breathing",
@@ -44,9 +78,9 @@ const PATTERNS = {
     exhale: 8,
     holdOut: 0,
   },
-  deeprest: {
-    label: "Deep Rest",
-    desc: "4·2·6·2  ·  Restore & sleep",
+  manifest: {
+    label: "Manifest & Abundance",
+    desc: "4·2·6·2  ·  Attract & receive",
     inhale: 4,
     holdIn: 2,
     exhale: 6,
@@ -364,6 +398,51 @@ export default function MeditationScreen() {
                 </View>
               </View>
             )}
+
+            {/* Guided Meditations */}
+            {!isRunning && (
+              <>
+                <Text style={styles.sectionLabel}>GUIDED MEDITATIONS</Text>
+                {GUIDED_MEDITATIONS.map((cat) => (
+                  <View key={cat.category} style={styles.gmCategory}>
+                    <View style={styles.gmCatHeader}>
+                      <Text style={styles.gmCatEmoji}>{cat.emoji}</Text>
+                      <Text style={styles.gmCatTitle}>{cat.category}</Text>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.gmScroll}
+                    >
+                      {cat.items.map((item) => (
+                        <TouchableOpacity
+                          key={item.title}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            Linking.openURL(item.url);
+                          }}
+                          activeOpacity={0.85}
+                          style={styles.gmCard}
+                        >
+                          <LinearGradient
+                            colors={cat.gradient}
+                            style={styles.gmCardGradient}
+                          >
+                            <Text style={styles.gmCardDuration}>{item.duration}</Text>
+                            <Text style={styles.gmCardTitle}>{item.title}</Text>
+                            <Text style={styles.gmCardDesc}>{item.desc}</Text>
+                            <View style={styles.gmWatchRow}>
+                              <Feather name="play-circle" size={13} color="rgba(255,255,255,0.8)" />
+                              <Text style={styles.gmWatchText}>Watch on YouTube</Text>
+                            </View>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                ))}
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -476,6 +555,18 @@ const styles = StyleSheet.create({
   statNum: { color: "#fff", fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 2 },
   statLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontFamily: "Inter_400Regular" },
   statDivider: { width: 1, height: 32, backgroundColor: "rgba(255,255,255,0.12)" },
+  gmCategory: { marginTop: 16 },
+  gmCatHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  gmCatEmoji: { fontSize: 16 },
+  gmCatTitle: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  gmScroll: { gap: 10, paddingRight: 4 },
+  gmCard: { width: 155, borderRadius: 14, overflow: "hidden" },
+  gmCardGradient: { padding: 14, minHeight: 120, justifyContent: "space-between" },
+  gmCardDuration: { color: "rgba(255,255,255,0.6)", fontSize: 10, fontFamily: "Inter_500Medium", marginBottom: 4 },
+  gmCardTitle: { color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 4, lineHeight: 18 },
+  gmCardDesc: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 15, flex: 1 },
+  gmWatchRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 10 },
+  gmWatchText: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontFamily: "Inter_500Medium" },
   completeWrap: { alignItems: "center", paddingTop: 60 },
   completeEmoji: { fontSize: 72, marginBottom: 20 },
   completeTitle: { color: "#fff", fontSize: 26, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 10 },

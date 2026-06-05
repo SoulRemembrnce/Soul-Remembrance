@@ -3,6 +3,7 @@ import { LotusIcon } from "@/components/LotusIcon";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { ReviewModal, type ReviewTarget } from "@/components/ReviewModal";
 import { Feather } from "@expo/vector-icons";
+import * as Calendar from "expo-calendar";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -388,6 +389,47 @@ export default function ProfileScreen() {
   const upcomingBookings = bookings.filter((b) => isUpcoming(b.date));
   const pastBookings = bookings.filter((b) => !isUpcoming(b.date));
   const shownBookings = sessionTab === "upcoming" ? upcomingBookings : pastBookings;
+
+  const addToDeviceCalendar = useCallback(async (b: (typeof bookings)[0]) => {
+    try {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission needed", "Please allow calendar access to save bookings.");
+        return;
+      }
+      const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+      const defaultCal = calendars.find((c) => c.isPrimary) ?? calendars[0];
+      if (!defaultCal) {
+        Alert.alert("No calendar", "No writable calendar found on this device.");
+        return;
+      }
+      const MONTHS: Record<string, number> = {
+        Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+        Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+      };
+      const parts = b.date.split(" ");
+      const day = parseInt(parts[1] ?? "1");
+      const month = MONTHS[parts[2] ?? "Jan"] ?? 0;
+      const year = new Date().getFullYear();
+      const [hour, minute] = (b.time ?? "09:00").split(":").map(Number);
+      const start = new Date(year, month, day, hour, minute);
+      const durationMs = (b.serviceDuration ?? 60) * 60 * 1000;
+      const end = new Date(start.getTime() + durationMs);
+      await Calendar.createEventAsync(defaultCal.id, {
+        title: `${b.serviceName ?? "Session"} with ${b.practitionerName}`,
+        startDate: start,
+        endDate: end,
+        notes: b.online
+          ? b.videoLink ? `Join: ${b.videoLink}` : "Online session"
+          : `Location: ${b.location}`,
+        alarms: [{ relativeOffset: -60 }, { relativeOffset: -1440 }],
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Saved to Calendar", `"${b.serviceName ?? "Session"} with ${b.practitionerName}" added.`);
+    } catch {
+      Alert.alert("Error", "Could not add to calendar. Please try again.");
+    }
+  }, [bookings]);
   const myReviewCount = userReviews.length;
 
   // Derive display name and initials
@@ -1164,6 +1206,19 @@ export default function ProfileScreen() {
                       <Text style={styles.joinCallText}>Join Call</Text>
                     </TouchableOpacity>
                   ) : null}
+                  {upcoming && (
+                    <TouchableOpacity
+                      style={[styles.calendarBtn, { borderColor: `${colors.deepIndigo}30`, backgroundColor: `${colors.deepIndigo}08` }]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        addToDeviceCalendar(b);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="calendar" size={12} color={colors.deepIndigo} />
+                      <Text style={[styles.calendarBtnText, { color: colors.deepIndigo }]}>Save to Calendar</Text>
+                    </TouchableOpacity>
+                  )}
                   {!upcoming && !reviewedIds.has(b.id) && (
                     <TouchableOpacity
                       style={[styles.reviewBtn, { backgroundColor: `${colors.warmGold}18`, borderColor: `${colors.warmGold}40` }]}
@@ -1593,6 +1648,8 @@ const styles = StyleSheet.create({
   sessionTag: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2 },
   sessionTagText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   joinCallBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginTop: 6, alignSelf: "flex-start" },
+  calendarBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginTop: 4, alignSelf: "flex-start", borderWidth: 1 },
+  calendarBtnText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   joinCallText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" },
   reviewBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginTop: 6, alignSelf: "flex-start", borderWidth: 1 },
   reviewBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },

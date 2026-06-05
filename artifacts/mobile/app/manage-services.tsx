@@ -38,6 +38,25 @@ const DURATIONS = [
   { label: "2 hours", value: 120 },
 ];
 
+const SERVICE_TEMPLATES = [
+  { name: "Reiki Healing", description: "Traditional hands-on energy healing to restore balance and flow.", durationMinutes: 60, price: "65", online: false },
+  { name: "Chakra Balancing", description: "Align and cleanse your seven energy centres.", durationMinutes: 60, price: "75", online: false },
+  { name: "Past Life Regression", description: "Guided hypnotherapy to explore past life memories.", durationMinutes: 90, price: "120", online: true },
+  { name: "Soul Reading", description: "Intuitive reading of your soul's journey and purpose.", durationMinutes: 60, price: "85", online: true },
+  { name: "Crystal Healing", description: "Placement of crystals to clear energy blockages.", durationMinutes: 60, price: "65", online: false },
+  { name: "Sound Bath", description: "Immersive sound healing with singing bowls and gongs.", durationMinutes: 45, price: "50", online: false },
+  { name: "Meditation Coaching", description: "Personalised guidance to build a sustainable practice.", durationMinutes: 60, price: "55", online: true },
+  { name: "Breathwork Session", description: "Transformative breathwork for emotional release.", durationMinutes: 60, price: "50", online: true },
+  { name: "Spiritual Counselling", description: "Compassionate guidance through life transitions.", durationMinutes: 60, price: "80", online: true },
+  { name: "Shamanic Journey", description: "Guided journey to connect with spirit guides.", durationMinutes: 90, price: "110", online: false },
+  { name: "Tarot Reading", description: "Oracle and tarot card reading for clarity and insight.", durationMinutes: 45, price: "45", online: true },
+  { name: "Energy Clearing", description: "Deep energetic clearing of your aura and space.", durationMinutes: 60, price: "70", online: false },
+  { name: "Intuitive Healing", description: "Channelled healing using intuitive guidance.", durationMinutes: 60, price: "80", online: true },
+  { name: "Akashic Records", description: "Access your soul's record for profound insights.", durationMinutes: 75, price: "95", online: true },
+  { name: "Hypnotherapy", description: "Therapeutic hypnosis for deep transformation.", durationMinutes: 60, price: "100", online: true },
+  { name: "NLP Coaching", description: "Reprogram limiting beliefs with NLP techniques.", durationMinutes: 60, price: "90", online: true },
+];
+
 function durationLabel(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   if (minutes === 60) return "1 hour";
@@ -346,6 +365,38 @@ export default function ManageServicesScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {!modal.editing && (
+                <>
+                  <Text style={styles.fieldLabel}>Quick templates</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.templatesScroll}
+                    style={styles.templatesList}
+                  >
+                    {SERVICE_TEMPLATES.map((tpl) => (
+                      <TouchableOpacity
+                        key={tpl.name}
+                        style={styles.templateChip}
+                        onPress={() => {
+                          updateForm({
+                            name: tpl.name,
+                            description: tpl.description,
+                            durationMinutes: tpl.durationMinutes,
+                            price: tpl.price,
+                            online: tpl.online,
+                          });
+                          Haptics.selectionAsync();
+                        }}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.templateChipText}>{tpl.name}</Text>
+                        <Text style={styles.templateChipPrice}>£{tpl.price}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
               <Text style={styles.fieldLabel}>Service name *</Text>
               <TextInput
                 ref={nameRef}
@@ -761,6 +812,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_700Bold",
     color: "#fff",
+  },
+  templatesList: { marginBottom: 14 },
+  templatesScroll: { gap: 8, paddingBottom: 2 },
+  templateChip: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#DDD0F0",
+    backgroundColor: "#FAF5FF",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    minWidth: 120,
+  },
+  templateChipText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: "#2D1B69",
+    marginBottom: 2,
+  },
+  templateChipPrice: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: "#7B5EA7",
   },
   waitlistSection: {
     marginTop: 20,
