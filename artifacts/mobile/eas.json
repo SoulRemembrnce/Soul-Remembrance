@@ -11,7 +11,13 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://102b5183-a7e8-4344-a9b9-706cb6ccd5d1-00-18dy4bplbxrmf.worf.replit.dev"
+        "EXPO_PUBLIC_API_URL": "https://102b5183-a7e8-4344-a9b9-706cb6ccd5d1-00-18dy4bplbxrmf.worf.replit.dev",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBhRIXwFqyIU6Bwdtzyhodc50llqcQ4Byw",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "soul-remembrance.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "soul-remembrance",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "soul-remembrance.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "384463054245",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:384463054245:android:54884b875ff644dda7744c"
       }
     },
     "preview": {
@@ -24,7 +30,13 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://102b5183-a7e8-4344-a9b9-706cb6ccd5d1-00-18dy4bplbxrmf.worf.replit.dev"
+        "EXPO_PUBLIC_API_URL": "https://102b5183-a7e8-4344-a9b9-706cb6ccd5d1-00-18dy4bplbxrmf.worf.replit.dev",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBhRIXwFqyIU6Bwdtzyhodc50llqcQ4Byw",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "soul-remembrance.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "soul-remembrance",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "soul-remembrance.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "384463054245",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:384463054245:android:54884b875ff644dda7744c"
       }
     },
     "production": {
@@ -33,7 +45,13 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://102b5183-a7e8-4344-a9b9-706cb6ccd5d1-00-18dy4bplbxrmf.worf.replit.dev"
+        "EXPO_PUBLIC_API_URL": "https://102b5183-a7e8-4344-a9b9-706cb6ccd5d1-00-18dy4bplbxrmf.worf.replit.dev",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBhRIXwFqyIU6Bwdtzyhodc50llqcQ4Byw",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "soul-remembrance.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "soul-remembrance",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "soul-remembrance.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "384463054245",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:384463054245:android:54884b875ff644dda7744c"
       }
     }
   },
