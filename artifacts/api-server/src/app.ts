@@ -30,8 +30,8 @@ app.use(
 app.use(cors());
 
 // ── Stripe webhook — must receive raw body for signature verification ─────────
-// Mount BEFORE express.json() so the Buffer is untouched.
-app.use("/api", express.raw({ type: "application/json" }), webhooksRouter);
+// Scoped to the exact webhook path so other /api routes still get JSON parsing.
+app.use("/api/webhooks", express.raw({ type: "application/json" }), webhooksRouter);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

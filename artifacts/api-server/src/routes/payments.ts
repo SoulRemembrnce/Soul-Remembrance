@@ -64,13 +64,17 @@ router.post("/payments/create-intent", async (req, res): Promise<void> => {
     intentParams.transfer_data = { destination: stripeAccountId };
   }
 
-  const paymentIntent = await stripe.paymentIntents.create(intentParams);
-
-  req.log.info(
-    { amount, currency, platformFeeAmount, connectEnabled: !!stripeAccountId },
-    "PaymentIntent created"
-  );
-  res.json({ clientSecret: paymentIntent.client_secret });
+  try {
+    const paymentIntent = await stripe.paymentIntents.create(intentParams);
+    req.log.info(
+      { amount, currency, platformFeeAmount, connectEnabled: !!stripeAccountId },
+      "PaymentIntent created"
+    );
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err: any) {
+    req.log.error({ err }, "Stripe paymentIntents.create failed");
+    res.status(502).json({ error: err?.message ?? "Payment processing error" });
+  }
 });
 
 // ── POST /api/payments/create-subscription-session ────────────────────────────
@@ -123,10 +127,14 @@ router.post("/payments/create-subscription-session", async (req, res): Promise<v
     sessionParams.customer_email = email;
   }
 
-  const session = await stripe.checkout.sessions.create(sessionParams);
-
-  req.log.info({ sessionId: session.id }, "Subscription checkout session created");
-  res.json({ url: session.url, sessionId: session.id });
+  try {
+    const session = await stripe.checkout.sessions.create(sessionParams);
+    req.log.info({ sessionId: session.id }, "Subscription checkout session created");
+    res.json({ url: session.url, sessionId: session.id });
+  } catch (err: any) {
+    req.log.error({ err }, "Stripe checkout session creation failed");
+    res.status(502).json({ error: err?.message ?? "Could not create subscription session" });
+  }
 });
 
 // ── GET /api/subscriptions/check?sessionId=XXX ────────────────────────────────
@@ -142,22 +150,28 @@ router.get("/subscriptions/check", async (req, res): Promise<void> => {
   }
 
   const stripe = getStripe();
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-  const subscribed =
-    session.payment_status === "paid" ||
-    (session.status === "complete" && !!session.subscription);
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-  req.log.info(
-    { sessionId, status: session.status, paymentStatus: session.payment_status },
-    "Subscription session checked"
-  );
+    const subscribed =
+      session.payment_status === "paid" ||
+      (session.status === "complete" && !!session.subscription);
 
-  res.json({
-    subscribed,
-    subscriptionId: session.subscription ?? null,
-    customerId: session.customer ?? null,
-  });
+    req.log.info(
+      { sessionId, status: session.status, paymentStatus: session.payment_status },
+      "Subscription session checked"
+    );
+
+    res.json({
+      subscribed,
+      subscriptionId: session.subscription ?? null,
+      customerId: session.customer ?? null,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Stripe session retrieve failed");
+    res.status(502).json({ error: err?.message ?? "Could not check subscription status" });
+  }
 });
 
 // ── GET /api/subscriptions/success ────────────────────────────────────────────
@@ -285,16 +299,21 @@ router.post("/payments/create-featured-intent", async (req, res): Promise<void> 
   }
 
   const stripe = getStripe();
-  const intent = await stripe.paymentIntents.create({
-    amount: 499, // £4.99 in pence
-    currency: "gbp",
-    description: "Soul Remembrance — Featured Practitioner (30 days)",
-    automatic_payment_methods: { enabled: true },
-    metadata: { userId, type: "featured_placement" },
-  });
 
-  req.log.info({ userId }, "Featured practitioner PaymentIntent created");
-  res.json({ clientSecret: intent.client_secret });
+  try {
+    const intent = await stripe.paymentIntents.create({
+      amount: 499, // £4.99 in pence
+      currency: "gbp",
+      description: "Soul Remembrance — Featured Practitioner (30 days)",
+      automatic_payment_methods: { enabled: true },
+      metadata: { userId, type: "featured_placement" },
+    });
+    req.log.info({ userId }, "Featured practitioner PaymentIntent created");
+    res.json({ clientSecret: intent.client_secret });
+  } catch (err: any) {
+    req.log.error({ err }, "Stripe featured intent creation failed");
+    res.status(502).json({ error: err?.message ?? "Payment processing error" });
+  }
 });
 
 export default router;
