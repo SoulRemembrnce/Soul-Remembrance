@@ -6,7 +6,7 @@ export function StripeProviderWrapper({ children }: { children: React.ReactNode 
   if (!publishableKey) return <>{children}</>;
   return (
     <StripeProvider publishableKey={publishableKey} merchantIdentifier="merchant.com.soulremembrance.app">
-      {children}
+      <>{children}</>
     </StripeProvider>
   );
 }

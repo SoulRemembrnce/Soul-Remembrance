@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Google from "expo-auth-session/build/providers/Google";
 import * as WebBrowser from "expo-web-browser";
 import {
@@ -22,6 +23,8 @@ import React, {
   useRef,
   useState,
 } from "react";
+
+const REMEMBER_ME_KEY = "@sr:rememberMe";
 
 import { Review } from "@/constants/data";
 import { auth } from "@/lib/firebase";
@@ -73,7 +76,7 @@ interface AppContextValue {
   email: string | null;
   photoURL: string | null;
   signInWithGoogle: () => void;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -134,6 +137,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [retreatsAttended, setRetreatsAttended] = useState(0);
 
   const dataUnsubsRef = useRef<Array<() => void>>([]);
+  const sessionCheckedRef = useRef(false);
 
   // ── Google OAuth request ───────────────────────────────────────────────────
   // androidClientId is required on Android (including Expo Go) — fall back to
@@ -178,6 +182,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // On cold start: if user opted out of Remember Me, sign them out
+        if (!sessionCheckedRef.current && !firebaseUser.isAnonymous) {
+          sessionCheckedRef.current = true;
+          const remembered = await AsyncStorage.getItem(REMEMBER_ME_KEY).catch(() => "true");
+          if (remembered === "false") {
+            await firebaseSignOut(auth).catch(() => {});
+            return;
+          }
+        } else {
+          sessionCheckedRef.current = true;
+        }
         setUser(firebaseUser);
         // Register push token for real (non-anonymous) users
         if (!firebaseUser.isAnonymous) {
@@ -188,6 +203,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             .catch(() => {});
         }
       } else {
+        sessionCheckedRef.current = true;
         try {
           const cred = await signInAnonymously(auth);
           setUser(cred.user);
@@ -253,7 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     promptAsync();
   }, [promptAsync]);
 
-  const signInWithEmail = useCallback(async (email: string, password: string) => {
+  const signInWithEmail = useCallback(async (email: string, password: string, rememberMe = true) => {
     const currentUser = auth.currentUser;
     if (currentUser?.isAnonymous) {
       const credential = EmailAuthProvider.credential(email, password);
@@ -265,6 +281,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else {
       await signInWithEmailAndPassword(auth, email, password);
     }
+    await AsyncStorage.setItem(REMEMBER_ME_KEY, rememberMe ? "true" : "false").catch(() => {});
   }, []);
 
   const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string) => {
@@ -301,6 +318,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFavorites(new Set());
     setFollowing(new Set());
     setRetreatsAttended(0);
+    await AsyncStorage.removeItem(REMEMBER_ME_KEY).catch(() => {});
     await firebaseSignOut(auth);
     // onAuthStateChanged will trigger anonymous sign-in automatically
   }, []);

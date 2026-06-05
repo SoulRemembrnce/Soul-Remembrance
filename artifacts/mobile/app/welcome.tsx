@@ -31,6 +31,7 @@ export default function WelcomeScreen() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -69,7 +70,7 @@ export default function WelcomeScreen() {
     setLoading(true);
     try {
       if (mode === "signin") {
-        await signInWithEmail(email.trim(), password);
+        await signInWithEmail(email.trim(), password, rememberMe);
       } else {
         await signUpWithEmail(email.trim(), password, displayName.trim());
       }
@@ -227,11 +228,23 @@ export default function WelcomeScreen() {
               </View>
             </View>
 
-            {/* Forgot password */}
+            {/* Remember me + Forgot password row */}
             {mode === "signin" && (
-              <TouchableOpacity style={styles.forgotBtn} onPress={handleForgot}>
-                <Text style={styles.forgotText}>Forgot password?</Text>
-              </TouchableOpacity>
+              <View style={styles.rememberRow}>
+                <TouchableOpacity
+                  style={styles.rememberLeft}
+                  onPress={() => setRememberMe((v) => !v)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                    {rememberMe && <Feather name="check" size={11} color="#1A0E42" />}
+                  </View>
+                  <Text style={styles.rememberText}>Remember me</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleForgot}>
+                  <Text style={styles.forgotText}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* Error */}
@@ -387,6 +400,36 @@ const styles = StyleSheet.create({
     color: "#C9A84C",
   },
 
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: -4,
+  },
+  rememberLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: "#C9A84C",
+    borderColor: "#C9A84C",
+  },
+  rememberText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.6)",
+  },
   forgotBtn: { alignSelf: "flex-end", marginTop: -4 },
   forgotText: {
     fontSize: 12,
