@@ -89,6 +89,12 @@ export interface FSBooking {
 
 // ─── Services ─────────────────────────────────────────────────────────────────
 
+export interface FSServiceTier {
+  durationMinutes: number;
+  price: number;
+  label?: string;
+}
+
 export interface FSService {
   id: string;
   practitionerId: number;
@@ -102,6 +108,7 @@ export interface FSService {
   capacity?: number;
   bookedCount?: number;
   waitlistCount?: number;
+  priceTiers?: FSServiceTier[];
   createdAt?: Timestamp;
 }
 

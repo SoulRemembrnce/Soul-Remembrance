@@ -229,6 +229,7 @@ router.post("/payments/create-trial-setup", async (req, res): Promise<void> => {
     req.log.info({ customerId: customer.id }, "Trial setup intent created");
     res.json({
       customerId: customer.id,
+      setupIntentId: setupIntent.id,
       clientSecret: setupIntent.client_secret,
       ephemeralKey: ephemeralKey.secret,
     });
@@ -239,10 +240,10 @@ router.post("/payments/create-trial-setup", async (req, res): Promise<void> => {
 });
 
 // ── POST /api/payments/activate-trial ────────────────────────────────────────
-// Called after PaymentSheet succeeds. Attaches the saved card and creates the
-// 30-day trial subscription for the practitioner.
+// Called after PaymentSheet succeeds. Retrieves the confirmed payment method
+// directly from the SetupIntent (works for all payment types, not just cards).
 router.post("/payments/activate-trial", async (req, res): Promise<void> => {
-  const { customerId } = req.body;
+  const { customerId, setupIntentId } = req.body;
   if (typeof customerId !== "string" || !customerId) {
     res.status(400).json({ error: "customerId is required" });
     return;
@@ -251,21 +252,40 @@ router.post("/payments/activate-trial", async (req, res): Promise<void> => {
   const stripe = getStripe();
 
   try {
-    const paymentMethods = await stripe.paymentMethods.list({
-      customer: customerId,
-      type: "card",
-    });
+    // Get the confirmed payment method directly from the SetupIntent —
+    // this works regardless of payment method type (card, Link, etc.)
+    let paymentMethodId: string | undefined;
 
-    if (!paymentMethods.data.length) {
-      res.status(400).json({ error: "No payment method found for customer" });
+    if (typeof setupIntentId === "string" && setupIntentId) {
+      const si = await stripe.setupIntents.retrieve(setupIntentId);
+      if (typeof si.payment_method === "string") {
+        paymentMethodId = si.payment_method;
+      } else if (si.payment_method && typeof si.payment_method === "object") {
+        paymentMethodId = si.payment_method.id;
+      }
+    }
+
+    // Fallback: list all payment methods on the customer
+    if (!paymentMethodId) {
+      const allMethods = await stripe.paymentMethods.list({ customer: customerId });
+      if (allMethods.data.length) {
+        paymentMethodId = allMethods.data[0].id;
+      }
+    }
+
+    if (!paymentMethodId) {
+      res.status(400).json({ error: "No payment method found — please try again" });
       return;
     }
 
-    const paymentMethodId = paymentMethods.data[0].id;
+    // Ensure the payment method is attached to the customer
+    await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId }).catch(() => {
+      // Already attached — ignore the error
+    });
 
-    const product = await stripe.products.create({
-      name: "Soul Remembrance — Practitioner Plan",
-      description: "Verified listing, booking tools, analytics & community.",
+    // Set as the customer's default
+    await stripe.customers.update(customerId, {
+      invoice_settings: { default_payment_method: paymentMethodId },
     });
 
     const subscription = await stripe.subscriptions.create({
@@ -276,7 +296,10 @@ router.post("/payments/activate-trial", async (req, res): Promise<void> => {
             currency: "gbp",
             unit_amount: 399,
             recurring: { interval: "month" },
-            product: product.id,
+            product_data: {
+              name: "Soul Remembrance — Practitioner Plan",
+              description: "Verified listing, booking tools, analytics & community.",
+            },
           },
         },
       ],

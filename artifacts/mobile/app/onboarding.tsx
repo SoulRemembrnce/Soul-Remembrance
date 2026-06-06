@@ -100,7 +100,7 @@ export default function OnboardingScreen() {
         throw new Error(error ?? "Could not initialise payment");
       }
 
-      const { customerId, clientSecret, ephemeralKey } = await setupResp.json();
+      const { customerId, setupIntentId, clientSecret, ephemeralKey } = await setupResp.json();
 
       // 2. Initialise native PaymentSheet with the SetupIntent
       const { error: initError } = await initPaymentSheet({
@@ -125,7 +125,7 @@ export default function OnboardingScreen() {
       const activateResp = await fetch(`${apiUrl}/api/payments/activate-trial`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId }),
+        body: JSON.stringify({ customerId, setupIntentId }),
       });
 
       if (!activateResp.ok) {

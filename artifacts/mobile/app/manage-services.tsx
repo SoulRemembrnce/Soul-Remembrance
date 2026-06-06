@@ -21,6 +21,7 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import {
   FSService,
+  FSServiceTier,
   FSWaitlistEntry,
   addService,
   deleteService,
@@ -64,6 +65,8 @@ function durationLabel(minutes: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
+type PriceTierForm = { durationMinutes: number; price: string };
+
 type ServiceFormData = {
   name: string;
   description: string;
@@ -72,6 +75,7 @@ type ServiceFormData = {
   online: boolean;
   isRetreat: boolean;
   capacity: string;
+  priceTiers: PriceTierForm[];
 };
 
 const EMPTY_FORM: ServiceFormData = {
@@ -82,6 +86,7 @@ const EMPTY_FORM: ServiceFormData = {
   online: true,
   isRetreat: false,
   capacity: "",
+  priceTiers: [],
 };
 
 export default function ManageServicesScreen() {
@@ -140,7 +145,11 @@ export default function ManageServicesScreen() {
         price: String(svc.price),
         online: svc.online,
         isRetreat: svc.isRetreat ?? false,
-      capacity: svc.capacity != null ? String(svc.capacity) : "",
+        capacity: svc.capacity != null ? String(svc.capacity) : "",
+        priceTiers: (svc.priceTiers ?? []).map((t) => ({
+          durationMinutes: t.durationMinutes,
+          price: String(t.price),
+        })),
       },
       saving: false,
     });
@@ -153,6 +162,36 @@ export default function ManageServicesScreen() {
 
   function updateForm(patch: Partial<ServiceFormData>) {
     setModal((m) => ({ ...m, form: { ...m.form, ...patch } }));
+  }
+
+  function addTier() {
+    Haptics.selectionAsync();
+    setModal((m) => ({
+      ...m,
+      form: {
+        ...m.form,
+        priceTiers: [...m.form.priceTiers, { durationMinutes: 30, price: "" }],
+      },
+    }));
+  }
+
+  function updateTier(idx: number, patch: Partial<PriceTierForm>) {
+    setModal((m) => {
+      const tiers = [...m.form.priceTiers];
+      tiers[idx] = { ...tiers[idx], ...patch };
+      return { ...m, form: { ...m.form, priceTiers: tiers } };
+    });
+  }
+
+  function removeTier(idx: number) {
+    Haptics.selectionAsync();
+    setModal((m) => ({
+      ...m,
+      form: {
+        ...m.form,
+        priceTiers: m.form.priceTiers.filter((_, i) => i !== idx),
+      },
+    }));
   }
 
   async function handleSave() {
@@ -173,6 +212,9 @@ export default function ManageServicesScreen() {
       return;
     }
     setModal((m) => ({ ...m, saving: true }));
+    const validTiers: FSServiceTier[] = form.priceTiers
+      .map((t) => ({ durationMinutes: t.durationMinutes, price: parseFloat(t.price) }))
+      .filter((t) => !isNaN(t.price) && t.price > 0);
     const data = {
       name: form.name.trim(),
       description: form.description.trim(),
@@ -181,6 +223,7 @@ export default function ManageServicesScreen() {
       online: form.online,
       isRetreat: form.isRetreat,
       ...(parsedCapacity ? { capacity: parsedCapacity } : {}),
+      priceTiers: validTiers,
     };
     try {
       if (editing) {
@@ -446,16 +489,80 @@ export default function ManageServicesScreen() {
                 })}
               </View>
 
-              <Text style={styles.fieldLabel}>Price (£) *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={modal.form.price}
-                onChangeText={(t) => updateForm({ price: t.replace(/[^0-9.]/g, "") })}
-                placeholder="e.g. 60"
-                placeholderTextColor="#B0A8C8"
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-              />
+              <Text style={styles.fieldLabel}>Primary price (£) *</Text>
+              <View style={styles.tierRow}>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={modal.form.price}
+                    onChangeText={(t) => updateForm({ price: t.replace(/[^0-9.]/g, "") })}
+                    placeholder="e.g. 60"
+                    placeholderTextColor="#B0A8C8"
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                  />
+                </View>
+                <View style={[styles.tierDurationBadge, { backgroundColor: "#2D1B6914" }]}>
+                  <Text style={styles.tierDurationText}>{durationLabel(modal.form.durationMinutes)}</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.fieldLabel, { marginTop: 8 }]}>Additional price options</Text>
+              <Text style={styles.tierHint}>
+                Add more durations at different rates — clients can choose when booking.
+              </Text>
+
+              {modal.form.priceTiers.map((tier, idx) => (
+                <View key={idx} style={styles.tierEditorRow}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ gap: 6, paddingRight: 8 }}
+                  >
+                    {DURATIONS.map((d) => {
+                      const active = tier.durationMinutes === d.value;
+                      return (
+                        <TouchableOpacity
+                          key={d.value}
+                          style={[
+                            styles.durationChip,
+                            active
+                              ? { backgroundColor: "#2D1B69", borderColor: "#2D1B69" }
+                              : { backgroundColor: "#FAF5FF", borderColor: "#DDD0F0" },
+                          ]}
+                          onPress={() => updateTier(idx, { durationMinutes: d.value })}
+                        >
+                          <Text style={[styles.durationChipText, { color: active ? "#fff" : "#2D1B69" }]}>
+                            {d.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                  <TextInput
+                    style={styles.tierPriceInput}
+                    value={tier.price}
+                    onChangeText={(t) => updateTier(idx, { price: t.replace(/[^0-9.]/g, "") })}
+                    placeholder="£"
+                    placeholderTextColor="#B0A8C8"
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity
+                    onPress={() => removeTier(idx)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={styles.tierDeleteBtn}
+                  >
+                    <Feather name="x" size={16} color="#E53E3E" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <TouchableOpacity style={styles.addTierBtn} onPress={addTier}>
+                <Feather name="plus" size={15} color="#2D1B69" />
+                <Text style={styles.addTierText}>Add price option</Text>
+              </TouchableOpacity>
 
               <Text style={styles.fieldLabel}>Format</Text>
               <View style={styles.formatToggle}>
@@ -812,6 +919,77 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_700Bold",
     color: "#fff",
+  },
+  tierRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 4,
+  },
+  tierDurationBadge: {
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  tierDurationText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: "#2D1B69",
+  },
+  tierHint: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: "#B0A8C8",
+    marginBottom: 10,
+    marginTop: -6,
+    lineHeight: 16,
+  },
+  tierEditorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#DDD0F0",
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: "#FAF5FF",
+  },
+  tierPriceInput: {
+    width: 64,
+    borderWidth: 1,
+    borderColor: "#DDD0F0",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: "#2D1B69",
+    backgroundColor: "#fff",
+    textAlign: "center",
+  },
+  tierDeleteBtn: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addTierBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1.5,
+    borderColor: "#2D1B69",
+    borderStyle: "dashed",
+    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  addTierText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: "#2D1B69",
   },
   templatesList: { marginBottom: 14 },
   templatesScroll: { gap: 8, paddingBottom: 2 },

@@ -25,6 +25,7 @@ import {
   FSAvailabilitySlot,
   FSPractitionerProfile,
   FSService,
+  FSServiceTier,
   FSWaiverTemplate,
   FSWaitlistEntry,
   createConversation,
@@ -75,6 +76,7 @@ export default function PractitionerScreen() {
   // Services state
   const [services, setServices] = useState<FSService[]>([]);
   const [selectedService, setSelectedService] = useState<FSService | null>(null);
+  const [selectedTier, setSelectedTier] = useState<FSServiceTier | null>(null);
 
   // Firestore profile (only real practitioners — no static fallback)
   const [firestoreProfile, setFirestoreProfile] = useState<FSPractitionerProfile | null>(null);
@@ -307,7 +309,7 @@ export default function PractitionerScreen() {
         location: practitioner.location,
         confirmedAt: new Date().toISOString(),
         serviceName: selectedService?.name,
-        serviceDuration: selectedService?.durationMinutes,
+        serviceDuration: effectiveDuration,
       });
 
       // ── Step 5: Create messaging conversation ───────────────────────────
@@ -568,11 +570,16 @@ export default function PractitionerScreen() {
   }
 
   if (screen === "booking") {
-    const effectivePrice = selectedService?.price ?? practitioner.price;
+    const effectivePrice = selectedTier?.price ?? selectedService?.price ?? practitioner.price;
+    const effectiveDuration = selectedTier?.durationMinutes ?? selectedService?.durationMinutes;
+    const serviceHasTiers =
+      selectedService && selectedService.priceTiers && selectedService.priceTiers.length > 0;
+    const tierRequired = serviceHasTiers && !selectedTier;
     const canConfirm =
       !!selectedDate &&
       !!selectedTime &&
-      (services.length === 0 || !!selectedService);
+      (services.length === 0 || !!selectedService) &&
+      !tierRequired;
     const isAtCapacity = Boolean(
       selectedService?.isRetreat &&
       selectedService.capacity != null &&
@@ -639,6 +646,7 @@ export default function PractitionerScreen() {
                     ]}
                     onPress={() => {
                       setSelectedService(active ? null : svc);
+                      setSelectedTier(null);
                       Haptics.selectionAsync();
                     }}
                     activeOpacity={0.8}
@@ -708,6 +716,68 @@ export default function PractitionerScreen() {
                     </View>
                     <Text style={[styles.svcPrice, { color: active ? "#fff" : colors.deepIndigo }]}>
                       £{svc.price % 1 === 0 ? svc.price : svc.price.toFixed(2)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
+
+          {serviceHasTiers && selectedService && (
+            <>
+              <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SELECT DURATION & PRICE</Text>
+              {[
+                { durationMinutes: selectedService.durationMinutes, price: selectedService.price },
+                ...(selectedService.priceTiers ?? []),
+              ].map((tier, idx) => {
+                const isActive =
+                  selectedTier
+                    ? selectedTier.durationMinutes === tier.durationMinutes &&
+                      selectedTier.price === tier.price
+                    : idx === 0 && !selectedTier;
+                const tierActive = selectedTier
+                  ? selectedTier.durationMinutes === tier.durationMinutes &&
+                    selectedTier.price === tier.price
+                  : false;
+                return (
+                  <TouchableOpacity
+                    key={`${tier.durationMinutes}-${tier.price}`}
+                    style={[
+                      styles.serviceCard,
+                      {
+                        backgroundColor: tierActive ? colors.deepIndigo : colors.card,
+                        borderColor: tierActive ? colors.deepIndigo : colors.blush,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 14,
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedTier(tier);
+                      Haptics.selectionAsync();
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[
+                      styles.svcTag,
+                      { backgroundColor: tierActive ? "rgba(255,255,255,0.2)" : `${colors.deepIndigo}14`, marginRight: 10 },
+                    ]}>
+                      <Feather name="clock" size={11} color={tierActive ? "rgba(255,255,255,0.85)" : colors.deepIndigo} />
+                      <Text style={[styles.svcTagText, { color: tierActive ? "rgba(255,255,255,0.85)" : colors.deepIndigo }]}>
+                        {tier.durationMinutes < 60
+                          ? `${tier.durationMinutes} min`
+                          : tier.durationMinutes === 60
+                          ? "1 hour"
+                          : tier.durationMinutes % 60 === 0
+                          ? `${tier.durationMinutes / 60} hours`
+                          : `${Math.floor(tier.durationMinutes / 60)}h ${tier.durationMinutes % 60}m`}
+                      </Text>
+                    </View>
+                    <Text style={[styles.svcName, { flex: 1, color: tierActive ? "#fff" : colors.charcoal }]}>
+                      {idx === 0 ? "Standard session" : `Option ${idx + 1}`}
+                    </Text>
+                    <Text style={[styles.svcPrice, { color: tierActive ? "#fff" : colors.deepIndigo }]}>
+                      £{tier.price % 1 === 0 ? tier.price : tier.price.toFixed(2)}
                     </Text>
                   </TouchableOpacity>
                 );
