@@ -101,15 +101,17 @@ export default function OnboardingScreen() {
         throw new Error(error ?? "Could not start subscription");
       }
 
-      const { url } = await resp.json();
+      const { url, sessionId } = await resp.json();
 
-      // Open Stripe Checkout — resolves when browser closes or redirects back
-      const result = await WebBrowser.openAuthSessionAsync(url, `${appScheme}://`);
+      // Open Stripe Checkout — browser closes after payment or cancellation
+      await WebBrowser.openAuthSessionAsync(url, `${appScheme}://`);
 
-      if (
-        result.type === "success" &&
-        result.url?.includes("subscription-success")
-      ) {
+      // Always verify with Stripe after browser closes — Android deep-link
+      // redirects are unreliable so we never trust result.url alone
+      const checkResp = await fetch(`${apiUrl}/api/subscriptions/check?sessionId=${sessionId}`);
+      const { subscribed } = await checkResp.json();
+
+      if (subscribed) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         next();
         if (userId) {
@@ -140,11 +142,8 @@ export default function OnboardingScreen() {
             email: email ?? undefined,
           });
         }
-      } else if (result.type === "cancel" || result.type === "dismiss") {
-        // User closed the browser — stay on step 4, no error shown
-      } else {
-        next(); // fallback: treat any other close as success
       }
+      // If not subscribed, user cancelled — stay on step 4 silently
     } catch (err: any) {
       Alert.alert(
         "Subscription Error",
