@@ -200,6 +200,98 @@ router.get("/subscriptions/check", async (req, res): Promise<void> => {
   }
 });
 
+// ── POST /api/payments/create-trial-setup ────────────────────────────────────
+// Native PaymentSheet flow: creates a Stripe customer + SetupIntent so the app
+// can collect the card natively (no browser). 3DS is handled by the Stripe SDK.
+router.post("/payments/create-trial-setup", async (req, res): Promise<void> => {
+  const { name, email } = req.body;
+  const stripe = getStripe();
+
+  try {
+    const customerParams: Stripe.CustomerCreateParams = {
+      name: typeof name === "string" ? name : undefined,
+    };
+    if (email && typeof email === "string") customerParams.email = email;
+
+    const customer = await stripe.customers.create(customerParams);
+
+    const ephemeralKey = await stripe.ephemeralKeys.create(
+      { customer: customer.id },
+      { apiVersion: "2024-06-20" }
+    );
+
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customer.id,
+      usage: "off_session",
+      automatic_payment_methods: { enabled: true },
+    });
+
+    req.log.info({ customerId: customer.id }, "Trial setup intent created");
+    res.json({
+      customerId: customer.id,
+      clientSecret: setupIntent.client_secret,
+      ephemeralKey: ephemeralKey.secret,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "create-trial-setup failed");
+    res.status(502).json({ error: err?.message ?? "Could not create setup intent" });
+  }
+});
+
+// ── POST /api/payments/activate-trial ────────────────────────────────────────
+// Called after PaymentSheet succeeds. Attaches the saved card and creates the
+// 30-day trial subscription for the practitioner.
+router.post("/payments/activate-trial", async (req, res): Promise<void> => {
+  const { customerId } = req.body;
+  if (typeof customerId !== "string" || !customerId) {
+    res.status(400).json({ error: "customerId is required" });
+    return;
+  }
+
+  const stripe = getStripe();
+
+  try {
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customerId,
+      type: "card",
+    });
+
+    if (!paymentMethods.data.length) {
+      res.status(400).json({ error: "No payment method found for customer" });
+      return;
+    }
+
+    const paymentMethodId = paymentMethods.data[0].id;
+
+    const product = await stripe.products.create({
+      name: "Soul Remembrance — Practitioner Plan",
+      description: "Verified listing, booking tools, analytics & community.",
+    });
+
+    const subscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items: [
+        {
+          price_data: {
+            currency: "gbp",
+            unit_amount: 399,
+            recurring: { interval: "month" },
+            product: product.id,
+          },
+        },
+      ],
+      trial_period_days: 30,
+      default_payment_method: paymentMethodId,
+    });
+
+    req.log.info({ customerId, subscriptionId: subscription.id }, "Trial subscription activated");
+    res.json({ subscribed: true, subscriptionId: subscription.id });
+  } catch (err: any) {
+    req.log.error({ err }, "activate-trial failed");
+    res.status(502).json({ error: err?.message ?? "Could not activate subscription" });
+  }
+});
+
 // ── GET /api/subscriptions/success ────────────────────────────────────────────
 // Landing page after successful Stripe Checkout — user sees this in the browser
 // before switching back to the app.

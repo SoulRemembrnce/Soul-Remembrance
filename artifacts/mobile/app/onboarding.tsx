@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -23,6 +22,7 @@ import { AvatarPicker } from "@/components/AvatarPicker";
 import { MODALITIES } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { usePaymentSheet } from "@/hooks/usePaymentSheet";
 import { savePractitionerProfile } from "@/lib/firestore";
 import { uploadCredentialDoc } from "@/lib/storage";
 
@@ -53,6 +53,7 @@ export default function OnboardingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { email, userId } = useApp();
+  const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
   const [step, setStep] = useState<Step>(1);
   const [data, setData] = useState<OnboardingData>({
     name: "", title: "", location: "", years: "", bio: "",
@@ -75,7 +76,7 @@ export default function OnboardingScreen() {
     else router.back();
   };
 
-  // Opens Stripe Checkout for the £3.99/month trial subscription
+  // Native PaymentSheet trial — no browser, 3DS handled inside the app
   const startTrialAndContinue = async () => {
     if (!data.agreedTerms) return;
     setSubscriptionLoading(true);
@@ -84,31 +85,55 @@ export default function OnboardingScreen() {
     try {
       const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
 
-      const resp = await fetch(`${apiUrl}/api/payments/create-subscription-session`, {
+      // 1. Create Stripe customer + SetupIntent on server
+      const setupResp = await fetch(`${apiUrl}/api/payments/create-trial-setup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: data.name || "Practitioner",
           email: email ?? undefined,
-          successUrl: `${apiUrl}/api/payments/subscription-success`,
-          cancelUrl: `${apiUrl}/api/payments/subscription-cancel`,
         }),
       });
 
-      if (!resp.ok) {
-        const { error } = await resp.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(error ?? "Could not start subscription");
+      if (!setupResp.ok) {
+        const { error } = await setupResp.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(error ?? "Could not initialise payment");
       }
 
-      const { url, sessionId } = await resp.json();
+      const { customerId, clientSecret, ephemeralKey } = await setupResp.json();
 
-      // Open Stripe Checkout — browser closes after payment or cancellation
-      await WebBrowser.openAuthSessionAsync(url, `${apiUrl}/api/payments/subscription-success`);
+      // 2. Initialise native PaymentSheet with the SetupIntent
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: "Soul Remembrance",
+        customerId,
+        customerEphemeralKeySecret: ephemeralKey,
+        setupIntentClientSecret: clientSecret,
+        allowsDelayedPaymentMethods: false,
+      });
 
-      // Always verify with Stripe after browser closes — Android deep-link
-      // redirects are unreliable so we never trust result.url alone
-      const checkResp = await fetch(`${apiUrl}/api/subscriptions/check?sessionId=${sessionId}`);
-      const { subscribed } = await checkResp.json();
+      if (initError) throw new Error(initError.message);
+
+      // 3. Present PaymentSheet — 3DS handled natively, no browser needed
+      const { error: payError } = await presentPaymentSheet();
+
+      if (payError) {
+        // User cancelled or dismissed — stay on step 4 silently
+        return;
+      }
+
+      // 4. Card saved — activate 30-day trial subscription on server
+      const activateResp = await fetch(`${apiUrl}/api/payments/activate-trial`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId }),
+      });
+
+      if (!activateResp.ok) {
+        const { error } = await activateResp.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(error ?? "Could not activate subscription");
+      }
+
+      const { subscribed } = await activateResp.json();
 
       if (subscribed) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -142,7 +167,6 @@ export default function OnboardingScreen() {
           });
         }
       }
-      // If not subscribed, user cancelled — stay on step 4 silently
     } catch (err: any) {
       Alert.alert(
         "Subscription Error",
