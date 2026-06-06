@@ -4,7 +4,7 @@ export const modules: ModuleMap = {
   "./components/mockups/affirmations/Mine.tsx": () => import("../components/mockups/affirmations/Mine.tsx"),
   "./components/mockups/affirmations/Today.tsx": () => import("../components/mockups/affirmations/Today.tsx"),
   "./components/mockups/gratitude/GratitudeList.tsx": () => import("../components/mockups/gratitude/GratitudeList.tsx"),
-  "./components/mockups/vision-board/VisionBoard.tsx": () => import("../components/mockups/vision-board/VisionBoard.tsx"),
   "./components/mockups/mood/CheckIn.tsx": () => import("../components/mockups/mood/CheckIn.tsx"),
-  "./components/mockups/mood/History.tsx": () => import("../components/mockups/mood/History.tsx")
+  "./components/mockups/mood/History.tsx": () => import("../components/mockups/mood/History.tsx"),
+  "./components/mockups/vision-board/VisionBoard.tsx": () => import("../components/mockups/vision-board/VisionBoard.tsx")
 };
