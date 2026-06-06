@@ -598,6 +598,30 @@ export default function PractitionerScreen() {
           </View>
         </LinearGradient>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: bottomPad + 80 }}>
+          {services.length === 0 && (
+            <>
+              <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SELECT SERVICE</Text>
+              <TouchableOpacity
+                style={[styles.serviceCard, { backgroundColor: colors.deepIndigo, borderColor: colors.deepIndigo }]}
+                activeOpacity={0.8}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.svcName, { color: "#fff" }]}>1:1 Session</Text>
+                  <View style={styles.svcTagRow}>
+                    <View style={[styles.svcTag, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+                      <Feather name="clock" size={10} color="rgba(255,255,255,0.8)" />
+                      <Text style={[styles.svcTagText, { color: "rgba(255,255,255,0.8)" }]}>60 min</Text>
+                    </View>
+                    <View style={[styles.svcTag, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+                      <Feather name="video" size={10} color="rgba(255,255,255,0.8)" />
+                      <Text style={[styles.svcTagText, { color: "rgba(255,255,255,0.8)" }]}>Online</Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={[styles.svcPrice, { color: "#fff" }]}>£{practitioner.price}</Text>
+              </TouchableOpacity>
+            </>
+          )}
           {services.length > 0 && (
             <>
               <Text style={[styles.pickLabel, { color: colors.warmGold }]}>SELECT SERVICE</Text>

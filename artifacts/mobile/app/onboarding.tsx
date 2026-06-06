@@ -504,7 +504,7 @@ export default function OnboardingScreen() {
                     {step === 4
                       ? "Start Free Trial"
                       : step === 3
-                      ? (addedDocs.length > 0 ? `Submit ${addedDocs.length} Doc${addedDocs.length > 1 ? "s" : ""}` : "Skip for now")
+                      ? (Object.keys(uploadedDocs).length > 0 ? `Submit ${Object.keys(uploadedDocs).length} Doc${Object.keys(uploadedDocs).length > 1 ? "s" : ""}` : "Skip for now")
                       : "Continue"}
                   </Text>
                   <Feather name="arrow-right" size={16} color="#fff" />
