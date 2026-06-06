@@ -137,6 +137,32 @@ router.post("/payments/create-subscription-session", async (req, res): Promise<v
   }
 });
 
+// ── GET /api/payments/subscription-success ────────────────────────────────────
+// Stripe redirects here after checkout completes. Shows a simple page so
+// the browser has a valid HTTPS destination and Stripe marks the session complete.
+router.get("/payments/subscription-success", (_req, res) => {
+  res.setHeader("Content-Type", "text/html");
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payment successful</title>
+<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#2D1B69;color:#fff;text-align:center;padding:24px}h1{font-size:1.5rem;margin-bottom:8px}p{opacity:.8}</style>
+</head><body>
+<div><h1>✨ You're all set!</h1><p>Your free trial has started. You can close this tab and return to the app.</p></div>
+</body></html>`);
+});
+
+// ── GET /api/payments/subscription-cancel ─────────────────────────────────────
+router.get("/payments/subscription-cancel", (_req, res) => {
+  res.setHeader("Content-Type", "text/html");
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payment cancelled</title>
+<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#2D1B69;color:#fff;text-align:center;padding:24px}h1{font-size:1.5rem;margin-bottom:8px}p{opacity:.8}</style>
+</head><body>
+<div><h1>Payment cancelled</h1><p>You can close this tab and return to the app.</p></div>
+</body></html>`);
+});
+
 // ── GET /api/subscriptions/check?sessionId=XXX ────────────────────────────────
 // Mobile app calls this after returning from the Stripe Checkout browser tab.
 // Returns { subscribed, subscriptionId, customerId } — no auth required

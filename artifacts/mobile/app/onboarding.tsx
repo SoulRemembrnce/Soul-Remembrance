@@ -83,7 +83,6 @@ export default function OnboardingScreen() {
 
     try {
       const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
-      const appScheme = "mobile";
 
       const resp = await fetch(`${apiUrl}/api/payments/create-subscription-session`, {
         method: "POST",
@@ -91,8 +90,8 @@ export default function OnboardingScreen() {
         body: JSON.stringify({
           name: data.name || "Practitioner",
           email: email ?? undefined,
-          successUrl: `${appScheme}://subscription-success`,
-          cancelUrl: `${appScheme}://subscription-cancel`,
+          successUrl: `${apiUrl}/api/payments/subscription-success`,
+          cancelUrl: `${apiUrl}/api/payments/subscription-cancel`,
         }),
       });
 
@@ -104,7 +103,7 @@ export default function OnboardingScreen() {
       const { url, sessionId } = await resp.json();
 
       // Open Stripe Checkout — browser closes after payment or cancellation
-      await WebBrowser.openAuthSessionAsync(url, `${appScheme}://`);
+      await WebBrowser.openAuthSessionAsync(url, `${apiUrl}/api/payments/subscription-success`);
 
       // Always verify with Stripe after browser closes — Android deep-link
       // redirects are unreliable so we never trust result.url alone
