@@ -41,7 +41,7 @@ async function findPractitionerByCustomerId(customerId: string) {
  *   customer.subscription.deleted     — cancellation / non-payment termination
  *   invoice.payment_failed            — payment failed; grace period or lapse
  */
-router.post("/webhooks/stripe", async (req: Request, res: Response): Promise<void> => {
+router.post("/stripe", async (req: Request, res: Response): Promise<void> => {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     req.log.error("STRIPE_WEBHOOK_SECRET is not configured");

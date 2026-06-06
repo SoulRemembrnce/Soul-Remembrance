@@ -181,8 +181,9 @@ router.get("/subscriptions/check", async (req, res): Promise<void> => {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     const subscribed =
+      session.status === "complete" ||
       session.payment_status === "paid" ||
-      (session.status === "complete" && !!session.subscription);
+      session.payment_status === "no_payment_required";
 
     req.log.info(
       { sessionId, status: session.status, paymentStatus: session.payment_status },
