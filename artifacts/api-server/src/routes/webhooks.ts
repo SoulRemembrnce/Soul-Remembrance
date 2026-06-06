@@ -58,7 +58,13 @@ router.post("/stripe", async (req: Request, res: Response): Promise<void> => {
   let event: Stripe.Event;
   try {
     const stripe = getStripe();
-    event = stripe.webhooks.constructEvent(req.body as Buffer, sig, webhookSecret);
+    const body = req.body instanceof Buffer ? req.body.toString("utf8") : String(req.body);
+    // Try classic webhook signature first, then fall back to thin-event notification format
+    try {
+      event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+    } catch {
+      event = await (stripe as any).parseEventNotification(body, sig, webhookSecret);
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Signature verification failed";
     req.log.warn({ err: msg }, "Stripe webhook signature verification failed");
