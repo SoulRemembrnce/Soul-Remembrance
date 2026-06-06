@@ -164,7 +164,11 @@ export default function DreamJournalScreen() {
   }
 
   async function handleSave() {
-    if (!draft.description.trim() || !userId) return;
+    if (!draft.description.trim()) return;
+    if (!userId || isAnonymous) {
+      Alert.alert("Sign in required", "Please sign in to save your dream entries.");
+      return;
+    }
     setSaving(true);
     try {
       await addDreamEntry(userId, {

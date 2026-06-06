@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Practitioners
+    match /practitioners/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Bookings
+    match /bookings/{bookingId} {
+      allow read: if request.auth != null &&
+        (resource.data.clientId == request.auth.uid ||
+         resource.data.practitionerId == request.auth.uid);
+      allow create: if request.auth != null &&
+        request.resource.data.clientId == request.auth.uid;
+      allow update: if request.auth != null &&
+        (resource.data.clientId == request.auth.uid ||
+         resource.data.practitionerId == request.auth.uid);
+    }
+
+    // Messages
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null &&
+        (resource == null ||
+         resource.data.senderId == request.auth.uid ||
+         resource.data.receiverId == request.auth.uid);
+    }
+
+    // Conversations
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null &&
+        (resource == null ||
+         request.auth.uid in resource.data.participantIds);
+    }
+
+    // Group chats
+    match /groupChats/{groupId} {
+      allow read: if request.auth != null &&
+        request.auth.uid in resource.data.memberUids;
+      allow write: if request.auth != null;
+      match /messages/{msgId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // Reviews
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.auth != null &&
+        request.resource.data.clientId == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        resource.data.clientId == request.auth.uid;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Dream Journal — each user owns their own entries
+    match /dreamJournal/{userId}/entries/{entryId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == userId &&
+        !request.auth.token.firebase.sign_in_provider.matches("anonymous");
+    }
+
+  }
+}
