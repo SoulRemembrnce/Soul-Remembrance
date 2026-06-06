@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import aiRouter from "./ai";
 import connectRouter from "./connect";
 import emailsRouter from "./emails";
 import healthRouter from "./health";
@@ -13,7 +12,6 @@ router.use(paymentsRouter);
 router.use(connectRouter);
 router.use(emailsRouter);
 router.use(notificationsRouter);
-router.use(aiRouter);
 
 export default router;
 

@@ -1473,15 +1473,10 @@ export interface FSDreamEntry {
   description: string;
   dreamEmotions: string[];
   wakingEmotions: string[];
+  reflection?: string;
   moonPhase: string;
   moonEmoji: string;
   moonIllumination: number;
-  aiAnalysis?: {
-    symbols: string[];
-    themes: string[];
-    message: string;
-    analyzedAt: string;
-  };
   createdAt: Timestamp;
 }
 
@@ -1492,14 +1487,6 @@ export async function addDreamEntry(
   const ref = doc(collection(db, "dreamJournal", userId, "entries"));
   await setDoc(ref, { ...data, id: ref.id, createdAt: serverTimestamp() });
   return ref.id;
-}
-
-export async function updateDreamEntryAnalysis(
-  userId: string,
-  entryId: string,
-  analysis: FSDreamEntry["aiAnalysis"]
-): Promise<void> {
-  await updateDoc(doc(db, "dreamJournal", userId, "entries", entryId), { aiAnalysis: analysis });
 }
 
 export async function deleteDreamEntry(userId: string, entryId: string): Promise<void> {
