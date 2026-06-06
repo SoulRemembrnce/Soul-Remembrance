@@ -562,6 +562,8 @@ const styles = StyleSheet.create({
   centreBody: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 21, maxWidth: 300 },
   emptyCard: { borderRadius: 16, borderWidth: 1, padding: 24, alignItems: "center", marginBottom: 20 },
   emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  emptyBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginTop: 16 },
+  emptyBtnText: { color: "#fff", fontWeight: "700", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   customHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10 },
   addBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },

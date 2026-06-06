@@ -1366,6 +1366,27 @@ export default function ProfileScreen() {
             <Text style={styles.moodCardBadgeText}>36 total</Text>
           </View>
         </TouchableOpacity>
+
+        {/* Dream Journal */}
+        <TouchableOpacity
+          style={[styles.moodCard, {
+            backgroundColor: colors.deepIndigo,
+            marginTop: 10,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.12)",
+          }]}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/dream-journal"); }}
+          activeOpacity={0.85}
+        >
+          <View style={styles.moodCardLeft}>
+            <Text style={styles.moodCardEmojis}>🌙 🌕 🌒 💫 🌑</Text>
+            <Text style={[styles.mindTitle, { color: "#fff", marginTop: 8 }]}>Dream Journal</Text>
+            <Text style={[styles.mindSub, { color: "rgba(255,255,255,0.6)" }]}>Moon phases · emotions · AI pattern analysis</Text>
+          </View>
+          <View style={[styles.moodCardBadge, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+            <Text style={[styles.moodCardBadgeText, { color: "#fff" }]}>New</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Account Menu */}

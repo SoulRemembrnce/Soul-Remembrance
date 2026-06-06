@@ -490,4 +490,6 @@ const styles = StyleSheet.create({
   scoreBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   scoreText: { fontSize: 12, fontFamily: "Inter_700Bold" },
   holdHint: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 16 },
+  emptyBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginTop: 16 },
+  emptyBtnText: { color: "#fff", fontWeight: "700", fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });

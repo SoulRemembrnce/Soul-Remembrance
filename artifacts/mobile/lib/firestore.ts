@@ -1465,6 +1465,61 @@ export async function createVerificationApplication(
   return ref.id;
 }
 
+// ─── Dream Journal ─────────────────────────────────────────────────────────────
+
+export interface FSDreamEntry {
+  id: string;
+  date: string;
+  description: string;
+  dreamEmotions: string[];
+  wakingEmotions: string[];
+  moonPhase: string;
+  moonEmoji: string;
+  moonIllumination: number;
+  aiAnalysis?: {
+    symbols: string[];
+    themes: string[];
+    message: string;
+    analyzedAt: string;
+  };
+  createdAt: Timestamp;
+}
+
+export async function addDreamEntry(
+  userId: string,
+  data: Omit<FSDreamEntry, "id" | "createdAt">
+): Promise<string> {
+  const ref = doc(collection(db, "dreamJournal", userId, "entries"));
+  await setDoc(ref, { ...data, id: ref.id, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function updateDreamEntryAnalysis(
+  userId: string,
+  entryId: string,
+  analysis: FSDreamEntry["aiAnalysis"]
+): Promise<void> {
+  await updateDoc(doc(db, "dreamJournal", userId, "entries", entryId), { aiAnalysis: analysis });
+}
+
+export async function deleteDreamEntry(userId: string, entryId: string): Promise<void> {
+  await deleteDoc(doc(db, "dreamJournal", userId, "entries", entryId));
+}
+
+export function subscribeDreamEntries(
+  userId: string,
+  cb: (entries: FSDreamEntry[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "dreamJournal", userId, "entries"),
+      orderBy("date", "desc")
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSDreamEntry)),
+    () => cb([])
+  );
+}
+
 export function subscribeVerificationApplicationByUid(
   uid: string,
   cb: (app: FSVerificationApplication | null) => void
