@@ -447,13 +447,6 @@ export default function ShopScreen() {
             <Feather name="arrow-right" size={18} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
 
-          {/* Delivery notice */}
-          <View style={[styles.deliveryNote, { backgroundColor: colors.cream, borderColor: colors.blush }]}>
-            <Feather name="package" size={14} color={colors.deepIndigo} />
-            <Text style={[styles.deliveryText, { color: colors.sage }]}>
-              UK delivery within 3–5 working days · Free postage on orders over £40
-            </Text>
-          </View>
         </ScrollView>
       )}
     </View>
