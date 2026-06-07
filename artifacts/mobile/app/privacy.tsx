@@ -37,6 +37,8 @@ const SECTIONS: Section[] = [
       "Messages — conversation content between you and practitioners or clients, stored in Firebase Firestore.",
       "Location — approximate city/region you provide manually; precise GPS location is used only locally to sort nearby practitioners and is never stored on our servers.",
       "Usage data — standard app diagnostics and crash reports via Firebase, which may include device type, OS version, and session length.",
+      "Vendor data — if you apply to become a vendor: your business name, website, product category, chosen subscription tier, and application status.",
+      "Shop product data — product names, descriptions, prices, images, and stock information you provide as a vendor.",
     ],
   },
   {
@@ -56,7 +58,7 @@ const SECTIONS: Section[] = [
   },
   {
     title: "Third-Party Processors",
-    body: `We share data only with trusted processors:\n\n• Google / Firebase — authentication, database (Firestore), file storage, and analytics. Data is processed under Google's Data Processing Agreement.\n• Stripe — payment processing and practitioner payouts (Stripe Connect). Stripe is PCI-DSS Level 1 certified.\n\nWe do not sell your data to any third party for advertising purposes.`,
+    body: `We share data only with trusted processors:\n\n• Google / Firebase — authentication, database (Firestore), file storage, and analytics. Data is processed under Google's Data Processing Agreement.\n• Stripe — payment processing, practitioner payouts (Stripe Connect), and vendor subscription billing. Stripe is PCI-DSS Level 1 certified.\n\nWe do not sell your data to any third party for advertising purposes.`,
   },
   {
     title: "Data Retention",

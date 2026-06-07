@@ -53,14 +53,18 @@ const SECTIONS: Section[] = [
     body: [
       "Bookings are agreements between you (the client) and the practitioner — Soul Remembrance facilitates but is not a party to the service.",
       "Payments are processed securely by Stripe. We do not store your card details.",
-      "Practitioners receive 97.5% of each booking; Soul Remembrance retains a 2.5% platform fee.",
+      "Practitioners receive 97% of each booking; Soul Remembrance retains a 3% platform fee.",
       "Cancellation and refund policies are set by each practitioner. Check their profile before booking.",
       "Soul Remembrance is not liable for disputes between clients and practitioners arising from a session.",
     ],
   },
   {
     title: "Practitioner Subscriptions",
-    body: `Practitioners pay a £3.99/month subscription to maintain an active listing on Soul Remembrance.\n\n• A 30-day free trial is available to new subscribers.\n• Subscriptions renew automatically each month until cancelled.\n• You may cancel at any time via your practitioner dashboard; access continues until the end of the billing period.\n• No refunds are issued for partial billing periods.`,
+    body: `Practitioners pay a monthly subscription to maintain an active listing on Soul Remembrance.\n\n• A 30-day free trial is available to new subscribers.\n• Subscriptions renew automatically each month until cancelled.\n• You may cancel at any time via your practitioner dashboard; access continues until the end of the billing period.\n• No refunds are issued for partial billing periods.`,
+  },
+  {
+    title: "Vendor Marketplace",
+    body: `Soul Remembrance operates a vendor marketplace where approved sellers can list physical and digital wellness products.\n\n• Vendors apply for a listing tier: Basic (£1.99/month), Verified (£2.99/month), or Featured (£4.99/month).\n• Vendor subscriptions renew monthly and may be cancelled at any time.\n• Soul Remembrance reserves the right to approve, reject, or remove vendor listings at its sole discretion.\n• Vendors are solely responsible for the accuracy of product descriptions, fulfilment, and compliance with consumer law.\n• Featured placement is time-limited and subject to admin approval.\n• Soul Remembrance is not liable for disputes between buyers and vendors arising from product purchases.`,
   },
   {
     title: "Prohibited Conduct",

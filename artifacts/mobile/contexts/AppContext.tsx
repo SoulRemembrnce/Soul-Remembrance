@@ -11,6 +11,7 @@ import {
   signInAnonymously,
   signInWithCredential,
   signInWithEmailAndPassword,
+  deleteUser,
   signOut as firebaseSignOut,
   updateProfile,
   User,
@@ -80,6 +81,7 @@ interface AppContextValue {
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   updatePhotoURL: (url: string) => Promise<void>;
   favorites: Set<number>;
   toggleFavorite: (id: number) => void;
@@ -108,6 +110,7 @@ const AppContext = createContext<AppContextValue>({
   signUpWithEmail: async () => {},
   sendPasswordReset: async () => {},
   signOut: async () => {},
+  deleteAccount: async () => {},
   updatePhotoURL: async () => {},
   favorites: new Set(),
   toggleFavorite: () => {},
@@ -325,6 +328,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // onAuthStateChanged will trigger anonymous sign-in automatically
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("No user signed in");
+    // Clean up local state first
+    dataUnsubsRef.current.forEach((u) => u());
+    dataUnsubsRef.current = [];
+    setBookings([]);
+    setFavorites(new Set());
+    setFollowing(new Set());
+    setRetreatsAttended(0);
+    await AsyncStorage.removeItem(REMEMBER_ME_KEY).catch(() => {});
+    // Delete the Firebase Auth account (requires recent login)
+    await deleteUser(currentUser);
+  }, []);
+
   const toggleFavorite = useCallback(
     (id: number) => {
       if (!user) return;
@@ -405,6 +423,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         signUpWithEmail,
         sendPasswordReset,
         signOut,
+        deleteAccount,
         updatePhotoURL,
         favorites,
         toggleFavorite,

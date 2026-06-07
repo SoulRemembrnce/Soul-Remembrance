@@ -1,0 +1,12 @@
+# Railway config for the Admin Panel (static site service)
+# In Railway dashboard: set "Config File Path" to railway-admin.toml for this service
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/admin run build"
+
+[deploy]
+startCommand = "npx serve -s artifacts/admin/dist -l $PORT"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

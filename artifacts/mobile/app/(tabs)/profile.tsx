@@ -86,7 +86,7 @@ export default function ProfileScreen() {
     bookings, favorites, following, userReviews,
     isAnonymous, displayName, email, photoURL,
     signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset,
-    signOut, userId, updatePhotoURL,
+    signOut, deleteAccount, userId, updatePhotoURL,
     notificationsGranted, goingEvents, retreatsAttended,
   } = useApp();
   const scrollRef = useRef<ScrollView>(null);
@@ -485,6 +485,49 @@ export default function ProfileScreen() {
         onPress: () => signOut().catch(console.warn),
       },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Alert.alert(
+      "Delete Account",
+      "This will permanently delete your account and all your data. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete My Account",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Are you absolutely sure?",
+              "Your profile, bookings, messages and all personal data will be erased forever.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Yes, Delete Everything",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await deleteAccount();
+                    } catch (err: any) {
+                      if (err?.code === "auth/requires-recent-login") {
+                        Alert.alert(
+                          "Re-authentication Required",
+                          "For security, please sign out and sign back in before deleting your account.",
+                          [{ text: "OK" }]
+                        );
+                      } else {
+                        Alert.alert("Error", err?.message ?? "Could not delete account. Please try again.");
+                      }
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -1608,14 +1651,21 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Sign out */}
-      <View style={[styles.section, { paddingBottom: 20 }]}>
+      {/* Sign out / Delete account */}
+      <View style={[styles.section, { paddingBottom: 20, gap: 10 }]}>
         <TouchableOpacity
           style={[styles.signOutBtn, { borderColor: colors.blush }]}
           onPress={handleSignOut}
         >
           <Feather name="log-out" size={16} color={colors.sage} />
           <Text style={[styles.signOutText, { color: colors.sage }]}>Sign Out</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.signOutBtn, { borderColor: "#e53e3e" }]}
+          onPress={handleDeleteAccount}
+        >
+          <Feather name="trash-2" size={16} color="#e53e3e" />
+          <Text style={[styles.signOutText, { color: "#e53e3e" }]}>Delete Account</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
