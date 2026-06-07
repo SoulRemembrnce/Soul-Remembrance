@@ -25,6 +25,7 @@ import {
   FSVendorProfile,
   createVendorProduct,
   deleteVendorProduct,
+  isProductFeaturedActive,
   subscribeVendorProducts,
   subscribeVendorProfile,
   updateVendorProduct,
@@ -50,7 +51,6 @@ interface ProductForm {
   category: string;
   emoji: string;
   inStock: boolean;
-  featured: boolean;
 }
 
 const BLANK_FORM: ProductForm = {
@@ -60,7 +60,6 @@ const BLANK_FORM: ProductForm = {
   category: "other",
   emoji: "✨",
   inStock: true,
-  featured: false,
 };
 
 export default function VendorProductsScreen() {
@@ -102,7 +101,6 @@ export default function VendorProductsScreen() {
       category: product.category,
       emoji: product.emoji,
       inStock: product.inStock,
-      featured: product.featured ?? false,
     });
     setModalVisible(true);
   }, []);
@@ -126,7 +124,6 @@ export default function VendorProductsScreen() {
           category: form.category,
           emoji: form.emoji,
           inStock: form.inStock,
-          featured: form.featured,
         });
       } else {
         await createVendorProduct({
@@ -138,7 +135,6 @@ export default function VendorProductsScreen() {
           category: form.category,
           emoji: form.emoji,
           inStock: form.inStock,
-          featured: form.featured,
         });
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -334,9 +330,9 @@ export default function VendorProductsScreen() {
                     {CATEGORIES.find((c) => c.id === product.category)?.label ?? product.category}
                   </Text>
                 </View>
-                {product.featured && (
+                {isProductFeaturedActive(product) && (
                   <View style={[styles.categoryBadge, { backgroundColor: `${colors.warmGold}20` }]}>
-                    <Text style={[styles.categoryBadgeText, { color: colors.warmGold }]}>Featured</Text>
+                    <Text style={[styles.categoryBadgeText, { color: colors.warmGold }]}>⭐ Featured</Text>
                   </View>
                 )}
               </View>
@@ -473,15 +469,11 @@ export default function VendorProductsScreen() {
                 />
               </View>
 
-              <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>Featured in shop</Text>
-                <Switch
-                  value={form.featured}
-                  onValueChange={(v) => setForm((f) => ({ ...f, featured: v }))}
-                  trackColor={{ false: "#E2E8F0", true: `${colors.warmGold}60` }}
-                  thumbColor={form.featured ? colors.warmGold : "#CBD5E0"}
-                />
-              </View>
+              {editingProduct && isProductFeaturedActive(editingProduct) && (
+                <View style={[styles.switchRow, { backgroundColor: `${colors.warmGold}15`, borderRadius: 8, paddingHorizontal: 12 }]}>
+                  <Text style={[styles.switchLabel, { color: colors.warmGold, fontFamily: "Inter_600SemiBold" }]}>⭐ Featured until {new Date(editingProduct.featuredUntil!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</Text>
+                </View>
+              )}
 
               <TouchableOpacity
                 style={[styles.saveBtn, { backgroundColor: saving ? `${colors.deepIndigo}60` : colors.deepIndigo }]}

@@ -1706,21 +1706,46 @@ export interface FSVendorProduct {
   category: string;
   emoji: string;
   inStock: boolean;
-  featured?: boolean;
+  /** ISO date string — product shows in featured strip until this date.
+   *  Missing or past date means not featured. Replaces the old boolean. */
+  featuredUntil?: string;
   createdAt: string;
 }
 
+export function isProductFeaturedActive(p: FSVendorProduct): boolean {
+  return !!p.featuredUntil && new Date(p.featuredUntil) > new Date();
+}
+
 export async function createVendorProduct(
-  data: Omit<FSVendorProduct, "id" | "createdAt">
+  data: Omit<FSVendorProduct, "id" | "createdAt" | "featuredUntil">
 ): Promise<string> {
   const ref = doc(collection(db, "shopProducts"));
-  await setDoc(ref, { ...data, id: ref.id, createdAt: new Date().toISOString() });
+  // Inherit vendor's active featured window so new listings are auto-featured
+  let featuredUntil: string | undefined;
+  try {
+    const { getDoc } = await import("firebase/firestore");
+    const profileSnap = await getDoc(doc(db, "vendorProfiles", data.vendorId));
+    if (profileSnap.exists()) {
+      const profile = profileSnap.data() as FSVendorProfile;
+      if (profile.featuredUntil && new Date(profile.featuredUntil) > new Date()) {
+        featuredUntil = profile.featuredUntil;
+      }
+    }
+  } catch {
+    // Non-critical — product still created, just without featured
+  }
+  await setDoc(ref, {
+    ...data,
+    id: ref.id,
+    createdAt: new Date().toISOString(),
+    ...(featuredUntil ? { featuredUntil } : {}),
+  });
   return ref.id;
 }
 
 export async function updateVendorProduct(
   productId: string,
-  data: Partial<Pick<FSVendorProduct, "name" | "description" | "price" | "category" | "emoji" | "inStock" | "featured">>
+  data: Partial<Pick<FSVendorProduct, "name" | "description" | "price" | "category" | "emoji" | "inStock">>
 ): Promise<void> {
   await updateDoc(doc(db, "shopProducts", productId), data);
 }
@@ -1756,10 +1781,10 @@ export function subscribeAllShopProducts(
       snap.docs
         .map((d) => d.data() as FSVendorProduct)
         .sort((a, b) => {
-          // Featured first, then by createdAt desc
-          if ((b.featured ? 1 : 0) !== (a.featured ? 1 : 0)) {
-            return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
-          }
+          // Active featured products first, then by createdAt desc
+          const aFeat = isProductFeaturedActive(a) ? 1 : 0;
+          const bFeat = isProductFeaturedActive(b) ? 1 : 0;
+          if (bFeat !== aFeat) return bFeat - aFeat;
           return b.createdAt.localeCompare(a.createdAt);
         })
     ),

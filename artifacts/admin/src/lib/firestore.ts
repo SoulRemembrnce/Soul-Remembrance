@@ -251,7 +251,8 @@ export interface FSVendorProduct {
   category: string;
   emoji: string;
   inStock: boolean;
-  featured?: boolean;
+  /** ISO date string — product shows in featured strip until this date. */
+  featuredUntil?: string;
   createdAt: string;
 }
 
@@ -335,12 +336,27 @@ export async function setVendorTier(userId: string, tier: "basic" | "verified"):
   await updateDoc(doc(db, "vendorProfiles", userId), { tier });
 }
 
+/** Set or clear the featured window on a vendor profile, and propagate
+ *  the same date to all of that vendor's products so they auto-expire too. */
 export async function setVendorFeaturedUntil(userId: string, featuredUntil: string | null): Promise<void> {
   await updateDoc(doc(db, "vendorProfiles", userId), {
     featuredUntil: featuredUntil ?? "",
   });
+  // Propagate to all of this vendor's products so they also auto-expire
+  const productSnap = await getDocs(
+    query(collection(db, "shopProducts"), where("vendorId", "==", userId))
+  );
+  await Promise.all(
+    productSnap.docs.map((d) =>
+      updateDoc(d.ref, { featuredUntil: featuredUntil ?? "" })
+    )
+  );
 }
 
-export async function setVendorProductFeatured(productId: string, featured: boolean): Promise<void> {
-  await updateDoc(doc(db, "shopProducts", productId), { featured });
+/** Feature an individual product for a given number of days, or pass null to remove. */
+export async function setVendorProductFeatured(productId: string, days: number | null): Promise<void> {
+  const featuredUntil = days
+    ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+    : "";
+  await updateDoc(doc(db, "shopProducts", productId), { featuredUntil });
 }

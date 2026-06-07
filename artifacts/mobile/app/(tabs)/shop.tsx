@@ -20,6 +20,7 @@ import { useColors } from "@/hooks/useColors";
 import {
   FSVendorProduct,
   FSVendorProfile,
+  isProductFeaturedActive,
   subscribeAllShopProducts,
   subscribeAllVendorProfiles,
 } from "@/lib/firestore";
@@ -79,7 +80,7 @@ function ProductCard({
     <View style={[pStyles.card, { backgroundColor: "#fff", borderColor: colors.cream }]}>
       <View style={[pStyles.emojiArea, { backgroundColor: style.bg }]}>
         <Text style={pStyles.emoji}>{product.emoji}</Text>
-        {product.featured && (
+        {isProductFeaturedActive(product) && (
           <View style={[pStyles.featuredBadge, { backgroundColor: colors.deepIndigo }]}>
             <Text style={pStyles.featuredText}>⭐ Featured</Text>
           </View>
@@ -173,7 +174,7 @@ function FeaturedStrip({
 }) {
   const colors = useColors();
   const { addItem, items } = useCart();
-  const featured = useMemo(() => products.filter((p) => p.featured).slice(0, 10), [products]);
+  const featured = useMemo(() => products.filter((p) => isProductFeaturedActive(p)).slice(0, 10), [products]);
 
   if (featured.length === 0) return null;
 
