@@ -1706,6 +1706,7 @@ export interface FSVendorProduct {
   category: string;
   emoji: string;
   inStock: boolean;
+  imageUrl?: string;
   /** ISO date string — product shows in featured strip until this date.
    *  Missing or past date means not featured. Replaces the old boolean. */
   featuredUntil?: string;
@@ -1745,7 +1746,7 @@ export async function createVendorProduct(
 
 export async function updateVendorProduct(
   productId: string,
-  data: Partial<Pick<FSVendorProduct, "name" | "description" | "price" | "category" | "emoji" | "inStock">>
+  data: Partial<Pick<FSVendorProduct, "name" | "description" | "price" | "category" | "emoji" | "inStock" | "imageUrl">>
 ): Promise<void> {
   await updateDoc(doc(db, "shopProducts", productId), data);
 }

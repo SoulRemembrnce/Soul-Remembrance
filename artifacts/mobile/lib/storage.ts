@@ -61,6 +61,25 @@ export async function uploadVerificationDoc(
 }
 
 /**
+ * Upload a vendor product photo to Firebase Storage.
+ * Path: shopProducts/{vendorId}/{productId}.jpg
+ */
+export async function uploadProductImage(
+  vendorId: string,
+  productId: string,
+  localUri: string
+): Promise<string> {
+  const path = `shopProducts/${vendorId}/${productId}.jpg`;
+  const storageRef = ref(storage, path);
+
+  const resp = await fetch(localUri);
+  const blob = await resp.blob();
+
+  await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+  return getDownloadURL(storageRef);
+}
+
+/**
  * Upload a practitioner credential document image to Firebase Storage.
  * Path: credentials/{userId}/{docId}.jpg
  * docId: "qualification" | "insurance" | "membership" | "dbs"

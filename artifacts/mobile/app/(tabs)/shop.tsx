@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -78,14 +79,25 @@ function ProductCard({
 
   return (
     <View style={[pStyles.card, { backgroundColor: "#fff", borderColor: colors.cream }]}>
-      <View style={[pStyles.emojiArea, { backgroundColor: style.bg }]}>
-        <Text style={pStyles.emoji}>{product.emoji}</Text>
-        {isProductFeaturedActive(product) && (
-          <View style={[pStyles.featuredBadge, { backgroundColor: colors.deepIndigo }]}>
-            <Text style={pStyles.featuredText}>⭐ Featured</Text>
-          </View>
-        )}
-      </View>
+      {product.imageUrl ? (
+        <View style={pStyles.imageArea}>
+          <Image source={{ uri: product.imageUrl }} style={pStyles.productImage} resizeMode="cover" />
+          {isProductFeaturedActive(product) && (
+            <View style={[pStyles.featuredBadge, { backgroundColor: colors.deepIndigo }]}>
+              <Text style={pStyles.featuredText}>⭐ Featured</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={[pStyles.emojiArea, { backgroundColor: style.bg }]}>
+          <Text style={pStyles.emoji}>{product.emoji}</Text>
+          {isProductFeaturedActive(product) && (
+            <View style={[pStyles.featuredBadge, { backgroundColor: colors.deepIndigo }]}>
+              <Text style={pStyles.featuredText}>⭐ Featured</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={pStyles.info}>
         <Text style={[pStyles.name, { color: colors.charcoal }]} numberOfLines={2}>
@@ -141,6 +153,8 @@ const pStyles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  imageArea: { width: "100%", position: "relative" },
+  productImage: { width: "100%", height: 130 },
   emojiArea: { alignItems: "center", justifyContent: "center", paddingVertical: 22, position: "relative" },
   emoji: { fontSize: 42 },
   featuredBadge: {

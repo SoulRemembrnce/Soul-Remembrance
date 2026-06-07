@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -30,6 +32,7 @@ import {
   subscribeVendorProfile,
   updateVendorProduct,
 } from "@/lib/firestore";
+import { uploadProductImage } from "@/lib/storage";
 
 const CATEGORIES = [
   { id: "crystals", label: "Crystals", emoji: "💎" },
@@ -51,6 +54,8 @@ interface ProductForm {
   category: string;
   emoji: string;
   inStock: boolean;
+  imageUri: string | null;
+  imageUrl: string | null;
 }
 
 const BLANK_FORM: ProductForm = {
@@ -60,6 +65,8 @@ const BLANK_FORM: ProductForm = {
   category: "other",
   emoji: "✨",
   inStock: true,
+  imageUri: null,
+  imageUrl: null,
 };
 
 export default function VendorProductsScreen() {
@@ -101,8 +108,31 @@ export default function VendorProductsScreen() {
       category: product.category,
       emoji: product.emoji,
       inStock: product.inStock,
+      imageUri: null,
+      imageUrl: product.imageUrl ?? null,
     });
     setModalVisible(true);
+  }, []);
+
+  const pickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Please allow photo access to upload product images.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setForm((f) => ({ ...f, imageUri: result.assets[0].uri }));
+    }
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setForm((f) => ({ ...f, imageUri: null, imageUrl: null }));
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -117,6 +147,10 @@ export default function VendorProductsScreen() {
     setSaving(true);
     try {
       if (editingProduct) {
+        let resolvedImageUrl: string | undefined = form.imageUrl ?? undefined;
+        if (form.imageUri) {
+          resolvedImageUrl = await uploadProductImage(userId, editingProduct.id, form.imageUri);
+        }
         await updateVendorProduct(editingProduct.id, {
           name: trimName,
           description: trimDesc,
@@ -124,9 +158,10 @@ export default function VendorProductsScreen() {
           category: form.category,
           emoji: form.emoji,
           inStock: form.inStock,
+          ...(resolvedImageUrl !== undefined ? { imageUrl: resolvedImageUrl } : {}),
         });
       } else {
-        await createVendorProduct({
+        const newId = await createVendorProduct({
           vendorId: userId,
           vendorName: vendorProfile.businessName,
           name: trimName,
@@ -136,6 +171,11 @@ export default function VendorProductsScreen() {
           emoji: form.emoji,
           inStock: form.inStock,
         });
+
+        if (form.imageUri) {
+          const imageUrl = await uploadProductImage(userId, newId, form.imageUri);
+          await updateVendorProduct(newId, { imageUrl });
+        }
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
@@ -176,6 +216,8 @@ export default function VendorProductsScreen() {
     }
   }, []);
 
+  const previewImageUri = form.imageUri ?? form.imageUrl ?? null;
+
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: {
@@ -214,11 +256,13 @@ export default function VendorProductsScreen() {
     list: { padding: 16, gap: 12 },
     productCard: {
       borderRadius: 16,
-      padding: 16,
+      overflow: "hidden",
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: `${colors.warmGold}20`,
     },
+    productPhoto: { width: "100%", height: 160 },
+    productBody: { padding: 16 },
     productTop: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 10 },
     productEmoji: { fontSize: 32 },
     productInfo: { flex: 1 },
@@ -259,6 +303,45 @@ export default function VendorProductsScreen() {
       marginBottom: 16,
     },
     fieldTextArea: { height: 80, textAlignVertical: "top" },
+    photoPickerRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
+    photoPreview: { width: 100, height: 100, borderRadius: 12, backgroundColor: colors.card },
+    photoPlaceholder: {
+      width: 100,
+      height: 100,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderStyle: "dashed",
+      borderColor: `${colors.warmGold}50`,
+      backgroundColor: colors.card,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    photoPlaceholderText: { fontSize: 11, fontFamily: "Inter_400Regular", color: colors.sage, marginTop: 4, textAlign: "center" },
+    photoActions: { flex: 1, gap: 8, justifyContent: "center" },
+    photoBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: `${colors.deepIndigo}30`,
+      backgroundColor: `${colors.deepIndigo}06`,
+    },
+    photoBtnText: { fontSize: 13, fontFamily: "Inter_500Medium", color: colors.deepIndigo },
+    removePhotoBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: "#FCA5A5",
+      backgroundColor: "#FFF5F5",
+    },
+    removePhotoBtnText: { fontSize: 13, fontFamily: "Inter_500Medium", color: "#E53E3E" },
     emojiRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
     emojiBtn: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
     emojiBtnText: { fontSize: 20 },
@@ -313,64 +396,69 @@ export default function VendorProductsScreen() {
         <ScrollView contentContainerStyle={styles.list}>
           {products.map((product) => (
             <View key={product.id} style={styles.productCard}>
-              <View style={styles.productTop}>
-                <Text style={styles.productEmoji}>{product.emoji}</Text>
-                <View style={styles.productInfo}>
-                  <Text style={styles.productName}>{product.name}</Text>
-                  {!!product.description && (
-                    <Text style={styles.productDesc} numberOfLines={2}>{product.description}</Text>
+              {product.imageUrl ? (
+                <Image source={{ uri: product.imageUrl }} style={styles.productPhoto} resizeMode="cover" />
+              ) : null}
+              <View style={styles.productBody}>
+                <View style={styles.productTop}>
+                  {!product.imageUrl && <Text style={styles.productEmoji}>{product.emoji}</Text>}
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName}>{product.name}</Text>
+                    {!!product.description && (
+                      <Text style={styles.productDesc} numberOfLines={2}>{product.description}</Text>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.productBottom}>
+                  <Text style={styles.productPrice}>£{product.price.toFixed(2)}</Text>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>
+                      {CATEGORIES.find((c) => c.id === product.category)?.label ?? product.category}
+                    </Text>
+                  </View>
+                  {isProductFeaturedActive(product) && (
+                    <View style={[styles.categoryBadge, { backgroundColor: `${colors.warmGold}20` }]}>
+                      <Text style={[styles.categoryBadgeText, { color: colors.warmGold }]}>⭐ Featured</Text>
+                    </View>
                   )}
                 </View>
-              </View>
 
-              <View style={styles.productBottom}>
-                <Text style={styles.productPrice}>£{product.price.toFixed(2)}</Text>
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryBadgeText}>
-                    {CATEGORIES.find((c) => c.id === product.category)?.label ?? product.category}
+                <View style={styles.stockRow}>
+                  <Feather
+                    name={product.inStock ? "check-circle" : "x-circle"}
+                    size={14}
+                    color={product.inStock ? "#38a169" : "#E53E3E"}
+                  />
+                  <Text style={[styles.stockLabel, { color: product.inStock ? "#38a169" : "#E53E3E" }]}>
+                    {product.inStock ? "In stock" : "Out of stock"}
                   </Text>
+                  <Switch
+                    value={product.inStock}
+                    onValueChange={() => handleToggleStock(product)}
+                    trackColor={{ false: "#E2E8F0", true: `${colors.deepIndigo}40` }}
+                    thumbColor={product.inStock ? colors.deepIndigo : "#CBD5E0"}
+                  />
                 </View>
-                {isProductFeaturedActive(product) && (
-                  <View style={[styles.categoryBadge, { backgroundColor: `${colors.warmGold}20` }]}>
-                    <Text style={[styles.categoryBadgeText, { color: colors.warmGold }]}>⭐ Featured</Text>
-                  </View>
-                )}
-              </View>
 
-              <View style={styles.stockRow}>
-                <Feather
-                  name={product.inStock ? "check-circle" : "x-circle"}
-                  size={14}
-                  color={product.inStock ? "#38a169" : "#E53E3E"}
-                />
-                <Text style={[styles.stockLabel, { color: product.inStock ? "#38a169" : "#E53E3E" }]}>
-                  {product.inStock ? "In stock" : "Out of stock"}
-                </Text>
-                <Switch
-                  value={product.inStock}
-                  onValueChange={() => handleToggleStock(product)}
-                  trackColor={{ false: "#E2E8F0", true: `${colors.deepIndigo}40` }}
-                  thumbColor={product.inStock ? colors.deepIndigo : "#CBD5E0"}
-                />
-              </View>
-
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: `${colors.deepIndigo}30`, backgroundColor: `${colors.deepIndigo}06` }]}
-                  onPress={() => openEdit(product)}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="edit-2" size={14} color={colors.deepIndigo} />
-                  <Text style={[styles.actionBtnText, { color: colors.deepIndigo }]}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: "#FCA5A5", backgroundColor: "#FFF5F5" }]}
-                  onPress={() => handleDelete(product)}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="trash-2" size={14} color="#E53E3E" />
-                  <Text style={[styles.actionBtnText, { color: "#E53E3E" }]}>Delete</Text>
-                </TouchableOpacity>
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { borderColor: `${colors.deepIndigo}30`, backgroundColor: `${colors.deepIndigo}06` }]}
+                    onPress={() => openEdit(product)}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="edit-2" size={14} color={colors.deepIndigo} />
+                    <Text style={[styles.actionBtnText, { color: colors.deepIndigo }]}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { borderColor: "#FCA5A5", backgroundColor: "#FFF5F5" }]}
+                    onPress={() => handleDelete(product)}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="trash-2" size={14} color="#E53E3E" />
+                    <Text style={[styles.actionBtnText, { color: "#E53E3E" }]}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           ))}
@@ -388,6 +476,31 @@ export default function VendorProductsScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+
+              <Text style={styles.fieldLabel}>PRODUCT PHOTO</Text>
+              <View style={styles.photoPickerRow}>
+                {previewImageUri ? (
+                  <Image source={{ uri: previewImageUri }} style={styles.photoPreview} resizeMode="cover" />
+                ) : (
+                  <View style={styles.photoPlaceholder}>
+                    <Feather name="image" size={24} color={colors.sage} />
+                    <Text style={styles.photoPlaceholderText}>No photo</Text>
+                  </View>
+                )}
+                <View style={styles.photoActions}>
+                  <TouchableOpacity style={styles.photoBtn} onPress={pickImage} activeOpacity={0.8}>
+                    <Feather name="upload" size={14} color={colors.deepIndigo} />
+                    <Text style={styles.photoBtnText}>{previewImageUri ? "Change photo" : "Upload photo"}</Text>
+                  </TouchableOpacity>
+                  {previewImageUri && (
+                    <TouchableOpacity style={styles.removePhotoBtn} onPress={removeImage} activeOpacity={0.8}>
+                      <Feather name="trash-2" size={14} color="#E53E3E" />
+                      <Text style={styles.removePhotoBtnText}>Remove photo</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
               <Text style={styles.fieldLabel}>EMOJI</Text>
               <View style={styles.emojiRow}>
                 {EMOJI_SUGGESTIONS.map((e) => (
