@@ -48,7 +48,8 @@ export default function PractitionerWaiversScreen() {
   const [saving, setSaving] = useState(false);
   const [expandedSig, setExpandedSig] = useState<string | null>(null);
 
-  const numericIdNum = Number(numericId);
+  const numericIdNum = numericId ? Number(numericId) : 0;
+  const safeNumericId = isNaN(numericIdNum) ? 0 : numericIdNum;
 
   useEffect(() => {
     if (!userId) {
@@ -70,8 +71,8 @@ export default function PractitionerWaiversScreen() {
   }, [userId]);
 
   useEffect(() => {
-    if (!numericIdNum) return;
-    const unsub = subscribePractitionerWaiverSignatures(numericIdNum, (sigs) => {
+    if (!safeNumericId) return;
+    const unsub = subscribePractitionerWaiverSignatures(safeNumericId, (sigs) => {
       setSignatures(sigs);
       setLoadingSignatures(false);
     });
@@ -87,7 +88,7 @@ export default function PractitionerWaiversScreen() {
     setSaving(true);
     try {
       await createWaiverTemplate({
-        practitionerNumericId: numericIdNum,
+        practitionerNumericId: safeNumericId,
         practitionerUid: userId,
         practitionerName: name ?? "",
         title: title.trim(),
