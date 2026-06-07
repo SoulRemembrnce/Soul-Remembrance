@@ -18,12 +18,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useApp } from "@/contexts/AppContext";
-import { EVENTS } from "@/constants/data";
 import { useColors } from "@/hooks/useColors";
 import {
+  FSEvent,
   FSPractitionerProfile,
   profileToPractitioner,
   subscribePractitionerProfiles,
+  subscribeEvents,
 } from "@/lib/firestore";
 
 const MODALITY_CHIPS = ["All", "Sound", "Breath", "Reiki", "Somatic", "Ayurveda", "Meditation"];
@@ -41,17 +42,24 @@ function eventBadge(dateISO: string, time: string): string {
 }
 
 /** Events within the next 7 days (today inclusive), sorted earliest first */
-function getUpcomingEvents() {
+function getUpcomingEvents(events: FSEvent[]) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const cutoff = new Date(today);
   cutoff.setDate(cutoff.getDate() + 7);
-  return EVENTS
+  return events
     .filter((ev) => {
-      const d = new Date(ev.dateISO + "T00:00:00");
+      const d = new Date(ev.date + "T00:00:00");
       return d >= today && d <= cutoff;
     })
-    .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Extract location from event type string e.g. "In-Person · London" → "London" */
+function eventLocation(ev: FSEvent): string {
+  if (ev.type.startsWith("In-Person · ")) return ev.type.replace("In-Person · ", "");
+  if (ev.type === "In-Person") return "In-Person";
+  return "Live Online";
 }
 
 export default function HomeScreen() {
@@ -60,13 +68,16 @@ export default function HomeScreen() {
   const { userName, favorites, toggleFavorite } = useApp();
   const [activeModality, setActiveModality] = useState("All");
   const [realProfiles, setRealProfiles] = useState<FSPractitionerProfile[]>([]);
+  const [fsEvents, setFsEvents] = useState<FSEvent[]>([]);
 
   useEffect(() => {
-    return subscribePractitionerProfiles(setRealProfiles);
+    const unsubProfiles = subscribePractitionerProfiles(setRealProfiles);
+    const unsubEvents = subscribeEvents(setFsEvents);
+    return () => { unsubProfiles(); unsubEvents(); };
   }, []);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const upcomingEvents = useMemo(getUpcomingEvents, []);
+  const upcomingEvents = useMemo(() => getUpcomingEvents(fsEvents), [fsEvents]);
   const featured = upcomingEvents[0] ?? null;
   const allPractitioners = [...realProfiles]
     .sort((a, b) => (a.verified === b.verified ? 0 : a.verified ? -1 : 1))
@@ -162,14 +173,14 @@ export default function HomeScreen() {
                 { backgroundColor: "rgba(255,255,255,0.2)" },
               ]}
             >
-              <Text style={styles.featuredBadgeText}>{eventBadge(featured.dateISO, featured.time)}</Text>
+              <Text style={styles.featuredBadgeText}>{eventBadge(featured.date, featured.time)}</Text>
             </View>
             <Text style={styles.featuredTitle}>{featured.title}</Text>
-            <Text style={styles.featuredSub}>with {featured.host} • {featured.location}</Text>
+            <Text style={styles.featuredSub}>with {featured.host} • {eventLocation(featured)}</Text>
             <View style={styles.featuredFooter}>
               <View style={styles.featuredAlert}>
-                <Feather name="zap" size={13} color="rgba(255,255,255,0.9)" />
-                <Text style={styles.featuredAlertText}>Only {featured.spots} spots left</Text>
+                <Feather name="users" size={13} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.featuredAlertText}>{featured.attendees} attending</Text>
               </View>
               <TouchableOpacity
                 style={styles.featuredBtn}
@@ -178,7 +189,7 @@ export default function HomeScreen() {
                 }}
               >
                 <Text style={[styles.featuredBtnText, { color: colors.purpleMid }]}>
-                  Reserve {featured.price}
+                  Learn more
                 </Text>
               </TouchableOpacity>
             </View>
@@ -265,17 +276,17 @@ export default function HomeScreen() {
                 onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
               >
                 <LinearGradient
-                  colors={ev.color as [string, string]}
+                  colors={ev.avatarColor as [string, string]}
                   style={styles.evCard}
                 >
                   <View style={[styles.evTypeBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                    <Text style={styles.evTypeText}>{eventBadge(ev.dateISO, ev.time)}</Text>
+                    <Text style={styles.evTypeText}>{eventBadge(ev.date, ev.time)}</Text>
                   </View>
                   <Text style={styles.evTitle} numberOfLines={2}>{ev.title}</Text>
                   <Text style={styles.evHost}>with {ev.host}</Text>
                   <View style={styles.evFooter}>
-                    <Text style={styles.evDate}>{ev.date}</Text>
-                    <Text style={styles.evPrice}>{ev.price}</Text>
+                    <Text style={styles.evDate}>{eventLocation(ev)}</Text>
+                    <Text style={styles.evPrice}>{ev.type.startsWith("In-Person") ? "In-Person" : "Online"}</Text>
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
