@@ -331,7 +331,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteAccount = useCallback(async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error("No user signed in");
-    // Clean up local state first
+
+    // Cancel any active Stripe subscriptions before deleting the account
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+    try {
+      await fetch(`${apiUrl}/api/account`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: currentUser.uid }),
+      });
+    } catch {
+      // Non-fatal — proceed with deletion even if API call fails
+    }
+
+    // Clean up local state
     dataUnsubsRef.current.forEach((u) => u());
     dataUnsubsRef.current = [];
     setBookings([]);
