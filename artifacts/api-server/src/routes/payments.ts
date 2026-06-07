@@ -289,6 +289,13 @@ router.post("/payments/activate-trial", async (req, res): Promise<void> => {
       invoice_settings: { default_payment_method: paymentMethodId },
     });
 
+    // subscriptions.create does not support price_data.product_data —
+    // must create the product first and reference it by ID.
+    const product = await stripe.products.create({
+      name: "Soul Remembrance — Practitioner Plan",
+      description: "Verified listing, booking tools, analytics & community.",
+    });
+
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [
@@ -297,10 +304,7 @@ router.post("/payments/activate-trial", async (req, res): Promise<void> => {
             currency: "gbp",
             unit_amount: 399,
             recurring: { interval: "month" },
-            product_data: {
-              name: "Soul Remembrance — Practitioner Plan",
-              description: "Verified listing, booking tools, analytics & community.",
-            },
+            product: product.id,
           },
         },
       ],
