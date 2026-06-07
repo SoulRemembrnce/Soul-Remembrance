@@ -10,6 +10,7 @@ import {
   setDoc,
   Timestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -221,6 +222,9 @@ export interface FSVendorApplication {
   rejectionNote?: string;
   submittedAt: string;
   reviewedAt?: string;
+  tier?: "basic" | "verified";
+  featuredPaid?: boolean;
+  paymentIntentId?: string;
 }
 
 export interface FSVendorProfile {
@@ -232,6 +236,22 @@ export interface FSVendorProfile {
   website?: string;
   approved: boolean;
   productCount?: number;
+  createdAt: string;
+  tier?: "basic" | "verified";
+  featuredUntil?: string;
+}
+
+export interface FSVendorProduct {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  emoji: string;
+  inStock: boolean;
+  featured?: boolean;
   createdAt: string;
 }
 
@@ -252,10 +272,16 @@ export async function approveVendorApplication(
   applicationId: string,
   application: FSVendorApplication
 ): Promise<void> {
+  const now = new Date().toISOString();
+  // If vendor paid for featured, set featuredUntil to 30 days from now
+  const featuredUntil = application.featuredPaid
+    ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    : undefined;
+
   await Promise.all([
     updateDoc(doc(db, "vendorApplications", applicationId), {
       status: "approved",
-      reviewedAt: new Date().toISOString(),
+      reviewedAt: now,
     }),
     setDoc(doc(db, "vendorProfiles", application.userId), {
       userId: application.userId,
@@ -266,7 +292,9 @@ export async function approveVendorApplication(
       website: application.website ?? "",
       approved: true,
       productCount: 0,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      tier: application.tier ?? "basic",
+      ...(featuredUntil && { featuredUntil }),
     }),
   ]);
 }
@@ -280,4 +308,39 @@ export async function rejectVendorApplication(
     rejectionNote: note ?? "",
     reviewedAt: new Date().toISOString(),
   });
+}
+
+export function subscribeAllVendorProfiles(
+  cb: (profiles: FSVendorProfile[]) => void
+): () => void {
+  return onSnapshot(
+    query(collection(db, "vendorProfiles"), where("approved", "==", true)),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSVendorProfile).sort((a, b) => b.createdAt.localeCompare(a.createdAt))),
+    () => cb([])
+  );
+}
+
+export function subscribeVendorProductsByVendor(
+  vendorId: string,
+  cb: (products: FSVendorProduct[]) => void
+): () => void {
+  return onSnapshot(
+    query(collection(db, "shopProducts"), where("vendorId", "==", vendorId)),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSVendorProduct)),
+    () => cb([])
+  );
+}
+
+export async function setVendorTier(userId: string, tier: "basic" | "verified"): Promise<void> {
+  await updateDoc(doc(db, "vendorProfiles", userId), { tier });
+}
+
+export async function setVendorFeaturedUntil(userId: string, featuredUntil: string | null): Promise<void> {
+  await updateDoc(doc(db, "vendorProfiles", userId), {
+    featuredUntil: featuredUntil ?? "",
+  });
+}
+
+export async function setVendorProductFeatured(productId: string, featured: boolean): Promise<void> {
+  await updateDoc(doc(db, "shopProducts", productId), { featured });
 }

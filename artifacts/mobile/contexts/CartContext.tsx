@@ -7,6 +7,8 @@ export interface CartItem {
   category: string;
   emoji: string;
   quantity: number;
+  vendorId?: string;
+  vendorName?: string;
 }
 
 interface CartContextValue {

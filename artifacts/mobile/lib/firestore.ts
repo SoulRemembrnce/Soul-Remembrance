@@ -1629,6 +1629,9 @@ export interface FSVendorApplication {
   rejectionNote?: string;
   submittedAt: string;
   reviewedAt?: string;
+  tier?: "basic" | "verified";
+  featuredPaid?: boolean;
+  paymentIntentId?: string;
 }
 
 export async function createVendorApplication(
@@ -1676,6 +1679,8 @@ export interface FSVendorProfile {
   approved: boolean;
   productCount?: number;
   createdAt: string;
+  tier?: "basic" | "verified";
+  featuredUntil?: string;
 }
 
 export function subscribeVendorProfile(
@@ -1741,3 +1746,53 @@ export function subscribeVendorProducts(
     () => cb([])
   );
 }
+
+export function subscribeAllShopProducts(
+  cb: (products: FSVendorProduct[]) => void
+): () => void {
+  return onSnapshot(
+    query(collection(db, "shopProducts"), where("inStock", "==", true)),
+    (snap) => cb(
+      snap.docs
+        .map((d) => d.data() as FSVendorProduct)
+        .sort((a, b) => {
+          // Featured first, then by createdAt desc
+          if ((b.featured ? 1 : 0) !== (a.featured ? 1 : 0)) {
+            return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+          }
+          return b.createdAt.localeCompare(a.createdAt);
+        })
+    ),
+    () => cb([])
+  );
+}
+
+export function subscribeAllVendorProfiles(
+  cb: (profiles: FSVendorProfile[]) => void
+): () => void {
+  return onSnapshot(
+    query(collection(db, "vendorProfiles"), where("approved", "==", true)),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSVendorProfile)),
+    () => cb([])
+  );
+}
+
+// ─── Vendor Application (with tier) ──────────────────────────────────────────
+
+export async function createVendorApplicationWithTier(
+  data: Omit<FSVendorApplication, "id" | "status" | "submittedAt"> & {
+    tier: "basic" | "verified";
+    featuredPaid?: boolean;
+    paymentIntentId?: string;
+  }
+): Promise<string> {
+  const ref = doc(collection(db, "vendorApplications"));
+  await setDoc(ref, {
+    ...data,
+    id: ref.id,
+    status: "pending",
+    submittedAt: new Date().toISOString(),
+  });
+  return ref.id;
+}
+

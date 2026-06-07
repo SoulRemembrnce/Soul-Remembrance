@@ -9,8 +9,10 @@ import {
 } from "lucide-react";
 import {
   FSPractitionerProfile, FSEvent, FSVerificationApplication, FSVendorApplication,
+  FSVendorProfile,
   subscribePractitioners, subscribeEvents, subscribeVerificationApplications,
   subscribeVendorApplications, approveVendorApplication, rejectVendorApplication,
+  subscribeAllVendorProfiles, setVendorTier, setVendorFeaturedUntil,
   computeStats, isFeaturedActive, verifyPractitioner, toggleSubscription,
   deletePractitioner, setFeaturedUntil, saveEvent, deleteEvent,
   approveVerificationApplication, rejectVerificationApplication,
@@ -246,9 +248,11 @@ export default function Dashboard() {
   const [credentialRejecting, setCredentialRejecting] = useState(false);
 
   const [vendorApplications, setVendorApplications] = useState<FSVendorApplication[]>([]);
+  const [vendorProfiles, setVendorProfiles] = useState<FSVendorProfile[]>([]);
   const [rejectVendorDialogOpen, setRejectVendorDialogOpen] = useState(false);
   const [rejectingVendorApp, setRejectingVendorApp] = useState<FSVendorApplication | null>(null);
   const [rejectVendorNote, setRejectVendorNote] = useState("");
+  const [vendorSubTab, setVendorSubTab] = useState<"applications" | "active">("applications");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) setLocation("/");
@@ -263,7 +267,8 @@ export default function Dashboard() {
     const unsubEvents = subscribeEvents(setEvents);
     const unsubVerifications = subscribeVerificationApplications(setVerificationApplications);
     const unsubVendors = subscribeVendorApplications(setVendorApplications);
-    return () => { unsubPractitioners(); unsubEvents(); unsubVerifications(); unsubVendors(); };
+    const unsubVendorProfiles = subscribeAllVendorProfiles(setVendorProfiles);
+    return () => { unsubPractitioners(); unsubEvents(); unsubVerifications(); unsubVendors(); unsubVendorProfiles(); };
   }, [user, isAdmin]);
 
   const stats: AdminStats = useMemo(() => computeStats(practitioners), [practitioners]);
@@ -948,99 +953,214 @@ export default function Dashboard() {
 
           {/* ── Vendors tab ───────────────────────────────────────── */}
           <TabsContent value="vendors" className="space-y-4">
-            {vendorApplications.length === 0 ? (
-              <div className="bg-card rounded-lg border border-border/40 py-20 flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                  <Tag className="h-8 w-8 text-muted-foreground" />
+            {/* Sub-tab toggle */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setVendorSubTab("applications")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${vendorSubTab === "applications" ? "bg-violet-600 text-white border-violet-600" : "bg-background text-foreground border-border hover:bg-muted"}`}
+              >
+                Applications
+                {pendingVendorCount > 0 && (
+                  <span className="ml-2 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{pendingVendorCount}</span>
+                )}
+              </button>
+              <button
+                onClick={() => setVendorSubTab("active")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${vendorSubTab === "active" ? "bg-violet-600 text-white border-violet-600" : "bg-background text-foreground border-border hover:bg-muted"}`}
+              >
+                Active Vendors ({vendorProfiles.length})
+              </button>
+            </div>
+
+            {/* Applications sub-tab */}
+            {vendorSubTab === "applications" && (
+              vendorApplications.length === 0 ? (
+                <div className="bg-card rounded-lg border border-border/40 py-20 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                    <Tag className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-medium text-foreground">No vendor applications yet</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Vendor applications will appear here once submitted from the app.</p>
                 </div>
-                <h3 className="text-lg font-medium text-foreground">No vendor applications yet</h3>
-                <p className="text-sm text-muted-foreground mt-1">Vendor applications will appear here once submitted from the app.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {vendorApplications.map((app) => {
-                  const statusCls =
-                    app.status === "pending"
-                      ? "bg-amber-100 text-amber-800 border-amber-200"
-                      : app.status === "approved"
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                      : "bg-red-100 text-red-800 border-red-200";
-                  return (
-                    <div key={app.id} className="bg-card rounded-lg border border-border/40 p-5 space-y-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-                            <span className="text-lg">🏪</span>
+              ) : (
+                <div className="space-y-4">
+                  {vendorApplications.map((app) => {
+                    const statusCls =
+                      app.status === "pending"
+                        ? "bg-amber-100 text-amber-800 border-amber-200"
+                        : app.status === "approved"
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                        : "bg-red-100 text-red-800 border-red-200";
+                    return (
+                      <div key={app.id} className="bg-card rounded-lg border border-border/40 p-5 space-y-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                              <span className="text-lg">🏪</span>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold text-foreground">{app.businessName}</p>
+                                {app.tier === "verified" && (
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-700 text-xs font-semibold">✓ Verified Seller</span>
+                                )}
+                                {app.tier === "basic" && (
+                                  <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">Basic</span>
+                                )}
+                                {app.featuredPaid && (
+                                  <span className="px-2 py-0.5 rounded-full bg-yellow-100 border border-yellow-300 text-yellow-700 text-xs font-medium">⭐ Featured paid</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {app.contactEmail}
+                                {app.website && <> · <a href={app.website} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">{app.website}</a></>}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Submitted {new Date(app.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                                {app.reviewedAt && <> · Reviewed {new Date(app.reviewedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</>}
+                              </p>
+                            </div>
                           </div>
+                          <Badge className={`border ${statusCls} capitalize font-medium shrink-0`}>{app.status}</Badge>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">Description</p>
+                          <p className="text-sm text-foreground">{app.description}</p>
+                        </div>
+
+                        {app.categories.length > 0 && (
                           <div>
-                            <p className="font-semibold text-foreground">{app.businessName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {app.contactEmail}
-                              {app.website && <> · <a href={app.website} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">{app.website}</a></>}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Submitted {new Date(app.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
-                              {app.reviewedAt && (
-                                <> · Reviewed {new Date(app.reviewedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</>
-                              )}
-                            </p>
+                            <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Categories</p>
+                            <div className="flex flex-wrap gap-2">
+                              {app.categories.map((cat) => (
+                                <span key={cat} className="px-2 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs font-medium capitalize">
+                                  {cat.replace(/-/g, " ")}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {app.status === "rejected" && app.rejectionNote && (
+                          <div className="bg-red-50 border border-red-100 rounded-md p-3">
+                            <p className="text-xs font-medium text-red-700 mb-1">Rejection note sent to vendor</p>
+                            <p className="text-sm text-red-600">{app.rejectionNote}</p>
+                          </div>
+                        )}
+
+                        {app.status === "pending" && (
+                          <div className="flex gap-2 pt-1">
+                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleApproveVendor(app)}>
+                              <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                              Approve Vendor
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30" onClick={() => handleOpenRejectVendor(app)}>
+                              <ShieldAlert className="h-4 w-4 mr-1.5" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* Active Vendors sub-tab */}
+            {vendorSubTab === "active" && (
+              vendorProfiles.length === 0 ? (
+                <div className="bg-card rounded-lg border border-border/40 py-20 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                    <Tag className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-medium text-foreground">No active vendors yet</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Vendors will appear here once their applications are approved.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {vendorProfiles.map((vendor) => {
+                    const isFeatured = !!vendor.featuredUntil && new Date(vendor.featuredUntil) > new Date();
+                    return (
+                      <div key={vendor.userId} className="bg-card rounded-lg border border-border/40 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-violet-50 border border-violet-200 flex items-center justify-center shrink-0">
+                              <span className="text-lg">🏪</span>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold text-foreground">{vendor.businessName}</p>
+                                {vendor.tier === "verified" ? (
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-700 text-xs font-semibold">✓ Verified Seller</span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">Basic</span>
+                                )}
+                                {isFeatured && (
+                                  <span className="px-2 py-0.5 rounded-full bg-yellow-100 border border-yellow-300 text-yellow-700 text-xs font-medium">⭐ Featured</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {vendor.contactEmail}
+                                {vendor.website && <> · <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">{vendor.website}</a></>}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Joined {new Date(vendor.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                                {isFeatured && vendor.featuredUntil && (
+                                  <> · Featured until {new Date(vendor.featuredUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            {/* Upgrade/downgrade tier */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={vendor.tier === "verified" ? "text-amber-700 border-amber-300 hover:bg-amber-50" : "text-emerald-700 border-emerald-300 hover:bg-emerald-50"}
+                              onClick={async () => {
+                                const newTier = vendor.tier === "verified" ? "basic" : "verified";
+                                try { await setVendorTier(vendor.userId, newTier); } catch { alert("Failed to update tier"); }
+                              }}
+                            >
+                              {vendor.tier === "verified" ? "Set Basic" : "Set Verified"}
+                            </Button>
+                            {/* Toggle featured */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={isFeatured ? "text-yellow-700 border-yellow-300 hover:bg-yellow-50" : "text-foreground border-border hover:bg-muted"}
+                              onClick={async () => {
+                                try {
+                                  if (isFeatured) {
+                                    await setVendorFeaturedUntil(vendor.userId, null);
+                                  } else {
+                                    const until = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                                    await setVendorFeaturedUntil(vendor.userId, until);
+                                  }
+                                } catch { alert("Failed to update featured status"); }
+                              }}
+                            >
+                              {isFeatured ? "⭐ Remove Featured" : "⭐ Set Featured"}
+                            </Button>
                           </div>
                         </div>
-                        <Badge className={`border ${statusCls} capitalize font-medium shrink-0`}>
-                          {app.status}
-                        </Badge>
-                      </div>
 
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">Description</p>
-                        <p className="text-sm text-foreground">{app.description}</p>
-                      </div>
-
-                      {app.categories.length > 0 && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Categories</p>
-                          <div className="flex flex-wrap gap-2">
-                            {app.categories.map((cat) => (
-                              <span key={cat} className="px-2 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs font-medium capitalize">
+                        {vendor.categories.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {vendor.categories.map((cat) => (
+                              <span key={cat} className="px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs capitalize">
                                 {cat.replace(/-/g, " ")}
                               </span>
                             ))}
                           </div>
-                        </div>
-                      )}
-
-                      {app.status === "rejected" && app.rejectionNote && (
-                        <div className="bg-red-50 border border-red-100 rounded-md p-3">
-                          <p className="text-xs font-medium text-red-700 mb-1">Rejection note sent to vendor</p>
-                          <p className="text-sm text-red-600">{app.rejectionNote}</p>
-                        </div>
-                      )}
-
-                      {app.status === "pending" && (
-                        <div className="flex gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                            onClick={() => handleApproveVendor(app)}
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                            Approve Vendor
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
-                            onClick={() => handleOpenRejectVendor(app)}
-                          >
-                            <ShieldAlert className="h-4 w-4 mr-1.5" />
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
             )}
           </TabsContent>
         </Tabs>
