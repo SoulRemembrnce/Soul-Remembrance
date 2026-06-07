@@ -145,15 +145,17 @@ export default function VendorOnboardingScreen() {
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: clientSecret,
         merchantDisplayName: "Soul Remembrance",
-        style: "alwaysDark",
         appearance: {
           colors: {
-            primary: "#C9A84C",
-            background: "#2D1B69",
-            componentBackground: "#3D2496",
-            componentText: "#FFFFFF",
-            primaryText: "#FFFFFF",
-            secondaryText: "#FFFFFFA6",
+            primary: "#2D1B69",
+            background: "#FFFFFF",
+            componentBackground: "#F7F0FF",
+            componentBorder: "#D8C8F0",
+            componentText: "#1A1A2E",
+            primaryText: "#1A1A2E",
+            secondaryText: "#6B5B8A",
+            placeholderText: "#9B8BB4",
+            icon: "#2D1B69",
           },
         },
       });
