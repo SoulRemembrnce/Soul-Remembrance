@@ -38,7 +38,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-// Legal pages — served at /privacy and /terms (no /api prefix)
-app.use(legalRouter);
+// Legal pages — served at /api/privacy and /api/terms
+app.use("/api", legalRouter);
 
 export default app;
