@@ -49,24 +49,18 @@ export interface AdminStats {
 }
 
 export async function getAllPractitioners(): Promise<FSPractitionerProfile[]> {
-  const q = query(
-    collection(db, "practitionerProfiles"),
-    orderBy("createdAt", "desc")
-  );
-  const snap = await getDocs(q);
+  const snap = await getDocs(collection(db, "practitionerProfiles"));
   return snap.docs.map((d) => ({ ...(d.data() as FSPractitionerProfile) }));
 }
 
 export function subscribePractitioners(
   cb: (practitioners: FSPractitionerProfile[]) => void
 ): () => void {
-  const q = query(
+  return onSnapshot(
     collection(db, "practitionerProfiles"),
-    orderBy("createdAt", "desc")
+    (snap) => cb(snap.docs.map((d) => d.data() as FSPractitionerProfile)),
+    () => cb([])
   );
-  return onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => d.data() as FSPractitionerProfile));
-  });
 }
 
 export async function verifyPractitioner(

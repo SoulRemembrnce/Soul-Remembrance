@@ -912,7 +912,10 @@ export async function setFeaturedUntil(userId: string, date: Date): Promise<void
 export async function savePractitionerProfile(
   profile: FSPractitionerProfile
 ): Promise<void> {
-  await setDoc(doc(db, "practitionerProfiles", profile.userId), profile);
+  await setDoc(doc(db, "practitionerProfiles", profile.userId), {
+    ...profile,
+    createdAt: profile.createdAt ?? serverTimestamp(),
+  });
 }
 
 // ─── Push tokens ──────────────────────────────────────────────────────────────
