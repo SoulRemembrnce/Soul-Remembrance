@@ -11,7 +11,7 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://soul-remembrance.replit.app",
+        "EXPO_PUBLIC_API_URL": "https://soul-remembrance-production.up.railway.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBhRIXwFqyIU6Bwdtzyhodc50llqcQ4Byw",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "soul-remembrance.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "soul-remembrance",
@@ -32,7 +32,7 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://soul-remembrance.replit.app",
+        "EXPO_PUBLIC_API_URL": "https://soul-remembrance-production.up.railway.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBhRIXwFqyIU6Bwdtzyhodc50llqcQ4Byw",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "soul-remembrance.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "soul-remembrance",
@@ -48,7 +48,7 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://soul-remembrance.replit.app",
+        "EXPO_PUBLIC_API_URL": "https://soul-remembrance-production.up.railway.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBhRIXwFqyIU6Bwdtzyhodc50llqcQ4Byw",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "soul-remembrance.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "soul-remembrance",
