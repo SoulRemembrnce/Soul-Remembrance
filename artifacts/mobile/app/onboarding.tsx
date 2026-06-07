@@ -108,7 +108,8 @@ export default function OnboardingScreen() {
         customerId,
         customerEphemeralKeySecret: ephemeralKey,
         setupIntentClientSecret: clientSecret,
-        allowsDelayedPaymentMethods: false,
+        allowsDelayedPaymentMethods: true,
+        returnURL: "mobile://stripe-redirect",
       });
 
       if (initError) throw new Error(initError.message);
