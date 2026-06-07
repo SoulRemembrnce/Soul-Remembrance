@@ -358,7 +358,14 @@ export default function ProfileScreen() {
       // After browser closes, check if onboarding completed
       await checkConnectStatus(accountId);
     } catch (err: any) {
-      Alert.alert("Setup Error", err.message ?? "Something went wrong. Please try again.");
+      const msg = err.message ?? "Something went wrong. Please try again.";
+      const isStripeSetup = msg.toLowerCase().includes("platform") || msg.toLowerCase().includes("capability") || msg.toLowerCase().includes("not configured");
+      Alert.alert(
+        "Payout Setup Error",
+        isStripeSetup
+          ? "Your Stripe platform account needs to be completed first. Visit dashboard.stripe.com, finish your business details, then try again."
+          : msg
+      );
     } finally {
       setConnectLoading(false);
     }
@@ -849,7 +856,7 @@ export default function ProfileScreen() {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <>
-                    <Feather name="dollar-sign" size={16} color="#fff" />
+                    <Text style={{ color: "#fff", fontSize: 17, fontFamily: "Inter_600SemiBold", lineHeight: 20 }}>£</Text>
                     <Text style={styles.payoutsBtnText}>
                       {myProfile.stripeAccountId ? "Complete payout setup" : "Set up payouts"}
                     </Text>
