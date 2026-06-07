@@ -33,7 +33,7 @@ const FAQS = [
   },
   {
     q: "How does Stripe Connect work?",
-    a: "Practitioners receive 97.5% of each session fee automatically. Set up payouts from your Practitioner Dashboard by connecting your Stripe account.",
+    a: "Practitioners receive 97% of each session fee automatically. Set up payouts from your Practitioner Dashboard by connecting your Stripe account.",
   },
   {
     q: "Is my data secure?",

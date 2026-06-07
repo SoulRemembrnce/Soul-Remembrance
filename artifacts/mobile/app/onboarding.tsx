@@ -342,7 +342,7 @@ export default function OnboardingScreen() {
                 />
                 <Text style={[styles.rateUnit, { color: colors.sage }]}>per session</Text>
               </View>
-              <Text style={[styles.rateNote, { color: colors.sage }]}>2.5% platform fee applies per booking</Text>
+              <Text style={[styles.rateNote, { color: colors.sage }]}>3% platform fee applies per booking</Text>
             </View>
           </View>
         )}
@@ -440,7 +440,7 @@ export default function OnboardingScreen() {
                 ))}
                 <View style={styles.featureRow}>
                   <Feather name="plus" size={14} color={colors.purpleMid} />
-                  <Text style={[styles.featureText, { color: colors.purpleMid }]}>2.5% fee on each booking</Text>
+                  <Text style={[styles.featureText, { color: colors.purpleMid }]}>3% fee on each booking</Text>
                 </View>
               </View>
             </View>
@@ -473,7 +473,7 @@ export default function OnboardingScreen() {
                 >
                   Practitioner Terms & Privacy Policy
                 </Text>
-                {" "}and understand the 2.5% booking fee and £3.99/mo subscription after my free trial.
+                {" "}and understand the 3% booking fee and £3.99/mo subscription after my free trial.
               </Text>
             </TouchableOpacity>
           </View>

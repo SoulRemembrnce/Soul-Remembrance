@@ -243,17 +243,22 @@ router.get("/terms", (_req, res): void => {
   ${section(5, "Bookings & Payments", list(
     "Bookings are agreements between you (the client) and the practitioner — Soul Remembrance facilitates but is not a party to the service.",
     "Payments are processed securely by Stripe. We do not store your card details.",
-    "Practitioners receive 97.5% of each booking; Soul Remembrance retains a 2.5% platform fee.",
+    "Practitioners receive 97% of each booking; Soul Remembrance retains a 3% platform fee.",
     "Cancellation and refund policies are set by each practitioner. Check their profile before booking.",
     "Soul Remembrance is not liable for disputes between clients and practitioners arising from a session."
   ))}
 
   ${section(6, "Practitioner Subscriptions", paras(
-    "Practitioners pay a £3.99/month subscription to maintain an active listing on Soul Remembrance.",
+    "Practitioners pay a monthly subscription to maintain an active listing on Soul Remembrance.",
     "• A 30-day free trial is available to new subscribers.<br/>• Subscriptions renew automatically each month until cancelled.<br/>• You may cancel at any time via your practitioner dashboard; access continues until the end of the billing period.<br/>• No refunds are issued for partial billing periods."
   ))}
 
-  ${section(7, "Prohibited Conduct", list(
+  ${section(7, "Vendor Marketplace", paras(
+    "Soul Remembrance operates a vendor marketplace where approved sellers can list physical and digital wellness products.",
+    "• Vendors apply for a listing tier: Basic (£1.99/month), Verified (£2.99/month), or Featured (£4.99/month).<br/>• Vendor subscriptions renew monthly and may be cancelled at any time.<br/>• Soul Remembrance retains a 3% commission on all vendor sales processed through the platform.<br/>• Soul Remembrance reserves the right to approve, reject, or remove vendor listings at its sole discretion.<br/>• Vendors are solely responsible for the accuracy of product descriptions, fulfilment, and compliance with consumer law.<br/>• Soul Remembrance is not liable for disputes between buyers and vendors arising from product purchases."
+  ))}
+
+  ${section(8, "Prohibited Conduct", list(
     "Use the App for any unlawful purpose or in violation of any regulations.",
     "Post false, misleading, or fraudulent information in your profile or listings.",
     "Harass, abuse, or threaten other users or practitioners.",
@@ -262,22 +267,22 @@ router.get("/terms", (_req, res): void => {
     "Circumvent the platform to take payments outside the App in order to avoid platform fees."
   ))}
 
-  ${section(8, "Intellectual Property", paras(
+  ${section(9, "Intellectual Property", paras(
     "All content within the App — including the Soul Remembrance name, logo, design, and original text — is owned by or licensed to Soul Remembrance and protected by applicable intellectual property laws.",
     "You retain ownership of content you upload but grant Soul Remembrance a non-exclusive, royalty-free licence to display that content within the App for the purpose of providing the service."
   ))}
 
-  ${section(9, "Disclaimers", paras(
+  ${section(10, "Disclaimers", paras(
     "Soul Remembrance is a platform connecting clients with independent wellness practitioners. We are not a healthcare provider and the App does not constitute medical advice.",
     "Nothing in the App should be relied upon as professional medical, psychological, or therapeutic advice. The App is provided \"as is\" without warranties of any kind."
   ))}
 
-  ${section(10, "Limitation of Liability", paras(
+  ${section(11, "Limitation of Liability", paras(
     "To the maximum extent permitted by law, Soul Remembrance shall not be liable for any indirect, incidental, special, or consequential damages, or any harm arising from sessions booked through the App.",
     "Our total liability to you in any circumstances shall not exceed the total fees paid by you to Soul Remembrance in the 12 months preceding the claim."
   ))}
 
-  ${section(11, "Governing Law", paras(
+  ${section(12, "Governing Law", paras(
     "These Terms are governed by the laws of England and Wales. Any disputes shall be subject to the exclusive jurisdiction of the courts of England and Wales.",
     "If you are a consumer in another jurisdiction, you may also have rights under local consumer protection laws that cannot be excluded by these Terms."
   ))}

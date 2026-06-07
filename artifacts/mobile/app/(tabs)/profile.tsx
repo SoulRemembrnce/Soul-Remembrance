@@ -884,7 +884,7 @@ export default function ProfileScreen() {
                 <View style={{ marginLeft: 10 }}>
                   <Text style={styles.payoutsActiveText}>Payouts active</Text>
                   <Text style={[styles.payoutsSub, { color: colors.sage }]}>
-                    97.5% of each session paid to you automatically
+                    97% of each session paid to you automatically
                   </Text>
                 </View>
               </View>

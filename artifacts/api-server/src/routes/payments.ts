@@ -3,7 +3,7 @@ import Stripe from "stripe";
 
 const router: IRouter = Router();
 
-const PLATFORM_FEE_PERCENT = 2.5;
+const PLATFORM_FEE_PERCENT = 3;
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -13,7 +13,7 @@ function getStripe(): Stripe {
 
 // ── POST /api/payments/create-intent ──────────────────────────────────────────
 // Creates a PaymentIntent for a client booking.
-// Soul Remembrance collects the full amount; the 2.5% platform fee is
+// Soul Remembrance collects the full amount; the 3% platform fee is
 // recorded in metadata for auditing until Stripe Connect is wired up.
 router.post("/payments/create-intent", async (req, res): Promise<void> => {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -58,7 +58,7 @@ router.post("/payments/create-intent", async (req, res): Promise<void> => {
     },
   };
 
-  // When practitioner has a Stripe Connect account, route 97.5% to them automatically
+  // When practitioner has a Stripe Connect account, route 97% to them automatically
   if (stripeAccountId && typeof stripeAccountId === "string") {
     intentParams.application_fee_amount = platformFeeAmount;
     intentParams.transfer_data = { destination: stripeAccountId };
