@@ -73,7 +73,7 @@ export default function PaymentMethodsScreen() {
           {
             icon: "lock",
             title: "Refunds",
-            body: "Refunds are arranged directly with your practitioner. If you need further assistance, please reach out via the Help & Support menu.",
+            body: "All refunds are handled by Soul Remembrance. Please contact us via the Help & Support menu and our team will assist you.",
           },
         ].map((item, i) => (
           <View

@@ -25,6 +25,7 @@
         "NSCalendarsUsageDescription": "Soul Remembrance uses your calendar to add booked sessions and send you reminders.",
         "NSUserNotificationsUsageDescription": "Soul Remembrance sends you booking confirmations, session reminders, and messages from your practitioners.",
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
         ]
       },
@@ -56,12 +57,37 @@
             "NSPrivacyAccessedAPITypeReasons": [
               "E174.1"
             ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
           }
         ]
       }
     },
     "updates": {
-      "enabled": false
+      "enabled": false,
+      "url": "https://u.expo.dev/7cd7cf1c-753a-4136-864a-20b9b81b03e8"
     },
     "android": {
       "package": "com.soulremembrance.app",
@@ -72,6 +98,17 @@
         "backgroundColor": "#2D1B69"
       },
       "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -137,6 +174,9 @@
       "eas": {
         "projectId": "7cd7cf1c-753a-4136-864a-20b9b81b03e8"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
