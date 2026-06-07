@@ -305,6 +305,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await updateProfile(result.user, { displayName: displayName.trim() });
       }
     }
+    // Always remember new sign-ups so the session check doesn't immediately sign them out
+    await AsyncStorage.setItem(REMEMBER_ME_KEY, "true").catch(() => {});
   }, []);
 
   const sendPasswordReset = useCallback(async (email: string) => {
