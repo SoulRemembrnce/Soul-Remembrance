@@ -153,7 +153,7 @@ export default function VendorOnboardingScreen() {
             componentBackground: "#3D2496",
             componentText: "#FFFFFF",
             primaryText: "#FFFFFF",
-            secondaryText: "rgba(255,255,255,0.65)",
+            secondaryText: "#FFFFFFA6",
           },
         },
       });
