@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import PractitionerMap from "@/components/PractitionerMap";
+import { MapErrorBoundary } from "@/components/MapErrorBoundary";
 import { FILTER_MODALITIES, Practitioner } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -490,14 +491,16 @@ export default function ExploreScreen() {
 
       {/* === MAP VIEW === */}
       {viewMode === "map" && (
-        <PractitionerMap
-          practitioners={filtered}
-          selected={selectedPractitioner}
-          onSelect={setSelectedPractitioner}
-          initialRegion={WORLD_REGION}
-          userRegion={userRegion}
-          bottomPad={bottomPad}
-        />
+        <MapErrorBoundary onFallback={() => setViewMode("list")}>
+          <PractitionerMap
+            practitioners={filtered}
+            selected={selectedPractitioner}
+            onSelect={setSelectedPractitioner}
+            initialRegion={WORLD_REGION}
+            userRegion={userRegion}
+            bottomPad={bottomPad}
+          />
+        </MapErrorBoundary>
       )}
 
       {/* === LIST VIEW === */}
