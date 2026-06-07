@@ -1812,12 +1812,12 @@ export async function createVendorApplicationWithTier(
   }
 ): Promise<string> {
   const ref = doc(collection(db, "vendorApplications"));
-  await setDoc(ref, {
-    ...data,
-    id: ref.id,
-    status: "pending",
-    submittedAt: new Date().toISOString(),
-  });
+  // Strip undefined values — Firestore rejects them
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, id: ref.id, status: "pending", submittedAt: new Date().toISOString() })
+      .filter(([, v]) => v !== undefined)
+  );
+  await setDoc(ref, clean);
   return ref.id;
 }
 
