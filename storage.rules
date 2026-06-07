@@ -1,15 +1,33 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+
     // Avatar images — readable by anyone, writable only by the owning user
     match /avatars/{role}/{userId}.jpg {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Verification documents — only the owning practitioner can write;
-    // admin can read (via Firebase Console / Admin SDK which bypasses rules).
+    // Vision board photos — only the owning user can read/write
+    match /visionBoard/{userId}/{itemId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Vendor product photos — readable by anyone, writable only by the owning vendor
+    match /shopProducts/{vendorId}/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == vendorId;
+    }
+
+    // Verification documents — only the owning practitioner can read/write
     match /verificationDocs/{userId}/{document=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Credential documents — only the owning practitioner can read/write
+    match /credentials/{userId}/{document=**} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
