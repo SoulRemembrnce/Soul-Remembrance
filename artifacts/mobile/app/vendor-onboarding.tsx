@@ -173,7 +173,7 @@ export default function VendorOnboardingScreen() {
         description: trimDesc,
         categories: selectedCategories,
         contactEmail: trimEmail,
-        website: website.trim() || undefined,
+        website: website.trim() || "",
         tier: selectedTier,
         featuredPaid: wantFeatured,
         paymentIntentId,
