@@ -86,7 +86,8 @@
       }
     },
     "updates": {
-      "enabled": false,
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
       "url": "https://u.expo.dev/7cd7cf1c-753a-4136-864a-20b9b81b03e8"
     },
     "android": {
