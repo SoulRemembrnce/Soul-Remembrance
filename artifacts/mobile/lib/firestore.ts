@@ -1397,7 +1397,8 @@ export async function getWaiverByNumericId(
 
 export function subscribePractitionerWaivers(
   practitionerUid: string,
-  cb: (templates: FSWaiverTemplate[]) => void
+  cb: (templates: FSWaiverTemplate[]) => void,
+  onError?: (err: Error) => void
 ): () => void {
   return onSnapshot(
     query(
@@ -1409,7 +1410,7 @@ export function subscribePractitionerWaivers(
         .map((d) => d.data() as FSWaiverTemplate)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     ),
-    () => cb([])
+    (err) => { onError?.(err); cb([]); }
   );
 }
 

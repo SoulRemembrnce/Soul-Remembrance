@@ -51,11 +51,21 @@ export default function PractitionerWaiversScreen() {
   const numericIdNum = Number(numericId);
 
   useEffect(() => {
-    if (!userId) return;
-    const unsub = subscribePractitionerWaivers(userId, (ts) => {
-      setWaivers(ts);
+    if (!userId) {
       setLoadingTemplates(false);
-    });
+      return;
+    }
+    const unsub = subscribePractitionerWaivers(
+      userId,
+      (ts) => {
+        setWaivers(ts);
+        setLoadingTemplates(false);
+      },
+      (err) => {
+        setLoadingTemplates(false);
+        Alert.alert("Firestore Error", `Could not load waivers:\n${err.message}`);
+      }
+    );
     return unsub;
   }, [userId]);
 
@@ -69,7 +79,11 @@ export default function PractitionerWaiversScreen() {
   }, [numericIdNum]);
 
   const handleCreate = useCallback(async () => {
-    if (!title.trim() || !content.trim() || !userId) return;
+    if (!title.trim() || !content.trim()) return;
+    if (!userId) {
+      Alert.alert("Not Signed In", "You must be signed in to save waivers. Please sign out and back in.");
+      return;
+    }
     setSaving(true);
     try {
       await createWaiverTemplate({
@@ -84,7 +98,8 @@ export default function PractitionerWaiversScreen() {
       setShowCreate(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      Alert.alert("Save Failed", err?.message ?? "Could not save waiver. Please try again.");
+      const code = err?.code ? ` (${err.code})` : "";
+      Alert.alert("Save Failed", (err?.message ?? "Could not save waiver.") + code);
     } finally {
       setSaving(false);
     }
