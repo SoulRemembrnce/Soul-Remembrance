@@ -127,5 +127,30 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid;
     }
 
+    // Vendor applications (authenticated users apply, owner can read their own)
+    match /vendorApplications/{appId} {
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    // Vendor profiles (public read, owner write)
+    match /vendorProfiles/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Shop products (vendor-listed items — public read, authenticated vendors write)
+    match /shopProducts/{productId} {
+      allow read: if true;
+      allow create: if request.auth != null &&
+        request.resource.data.vendorId == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        resource.data.vendorId == request.auth.uid;
+    }
+
   }
 }

@@ -206,3 +206,78 @@ export async function rejectCredentialsReview(
     credentialReviewNote: note ?? "",
   });
 }
+
+// ── Vendor Applications ─────────────────────────────────────────────────────
+
+export interface FSVendorApplication {
+  id: string;
+  userId: string;
+  businessName: string;
+  description: string;
+  categories: string[];
+  contactEmail: string;
+  website?: string;
+  status: "pending" | "approved" | "rejected";
+  rejectionNote?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+}
+
+export interface FSVendorProfile {
+  userId: string;
+  businessName: string;
+  description: string;
+  categories: string[];
+  contactEmail: string;
+  website?: string;
+  approved: boolean;
+  productCount?: number;
+  createdAt: string;
+}
+
+export function subscribeVendorApplications(
+  cb: (applications: FSVendorApplication[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "vendorApplications"),
+      orderBy("submittedAt", "desc")
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSVendorApplication)),
+    () => cb([])
+  );
+}
+
+export async function approveVendorApplication(
+  applicationId: string,
+  application: FSVendorApplication
+): Promise<void> {
+  await Promise.all([
+    updateDoc(doc(db, "vendorApplications", applicationId), {
+      status: "approved",
+      reviewedAt: new Date().toISOString(),
+    }),
+    setDoc(doc(db, "vendorProfiles", application.userId), {
+      userId: application.userId,
+      businessName: application.businessName,
+      description: application.description,
+      categories: application.categories,
+      contactEmail: application.contactEmail,
+      website: application.website ?? "",
+      approved: true,
+      productCount: 0,
+      createdAt: new Date().toISOString(),
+    }),
+  ]);
+}
+
+export async function rejectVendorApplication(
+  applicationId: string,
+  note?: string
+): Promise<void> {
+  await updateDoc(doc(db, "vendorApplications", applicationId), {
+    status: "rejected",
+    rejectionNote: note ?? "",
+    reviewedAt: new Date().toISOString(),
+  });
+}

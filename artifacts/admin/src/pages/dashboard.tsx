@@ -8,8 +8,9 @@ import {
   FileSearch, Eye, XCircle,
 } from "lucide-react";
 import {
-  FSPractitionerProfile, FSEvent, FSVerificationApplication,
+  FSPractitionerProfile, FSEvent, FSVerificationApplication, FSVendorApplication,
   subscribePractitioners, subscribeEvents, subscribeVerificationApplications,
+  subscribeVendorApplications, approveVendorApplication, rejectVendorApplication,
   computeStats, isFeaturedActive, verifyPractitioner, toggleSubscription,
   deletePractitioner, setFeaturedUntil, saveEvent, deleteEvent,
   approveVerificationApplication, rejectVerificationApplication,
@@ -244,6 +245,11 @@ export default function Dashboard() {
   const [credentialLoading, setCredentialLoading] = useState(false);
   const [credentialRejecting, setCredentialRejecting] = useState(false);
 
+  const [vendorApplications, setVendorApplications] = useState<FSVendorApplication[]>([]);
+  const [rejectVendorDialogOpen, setRejectVendorDialogOpen] = useState(false);
+  const [rejectingVendorApp, setRejectingVendorApp] = useState<FSVendorApplication | null>(null);
+  const [rejectVendorNote, setRejectVendorNote] = useState("");
+
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) setLocation("/");
   }, [user, isAdmin, loading, setLocation]);
@@ -256,7 +262,8 @@ export default function Dashboard() {
     });
     const unsubEvents = subscribeEvents(setEvents);
     const unsubVerifications = subscribeVerificationApplications(setVerificationApplications);
-    return () => { unsubPractitioners(); unsubEvents(); unsubVerifications(); };
+    const unsubVendors = subscribeVendorApplications(setVendorApplications);
+    return () => { unsubPractitioners(); unsubEvents(); unsubVerifications(); unsubVendors(); };
   }, [user, isAdmin]);
 
   const stats: AdminStats = useMemo(() => computeStats(practitioners), [practitioners]);
@@ -376,6 +383,39 @@ export default function Dashboard() {
     [verificationApplications]
   );
 
+  const pendingVendorCount = useMemo(
+    () => vendorApplications.filter((a) => a.status === "pending").length,
+    [vendorApplications]
+  );
+
+  const handleApproveVendor = async (app: FSVendorApplication) => {
+    try {
+      await approveVendorApplication(app.id, app);
+      toast({ title: "Vendor approved!", description: `${app.businessName} can now list products in the Soul Shop.` });
+    } catch {
+      toast({ title: "Error", description: "Failed to approve vendor.", variant: "destructive" });
+    }
+  };
+
+  const handleOpenRejectVendor = (app: FSVendorApplication) => {
+    setRejectingVendorApp(app);
+    setRejectVendorNote("");
+    setRejectVendorDialogOpen(true);
+  };
+
+  const handleConfirmRejectVendor = async () => {
+    if (!rejectingVendorApp) return;
+    try {
+      await rejectVendorApplication(rejectingVendorApp.id, rejectVendorNote);
+      toast({ title: "Application rejected" });
+      setRejectVendorDialogOpen(false);
+      setRejectingVendorApp(null);
+      setRejectVendorNote("");
+    } catch {
+      toast({ title: "Error", description: "Failed to reject application.", variant: "destructive" });
+    }
+  };
+
   const handleApproveVerification = async (app: FSVerificationApplication) => {
     try {
       const name = practitioners.find((p) => p.userId === app.practitionerUid)?.name ?? "Practitioner";
@@ -457,6 +497,14 @@ export default function Dashboard() {
               )}
             </TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="vendors" className="gap-1.5">
+              Vendors
+              {pendingVendorCount > 0 && (
+                <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                  {pendingVendorCount}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Practitioners tab ─────────────────────────────────────── */}
@@ -897,8 +945,135 @@ export default function Dashboard() {
               </div>
             )}
           </TabsContent>
+
+          {/* ── Vendors tab ───────────────────────────────────────── */}
+          <TabsContent value="vendors" className="space-y-4">
+            {vendorApplications.length === 0 ? (
+              <div className="bg-card rounded-lg border border-border/40 py-20 flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                  <Tag className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium text-foreground">No vendor applications yet</h3>
+                <p className="text-sm text-muted-foreground mt-1">Vendor applications will appear here once submitted from the app.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {vendorApplications.map((app) => {
+                  const statusCls =
+                    app.status === "pending"
+                      ? "bg-amber-100 text-amber-800 border-amber-200"
+                      : app.status === "approved"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      : "bg-red-100 text-red-800 border-red-200";
+                  return (
+                    <div key={app.id} className="bg-card rounded-lg border border-border/40 p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                            <span className="text-lg">🏪</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">{app.businessName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {app.contactEmail}
+                              {app.website && <> · <a href={app.website} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">{app.website}</a></>}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Submitted {new Date(app.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                              {app.reviewedAt && (
+                                <> · Reviewed {new Date(app.reviewedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className={`border ${statusCls} capitalize font-medium shrink-0`}>
+                          {app.status}
+                        </Badge>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">Description</p>
+                        <p className="text-sm text-foreground">{app.description}</p>
+                      </div>
+
+                      {app.categories.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Categories</p>
+                          <div className="flex flex-wrap gap-2">
+                            {app.categories.map((cat) => (
+                              <span key={cat} className="px-2 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs font-medium capitalize">
+                                {cat.replace(/-/g, " ")}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {app.status === "rejected" && app.rejectionNote && (
+                        <div className="bg-red-50 border border-red-100 rounded-md p-3">
+                          <p className="text-xs font-medium text-red-700 mb-1">Rejection note sent to vendor</p>
+                          <p className="text-sm text-red-600">{app.rejectionNote}</p>
+                        </div>
+                      )}
+
+                      {app.status === "pending" && (
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => handleApproveVendor(app)}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                            Approve Vendor
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                            onClick={() => handleOpenRejectVendor(app)}
+                          >
+                            <ShieldAlert className="h-4 w-4 mr-1.5" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </main>
+
+      {/* Reject vendor dialog */}
+      <Dialog open={rejectVendorDialogOpen} onOpenChange={(o) => { if (!o) { setRejectVendorDialogOpen(false); setRejectingVendorApp(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Vendor Application</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Optionally provide a reason — it will be shown to the vendor so they can reapply.
+            </p>
+            <textarea
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              rows={3}
+              placeholder="e.g. Please provide more details about your product range and pricing."
+              value={rejectVendorNote}
+              onChange={(e) => setRejectVendorNote(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectVendorDialogOpen(false); setRejectingVendorApp(null); }}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmRejectVendor}>
+              Reject Application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject verification dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={(o) => { if (!o) { setRejectDialogOpen(false); setRejectingApp(null); } }}>

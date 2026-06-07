@@ -1584,3 +1584,123 @@ export function subscribeVerificationApplicationByUid(
     () => cb(null)
   );
 }
+
+// ─── Vendor Applications ──────────────────────────────────────────────────────
+
+export interface FSVendorApplication {
+  id: string;
+  userId: string;
+  businessName: string;
+  description: string;
+  categories: string[];
+  contactEmail: string;
+  website?: string;
+  status: "pending" | "approved" | "rejected";
+  rejectionNote?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+}
+
+export async function createVendorApplication(
+  data: Omit<FSVendorApplication, "id" | "status" | "submittedAt">
+): Promise<string> {
+  const ref = doc(collection(db, "vendorApplications"));
+  await setDoc(ref, {
+    ...data,
+    id: ref.id,
+    status: "pending",
+    submittedAt: new Date().toISOString(),
+  });
+  return ref.id;
+}
+
+export function subscribeVendorApplicationByUid(
+  userId: string,
+  cb: (app: FSVendorApplication | null) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "vendorApplications"),
+      where("userId", "==", userId),
+      orderBy("submittedAt", "desc"),
+      limit(1)
+    ),
+    (snap) => cb(snap.empty ? null : (snap.docs[0].data() as FSVendorApplication)),
+    () => cb(null)
+  );
+}
+
+// ─── Vendor Profiles ──────────────────────────────────────────────────────────
+
+export interface FSVendorProfile {
+  userId: string;
+  businessName: string;
+  description: string;
+  categories: string[];
+  contactEmail: string;
+  website?: string;
+  approved: boolean;
+  productCount?: number;
+  createdAt: string;
+}
+
+export function subscribeVendorProfile(
+  userId: string,
+  cb: (profile: FSVendorProfile | null) => void
+): () => void {
+  return onSnapshot(
+    doc(db, "vendorProfiles", userId),
+    (snap) => cb(snap.exists() ? (snap.data() as FSVendorProfile) : null),
+    () => cb(null)
+  );
+}
+
+// ─── Vendor Shop Products ─────────────────────────────────────────────────────
+
+export interface FSVendorProduct {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  emoji: string;
+  inStock: boolean;
+  featured?: boolean;
+  createdAt: string;
+}
+
+export async function createVendorProduct(
+  data: Omit<FSVendorProduct, "id" | "createdAt">
+): Promise<string> {
+  const ref = doc(collection(db, "shopProducts"));
+  await setDoc(ref, { ...data, id: ref.id, createdAt: new Date().toISOString() });
+  return ref.id;
+}
+
+export async function updateVendorProduct(
+  productId: string,
+  data: Partial<Pick<FSVendorProduct, "name" | "description" | "price" | "category" | "emoji" | "inStock" | "featured">>
+): Promise<void> {
+  await updateDoc(doc(db, "shopProducts", productId), data);
+}
+
+export async function deleteVendorProduct(productId: string): Promise<void> {
+  await deleteDoc(doc(db, "shopProducts", productId));
+}
+
+export function subscribeVendorProducts(
+  vendorId: string,
+  cb: (products: FSVendorProduct[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "shopProducts"),
+      where("vendorId", "==", vendorId),
+      orderBy("createdAt", "desc")
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSVendorProduct)),
+    () => cb([])
+  );
+}

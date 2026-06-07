@@ -34,11 +34,16 @@ import { Practitioner } from "@/constants/data";
 import {
   FSPractitionerProfile,
   FSVerificationApplication,
+  FSVendorApplication,
+  FSVendorProfile,
   profileToPractitioner,
   setFeaturedUntil,
   subscribePractitionerProfile,
   subscribePractitionerProfiles,
   subscribeVerificationApplicationByUid,
+  subscribeVendorApplicationByUid,
+  subscribeVendorProfile,
+  subscribeVendorProducts,
   updatePractitionerPhotoURL,
   updatePractitionerStripeAccount,
   updatePractitionerSubscription,
@@ -168,6 +173,9 @@ export default function ProfileScreen() {
   const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [verificationApp, setVerificationApp] = useState<FSVerificationApplication | null>(null);
+  const [myVendorProfile, setMyVendorProfile] = useState<FSVendorProfile | null>(null);
+  const [vendorApp, setVendorApp] = useState<FSVendorApplication | null>(null);
+  const [vendorProductCount, setVendorProductCount] = useState(0);
 
   const handleChangeClientPhoto = () => {
     if (Platform.OS === "web") { pickClientPhoto("library"); return; }
@@ -220,6 +228,20 @@ export default function ProfileScreen() {
     if (!userId) return;
     return subscribeVerificationApplicationByUid(userId, setVerificationApp);
   }, [userId]);
+
+  // Subscribe to own vendor profile and application
+  useEffect(() => {
+    if (!userId) return;
+    const unsubProfile = subscribeVendorProfile(userId, setMyVendorProfile);
+    const unsubApp = subscribeVendorApplicationByUid(userId, setVendorApp);
+    return () => { unsubProfile(); unsubApp(); };
+  }, [userId]);
+
+  // Subscribe to vendor products count when vendor
+  useEffect(() => {
+    if (!userId || !myVendorProfile) return;
+    return subscribeVendorProducts(userId, (products) => setVendorProductCount(products.length));
+  }, [userId, myVendorProfile]);
 
   // When the app returns to foreground, check if the Stripe subscription was completed
   useEffect(() => {
@@ -1049,6 +1071,96 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* Vendor dashboard — shown when approved as a vendor */}
+      {myVendorProfile && !isAnonymous && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+          <Text style={[styles.sectionLabel, { color: colors.warmGold, marginBottom: 12 }]}>
+            VENDOR DASHBOARD
+          </Text>
+          <View style={[styles.dashCard, { backgroundColor: colors.card, borderColor: colors.cream }]}>
+            <View style={styles.dashRow}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: `${colors.deepIndigo}18`, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 22 }}>🏪</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.dashName, { color: colors.charcoal }]}>{myVendorProfile.businessName}</Text>
+                <Text style={[styles.dashTitle, { color: colors.sage }]}>Soul Shop Vendor</Text>
+              </View>
+              <View style={[styles.verifiedBadge, { backgroundColor: "#C6F6D5" }]}>
+                <Feather name="check-circle" size={12} color="#38a169" />
+                <Text style={[styles.verifiedText, { color: "#38a169" }]}>Approved</Text>
+              </View>
+            </View>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Product stats */}
+            <View style={styles.dashStats}>
+              <View style={styles.dashStat}>
+                <Text style={[styles.dashStatNum, { color: colors.charcoal }]}>{vendorProductCount}</Text>
+                <Text style={[styles.dashStatLabel, { color: colors.sage }]}>Products</Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: colors.blush, height: 30 }]} />
+              <View style={styles.dashStat}>
+                <Text style={[styles.dashStatNum, { color: colors.charcoal }]}>
+                  {myVendorProfile.categories.length}
+                </Text>
+                <Text style={[styles.dashStatLabel, { color: colors.sage }]}>Categories</Text>
+              </View>
+            </View>
+
+            <View style={[styles.dashDivider, { backgroundColor: colors.blush }]} />
+
+            {/* Manage Products button */}
+            <TouchableOpacity
+              style={[styles.payoutsBtn, { backgroundColor: colors.deepIndigo }]}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/vendor-products" as any); }}
+              activeOpacity={0.85}
+            >
+              <Feather name="package" size={16} color="#fff" />
+              <Text style={styles.payoutsBtnText}>Manage My Products</Text>
+              <Feather name="arrow-right" size={14} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Vendor status card — shown when application is pending or rejected (not yet approved) */}
+      {!myVendorProfile && vendorApp && !isAnonymous && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+          <TouchableOpacity
+            style={[
+              styles.getVerifiedBtn,
+              {
+                backgroundColor: vendorApp.status === "pending" ? `${colors.warmGold}15` : "#FEF2F2",
+                borderColor: vendorApp.status === "pending" ? colors.warmGold : "#FCA5A5",
+              },
+            ]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/vendor-onboarding" as any); }}
+            disabled={vendorApp.status === "pending"}
+            activeOpacity={0.85}
+          >
+            {vendorApp.status === "pending" ? (
+              <>
+                <Feather name="clock" size={15} color={colors.warmGold} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.getVerifiedTitle, { color: colors.charcoal }]}>Vendor application pending</Text>
+                  <Text style={[styles.getVerifiedSub, { color: colors.sage }]}>Under review · usually 2–3 working days</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Feather name="alert-circle" size={15} color="#E53E3E" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.getVerifiedTitle, { color: colors.charcoal }]}>Vendor application not approved · tap to reapply</Text>
+                  <Text style={[styles.getVerifiedSub, { color: colors.sage }]}>{vendorApp.rejectionNote || "See vendor onboarding for details"}</Text>
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Become a Practitioner — only shown if not already one */}
       {!myProfile && (
         <View style={{ padding: 20, paddingTop: isAnonymous ? 12 : 20 }}>
@@ -1066,6 +1178,32 @@ export default function ProfileScreen() {
               <View>
                 <Text style={styles.bannerTitle}>Become a Practitioner</Text>
                 <Text style={styles.bannerBody}>Share your healing gifts. £3.99/mo after 30-day free trial.</Text>
+              </View>
+              <View style={[styles.bannerArrow, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+                <Feather name="arrow-right" size={18} color="#fff" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Become a Vendor — shown when not already a vendor and no pending application */}
+      {!myVendorProfile && !vendorApp && !isAnonymous && (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 4 }}>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push("/vendor-onboarding" as any);
+            }}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[colors.warmGold, "#B8860B"]}
+              style={styles.practitionerBanner}
+            >
+              <View>
+                <Text style={styles.bannerTitle}>Sell in the Soul Shop</Text>
+                <Text style={styles.bannerBody}>Apply to list your spiritual products. Free to join.</Text>
               </View>
               <View style={[styles.bannerArrow, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                 <Feather name="arrow-right" size={18} color="#fff" />

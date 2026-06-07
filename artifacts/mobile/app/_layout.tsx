@@ -118,6 +118,8 @@ function RootLayoutNav() {
         <Stack.Screen name="verification" options={{ headerShown: false }} />
         <Stack.Screen name="group-chat/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="shop-cart" options={{ headerShown: false }} />
+        <Stack.Screen name="vendor-onboarding" options={{ headerShown: false, presentation: "modal" }} />
+        <Stack.Screen name="vendor-products" options={{ headerShown: false }} />
       </Stack>
     </>
   );
