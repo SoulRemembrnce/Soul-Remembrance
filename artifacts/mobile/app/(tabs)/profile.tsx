@@ -47,6 +47,7 @@ import { usePaymentSheet } from "@/hooks/usePaymentSheet";
 import { uploadAvatar } from "@/lib/storage";
 
 const MENU_ITEMS = [
+  { icon: "message-circle", label: "Messages", route: "/messages" },
   { icon: "file-text", label: "Signed Waivers", route: "/saved-waivers" },
   { icon: "credit-card", label: "Payment Methods", route: "/payment-methods" },
   { icon: "settings", label: "Settings", route: "/settings" },

@@ -16,6 +16,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider, useApp } from "@/contexts/AppContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { StripeProviderWrapper } from "@/components/StripeProviderWrapper";
 
 SplashScreen.preventAutoHideAsync();
@@ -116,6 +117,7 @@ function RootLayoutNav() {
         <Stack.Screen name="saved-waivers" options={{ headerShown: false }} />
         <Stack.Screen name="verification" options={{ headerShown: false }} />
         <Stack.Screen name="group-chat/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="shop-cart" options={{ headerShown: false }} />
       </Stack>
     </>
   );
@@ -142,13 +144,15 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <AppProvider>
-            <StripeProviderWrapper>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </StripeProviderWrapper>
+            <CartProvider>
+              <StripeProviderWrapper>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <KeyboardProvider>
+                    <RootLayoutNav />
+                  </KeyboardProvider>
+                </GestureHandlerRootView>
+              </StripeProviderWrapper>
+            </CartProvider>
           </AppProvider>
         </QueryClientProvider>
       </ErrorBoundary>

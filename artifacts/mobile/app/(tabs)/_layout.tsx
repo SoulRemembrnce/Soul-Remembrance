@@ -32,9 +32,9 @@ function NativeTabLayout() {
         <Icon sf={{ default: "tree", selected: "tree.fill" }} />
         <Label>Community</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="messages">
-        <Icon sf={{ default: "message", selected: "message.fill" }} />
-        <Label>Messages</Label>
+      <NativeTabs.Trigger name="shop">
+        <Icon sf={{ default: "bag", selected: "bag.fill" }} />
+        <Label>Shop</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -115,16 +115,20 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="messages"
+        name="shop"
         options={{
-          title: "Messages",
+          title: "Shop",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="message" tintColor={color} size={22} />
+              <SymbolView name="bag" tintColor={color} size={22} />
             ) : (
-              <Feather name="message-circle" size={21} color={color} />
+              <Feather name="shopping-bag" size={21} color={color} />
             ),
         }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{ href: null }}
       />
     </Tabs>
   );

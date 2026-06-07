@@ -1465,6 +1465,43 @@ export function subscribePractitionerWaiverSignatures(
   );
 }
 
+// ─── Shop Orders ──────────────────────────────────────────────────────────────
+
+export interface FSShopOrderItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  emoji: string;
+}
+
+export interface FSShopOrder {
+  id: string;
+  userId: string;
+  items: FSShopOrderItem[];
+  total: number;
+  shippingName: string;
+  shippingLine1: string;
+  shippingCity: string;
+  shippingPostcode: string;
+  paymentIntentId: string;
+  status: "paid";
+  createdAt: string;
+}
+
+export async function saveShopOrder(
+  data: Omit<FSShopOrder, "id" | "status" | "createdAt">
+): Promise<string> {
+  const ref = doc(collection(db, "shopOrders"));
+  await setDoc(ref, {
+    ...data,
+    id: ref.id,
+    status: "paid",
+    createdAt: new Date().toISOString(),
+  });
+  return ref.id;
+}
+
 // ─── Verification Applications ────────────────────────────────────────────────
 
 export interface FSVerificationApplication {
