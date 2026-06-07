@@ -1,6 +1,7 @@
 import {
   onAuthStateChanged,
   signInWithPopup,
+  signInWithEmailAndPassword as firebaseSignInWithEmail,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -14,20 +15,11 @@ const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS ?? "")
 
 export function isAdminEmail(email: string | null): boolean {
   if (!email) return false;
-  // If no admin emails configured, allow any signed-in user (dev fallback)
   if (ADMIN_EMAILS.length === 0) return true;
   return ADMIN_EMAILS.includes(email.toLowerCase());
 }
 
-/**
- * Sign in with Google, then — if the email passes the admin gate — write a
- * sentinel document to /admins/{uid} so Firestore security rules can identify
- * this user as an admin on subsequent reads/writes.
- */
-export async function signInWithGoogle(): Promise<User> {
-  const result = await signInWithPopup(auth, googleProvider);
-  const user = result.user;
-
+async function markAdmin(user: User) {
   if (isAdminEmail(user.email)) {
     try {
       await setDoc(
@@ -36,12 +28,21 @@ export async function signInWithGoogle(): Promise<User> {
         { merge: true }
       );
     } catch {
-      // Non-fatal: rules may not yet be deployed. The admin panel will still
-      // enforce the email gate; Firestore writes will fail gracefully.
+      // Non-fatal
     }
   }
+}
 
-  return user;
+export async function signInWithEmail(email: string, password: string): Promise<User> {
+  const result = await firebaseSignInWithEmail(auth, email, password);
+  await markAdmin(result.user);
+  return result.user;
+}
+
+export async function signInWithGoogle(): Promise<User> {
+  const result = await signInWithPopup(auth, googleProvider);
+  await markAdmin(result.user);
+  return result.user;
 }
 
 export async function signOut(): Promise<void> {
