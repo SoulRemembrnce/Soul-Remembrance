@@ -138,12 +138,14 @@ export default function OnboardingScreen() {
 
       if (subscribed) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // Advance to step 5 immediately — profile save happens in background
         next();
         if (userId) {
           const nameParts = (data.name || "Practitioner").trim().split(/\s+/);
           const initials = nameParts.map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "PR";
           const locationParts = data.location.split(",").map((s) => s.trim());
-          await savePractitionerProfile({
+          // Fire-and-forget: don't block or surface profile-save errors to the user
+          savePractitionerProfile({
             userId,
             numericId: Date.now(),
             name: data.name || "Practitioner",
@@ -165,6 +167,9 @@ export default function OnboardingScreen() {
             ...(data.photoURL && { photoURL: data.photoURL }),
             ...(Object.keys(uploadedDocs).length > 0 && { credentialURLs: uploadedDocs }),
             email: email ?? undefined,
+          }).catch(() => {
+            // Profile save failed silently — subscription already active,
+            // user can update their profile from the dashboard later
           });
         }
       }
