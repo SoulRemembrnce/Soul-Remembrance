@@ -269,6 +269,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Dream Journal ──────────────────────────────────────────────────────
+    match /dreamJournal/{userId}/entries/{entryId} {
+      allow read, write: if isOwner(userId);
+    }
+
     // ── Vendor shop products ────────────────────────────────────────────────
     match /shopProducts/{id} {
       allow read: if true;
