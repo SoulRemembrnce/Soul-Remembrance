@@ -1402,10 +1402,13 @@ export function subscribePractitionerWaivers(
   return onSnapshot(
     query(
       collection(db, "waiverTemplates"),
-      where("practitionerUid", "==", practitionerUid),
-      orderBy("createdAt", "desc")
+      where("practitionerUid", "==", practitionerUid)
     ),
-    (snap) => cb(snap.docs.map((d) => d.data() as FSWaiverTemplate)),
+    (snap) => cb(
+      snap.docs
+        .map((d) => d.data() as FSWaiverTemplate)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    ),
     () => cb([])
   );
 }
@@ -1442,10 +1445,13 @@ export function subscribeSignedWaivers(
   return onSnapshot(
     query(
       collection(db, "waiverSignatures"),
-      where("userId", "==", userId),
-      orderBy("agreedAt", "desc")
+      where("userId", "==", userId)
     ),
-    (snap) => cb(snap.docs.map((d) => d.data() as FSWaiverSignature)),
+    (snap) => cb(
+      snap.docs
+        .map((d) => d.data() as FSWaiverSignature)
+        .sort((a, b) => b.agreedAt.localeCompare(a.agreedAt))
+    ),
     () => cb([])
   );
 }
@@ -1457,10 +1463,13 @@ export function subscribePractitionerWaiverSignatures(
   return onSnapshot(
     query(
       collection(db, "waiverSignatures"),
-      where("practitionerNumericId", "==", practitionerNumericId),
-      orderBy("agreedAt", "desc")
+      where("practitionerNumericId", "==", practitionerNumericId)
     ),
-    (snap) => cb(snap.docs.map((d) => d.data() as FSWaiverSignature)),
+    (snap) => cb(
+      snap.docs
+        .map((d) => d.data() as FSWaiverSignature)
+        .sort((a, b) => b.agreedAt.localeCompare(a.agreedAt))
+    ),
     () => cb([])
   );
 }
@@ -1576,11 +1585,15 @@ export function subscribeVerificationApplicationByUid(
   return onSnapshot(
     query(
       collection(db, "verificationApplications"),
-      where("practitionerUid", "==", uid),
-      orderBy("submittedAt", "desc"),
-      limit(1)
+      where("practitionerUid", "==", uid)
     ),
-    (snap) => cb(snap.empty ? null : (snap.docs[0].data() as FSVerificationApplication)),
+    (snap) => {
+      if (snap.empty) { cb(null); return; }
+      const sorted = snap.docs
+        .map((d) => d.data() as FSVerificationApplication)
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+      cb(sorted[0]);
+    },
     () => cb(null)
   );
 }
@@ -1621,11 +1634,15 @@ export function subscribeVendorApplicationByUid(
   return onSnapshot(
     query(
       collection(db, "vendorApplications"),
-      where("userId", "==", userId),
-      orderBy("submittedAt", "desc"),
-      limit(1)
+      where("userId", "==", userId)
     ),
-    (snap) => cb(snap.empty ? null : (snap.docs[0].data() as FSVendorApplication)),
+    (snap) => {
+      if (snap.empty) { cb(null); return; }
+      const sorted = snap.docs
+        .map((d) => d.data() as FSVendorApplication)
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+      cb(sorted[0]);
+    },
     () => cb(null)
   );
 }
@@ -1697,10 +1714,13 @@ export function subscribeVendorProducts(
   return onSnapshot(
     query(
       collection(db, "shopProducts"),
-      where("vendorId", "==", vendorId),
-      orderBy("createdAt", "desc")
+      where("vendorId", "==", vendorId)
     ),
-    (snap) => cb(snap.docs.map((d) => d.data() as FSVendorProduct)),
+    (snap) => cb(
+      snap.docs
+        .map((d) => d.data() as FSVendorProduct)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    ),
     () => cb([])
   );
 }
