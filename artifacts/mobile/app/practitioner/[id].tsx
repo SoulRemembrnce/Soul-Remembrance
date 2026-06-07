@@ -35,7 +35,7 @@ import {
   joinWaitlist,
   leaveWaitlist,
   getPractitionerProfileByNumericId,
-  getWaiverByNumericId,
+  getWaiverByUid,
   markSlotBooked,
   profileToPractitioner,
   saveWaiverSignature,
@@ -120,11 +120,11 @@ export default function PractitionerScreen() {
     return unsub;
   }, [practitioner?.id]);
 
-  // ── Waiver template ──────────────────────────────────────────────────────
+  // ── Waiver template (lookup by UID — reliable regardless of numericId) ──
   useEffect(() => {
-    if (!practitioner) return;
-    getWaiverByNumericId(practitioner.id).then(setWaiverTemplate).catch(() => {});
-  }, [practitioner?.id]);
+    if (!firestoreProfile?.userId) return;
+    getWaiverByUid(firestoreProfile.userId).then(setWaiverTemplate).catch(() => {});
+  }, [firestoreProfile?.userId]);
 
   // ── Services subscription ─────────────────────────────────────────────────
   useEffect(() => {
@@ -398,6 +398,10 @@ export default function PractitionerScreen() {
       );
       setReminders(result);
       setScreen("confirmed");
+      // Auto-open waiver modal after booking if practitioner has a waiver
+      if (waiverTemplate) {
+        setTimeout(() => setShowWaiverModal(true), 600);
+      }
     } catch (err: any) {
       setPaymentError(err.message ?? "Payment failed. Please try again.");
     } finally {
@@ -405,13 +409,9 @@ export default function PractitionerScreen() {
     }
   };
 
-  // ── Waiver flow ───────────────────────────────────────────────────────────
+  // ── Waiver flow — waiver is presented AFTER payment on confirmation screen ──
   const handleBookingPress = () => {
-    if (waiverTemplate && !waiverSigned) {
-      setShowWaiverModal(true);
-    } else {
-      handleConfirmBooking();
-    }
+    handleConfirmBooking();
   };
 
   const handleWaiverSign = () => {
@@ -429,7 +429,7 @@ export default function PractitionerScreen() {
     }
     setWaiverSigned(true);
     setShowWaiverModal(false);
-    handleConfirmBooking();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   // ── Reviews computed values ──────────────────────────────
@@ -551,6 +551,37 @@ export default function PractitionerScreen() {
               </View>
             </View>
           )}
+
+          {/* Waiver status card */}
+          {waiverTemplate && !waiverSigned && (
+            <TouchableOpacity
+              style={[styles.noticeBanner, { backgroundColor: "#FFF8E7", borderColor: colors.warmGold, borderWidth: 1, marginTop: 12 }]}
+              onPress={() => setShowWaiverModal(true)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.reminderIconWrap, { backgroundColor: colors.warmGold }]}>
+                <Feather name="file-text" size={16} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.reminderTitle, { color: "#92640A" }]}>
+                  Action required: Sign consent form
+                </Text>
+                <Text style={[styles.noticeText, { color: colors.sage }]}>
+                  Tap to read and sign the required waiver before your session.
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.warmGold} />
+            </TouchableOpacity>
+          )}
+          {waiverTemplate && waiverSigned && (
+            <View style={[styles.noticeBanner, { backgroundColor: "#E8F5E9", marginTop: 12 }]}>
+              <Feather name="check-circle" size={18} color="#38a169" />
+              <Text style={[styles.noticeText, { color: "#2F855A" }]}>
+                Consent form signed — you're all set!
+              </Text>
+            </View>
+          )}
+
           <TouchableOpacity
             style={[styles.primaryBtn, { backgroundColor: colors.deepIndigo }]}
             onPress={() => { setScreen("detail"); router.back(); }}
@@ -1062,7 +1093,7 @@ export default function PractitionerScreen() {
                   onPress={handleWaiverSign}
                 >
                   <Feather name="lock" size={14} color="#fff" />
-                  <Text style={styles.waiverSignBtnText}>Sign & Continue to Payment</Text>
+                  <Text style={styles.waiverSignBtnText}>Sign Consent Form</Text>
                 </TouchableOpacity>
               </View>
             </View>

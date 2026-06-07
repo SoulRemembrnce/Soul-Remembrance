@@ -1395,6 +1395,22 @@ export async function getWaiverByNumericId(
   return snap.empty ? null : (snap.docs[0].data() as FSWaiverTemplate);
 }
 
+export async function getWaiverByUid(
+  practitionerUid: string
+): Promise<FSWaiverTemplate | null> {
+  const snap = await getDocs(
+    query(
+      collection(db, "waiverTemplates"),
+      where("practitionerUid", "==", practitionerUid)
+    )
+  );
+  if (snap.empty) return null;
+  const templates = snap.docs
+    .map((d) => d.data() as FSWaiverTemplate)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return templates[0];
+}
+
 export function subscribePractitionerWaivers(
   practitionerUid: string,
   cb: (templates: FSWaiverTemplate[]) => void,
