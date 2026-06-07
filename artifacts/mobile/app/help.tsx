@@ -21,7 +21,7 @@ const FAQS = [
   },
   {
     q: "How do cancellations work?",
-    a: "Please contact the practitioner directly to cancel or reschedule. For billing queries, reach out to us at support@soulremembrance.com.",
+    a: "To cancel or reschedule a booking, please contact us at soulremembrance@outlook.com as soon as possible. Cancellations made with at least 24 hours notice will be reviewed for a refund. Late cancellations are at the discretion of Soul Remembrance.",
   },
   {
     q: "How do I become a practitioner?",
@@ -73,7 +73,7 @@ export default function HelpScreen() {
             style={[styles.contactBtn, { backgroundColor: colors.warmGold }]}
             onPress={() => {
               if (Platform.OS !== "web") {
-                Linking.openURL("mailto:support@soulremembrance.com");
+                Linking.openURL("mailto:soulremembrance@outlook.com");
               }
             }}
           >
