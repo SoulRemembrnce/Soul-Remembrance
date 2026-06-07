@@ -235,6 +235,7 @@ export default function PractitionerScreen() {
     if (!selectedDate || !selectedTime) return;
     setPaymentError(null);
     setPaymentLoading(true);
+    const effectiveDuration = selectedTier?.durationMinutes ?? selectedService?.durationMinutes;
 
     try {
       // ── Step 1: Create PaymentIntent on the server ──────────────────────

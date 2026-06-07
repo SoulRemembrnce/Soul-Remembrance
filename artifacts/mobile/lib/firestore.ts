@@ -1450,6 +1450,21 @@ export function subscribeSignedWaivers(
   );
 }
 
+export function subscribePractitionerWaiverSignatures(
+  practitionerNumericId: number,
+  cb: (signatures: FSWaiverSignature[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "waiverSignatures"),
+      where("practitionerNumericId", "==", practitionerNumericId),
+      orderBy("agreedAt", "desc")
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSWaiverSignature)),
+    () => cb([])
+  );
+}
+
 // ─── Verification Applications ────────────────────────────────────────────────
 
 export interface FSVerificationApplication {

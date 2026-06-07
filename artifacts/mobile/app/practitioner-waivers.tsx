@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,11 +19,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
+  FSWaiverSignature,
   FSWaiverTemplate,
   createWaiverTemplate,
   deleteWaiverTemplate,
+  subscribePractitionerWaiverSignatures,
   subscribePractitionerWaivers,
 } from "@/lib/firestore";
+
+type Tab = "templates" | "signatures";
 
 export default function PractitionerWaiversScreen() {
   const { numericId, name } = useLocalSearchParams<{ numericId: string; name: string }>();
@@ -33,28 +37,43 @@ export default function PractitionerWaiversScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
+  const [activeTab, setActiveTab] = useState<Tab>("templates");
   const [waivers, setWaivers] = useState<FSWaiverTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [signatures, setSignatures] = useState<FSWaiverSignature[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [loadingSignatures, setLoadingSignatures] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
+  const [expandedSig, setExpandedSig] = useState<string | null>(null);
+
+  const numericIdNum = Number(numericId);
 
   useEffect(() => {
     if (!userId) return;
     const unsub = subscribePractitionerWaivers(userId, (ts) => {
       setWaivers(ts);
-      setLoading(false);
+      setLoadingTemplates(false);
     });
     return unsub;
   }, [userId]);
 
-  const handleCreate = async () => {
+  useEffect(() => {
+    if (!numericIdNum) return;
+    const unsub = subscribePractitionerWaiverSignatures(numericIdNum, (sigs) => {
+      setSignatures(sigs);
+      setLoadingSignatures(false);
+    });
+    return unsub;
+  }, [numericIdNum]);
+
+  const handleCreate = useCallback(async () => {
     if (!title.trim() || !content.trim() || !userId) return;
     setSaving(true);
     try {
       await createWaiverTemplate({
-        practitionerNumericId: Number(numericId),
+        practitionerNumericId: numericIdNum,
         practitionerUid: userId,
         practitionerName: name ?? "",
         title: title.trim(),
@@ -64,14 +83,14 @@ export default function PractitionerWaiversScreen() {
       setContent("");
       setShowCreate(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      // silent
+    } catch (err: any) {
+      Alert.alert("Save Failed", err?.message ?? "Could not save waiver. Please try again.");
     } finally {
       setSaving(false);
     }
-  };
+  }, [title, content, userId, numericIdNum, name]);
 
-  const handleDelete = (w: FSWaiverTemplate) => {
+  const handleDelete = useCallback((w: FSWaiverTemplate) => {
     Alert.alert(
       "Delete Waiver",
       `Delete "${w.title}"? Clients who have already signed it will keep their records.`,
@@ -81,13 +100,15 @@ export default function PractitionerWaiversScreen() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            deleteWaiverTemplate(w.id).catch(console.warn);
+            deleteWaiverTemplate(w.id).catch((err) =>
+              Alert.alert("Error", err?.message ?? "Could not delete waiver.")
+            );
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           },
         },
       ]
     );
-  };
+  }, []);
 
   const canSave = title.trim().length > 0 && content.trim().length > 0;
 
@@ -102,60 +123,194 @@ export default function PractitionerWaiversScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} color={colors.deepIndigo} size="large" />
-      ) : (
-        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {waivers.length === 0 ? (
+      {/* Tabs */}
+      <View style={[styles.tabRow, { backgroundColor: colors.deepIndigo, paddingBottom: 12 }]}>
+        <View style={[styles.tabPill, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === "templates" && { backgroundColor: "#fff" }]}
+            onPress={() => setActiveTab("templates")}
+            activeOpacity={0.8}
+          >
+            <Feather
+              name="file-text"
+              size={14}
+              color={activeTab === "templates" ? colors.deepIndigo : "rgba(255,255,255,0.7)"}
+            />
+            <Text style={[styles.tabText, { color: activeTab === "templates" ? colors.deepIndigo : "rgba(255,255,255,0.7)" }]}>
+              My Waivers
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === "signatures" && { backgroundColor: "#fff" }]}
+            onPress={() => setActiveTab("signatures")}
+            activeOpacity={0.8}
+          >
+            <Feather
+              name="check-circle"
+              size={14}
+              color={activeTab === "signatures" ? colors.deepIndigo : "rgba(255,255,255,0.7)"}
+            />
+            <Text style={[styles.tabText, { color: activeTab === "signatures" ? colors.deepIndigo : "rgba(255,255,255,0.7)" }]}>
+              Client Signatures
+            </Text>
+            {signatures.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.warmGold }]}>
+                <Text style={styles.badgeText}>{signatures.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Templates Tab */}
+      {activeTab === "templates" && (
+        <>
+          {loadingTemplates ? (
+            <ActivityIndicator style={{ marginTop: 60 }} color={colors.deepIndigo} size="large" />
+          ) : (
+            <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+              {waivers.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Feather name="file-text" size={52} color={colors.blush} />
+                  <Text style={[styles.emptyTitle, { color: colors.charcoal }]}>No waivers yet</Text>
+                  <Text style={[styles.emptySub, { color: colors.sage }]}>
+                    Create a waiver that clients must read and sign before booking a session with you.
+                  </Text>
+                </View>
+              ) : (
+                waivers.map((w) => (
+                  <View key={w.id} style={[styles.waiverCard, { backgroundColor: "#fff", borderColor: colors.cream }]}>
+                    <View style={styles.waiverCardTop}>
+                      <View style={[styles.iconBadge, { backgroundColor: colors.blush }]}>
+                        <Feather name="file-text" size={16} color={colors.deepIndigo} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.waiverCardTitle, { color: colors.charcoal }]} numberOfLines={1}>
+                          {w.title}
+                        </Text>
+                        <Text style={[styles.waiverCardDate, { color: colors.sage }]}>
+                          Created{" "}
+                          {new Date(w.createdAt).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => handleDelete(w)}
+                        style={styles.deleteBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="trash-2" size={16} color="#E53E3E" />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.waiverCardPreview, { color: colors.sage }]} numberOfLines={4}>
+                      {w.content}
+                    </Text>
+                  </View>
+                ))
+              )}
+              <View style={{ height: 120 }} />
+            </ScrollView>
+          )}
+
+          {/* FAB */}
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: colors.deepIndigo, bottom: bottomPad + 24 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowCreate(true);
+            }}
+            activeOpacity={0.85}
+          >
+            <Feather name="plus" size={24} color="#fff" />
+          </TouchableOpacity>
+        </>
+      )}
+
+      {/* Signatures Tab */}
+      {activeTab === "signatures" && (
+        <>
+          {loadingSignatures ? (
+            <ActivityIndicator style={{ marginTop: 60 }} color={colors.deepIndigo} size="large" />
+          ) : signatures.length === 0 ? (
             <View style={styles.emptyState}>
-              <Feather name="file-text" size={52} color={colors.blush} />
-              <Text style={[styles.emptyTitle, { color: colors.charcoal }]}>No waivers yet</Text>
+              <Feather name="check-circle" size={52} color={colors.blush} />
+              <Text style={[styles.emptyTitle, { color: colors.charcoal }]}>No signatures yet</Text>
               <Text style={[styles.emptySub, { color: colors.sage }]}>
-                Create a waiver that clients must read and sign before booking a session with you.
+                When a client signs one of your waivers before booking, their record will appear here.
               </Text>
             </View>
           ) : (
-            waivers.map((w) => (
-              <View key={w.id} style={[styles.waiverCard, { backgroundColor: "#fff", borderColor: colors.cream }]}>
-                <View style={styles.waiverCardTop}>
-                  <View style={[styles.iconBadge, { backgroundColor: colors.blush }]}>
-                    <Feather name="file-text" size={16} color={colors.deepIndigo} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.waiverCardTitle, { color: colors.charcoal }]} numberOfLines={1}>
-                      {w.title}
-                    </Text>
-                    <Text style={[styles.waiverCardDate, { color: colors.sage }]}>
-                      Created {new Date(w.createdAt).toLocaleDateString("en-GB", {
-                        day: "numeric", month: "short", year: "numeric",
-                      })}
-                    </Text>
-                  </View>
-                  <TouchableOpacity onPress={() => handleDelete(w)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Feather name="trash-2" size={16} color="#E53E3E" />
+            <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.countLabel, { color: colors.sage }]}>
+                {signatures.length} signed {signatures.length === 1 ? "document" : "documents"}
+              </Text>
+              {signatures.map((sig) => {
+                const isOpen = expandedSig === sig.id;
+                return (
+                  <TouchableOpacity
+                    key={sig.id}
+                    style={[styles.sigCard, { backgroundColor: "#fff", borderColor: colors.cream }]}
+                    onPress={() => setExpandedSig(isOpen ? null : sig.id)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.sigCardRow}>
+                      <View style={[styles.iconBadge, { backgroundColor: "#E8F5E9" }]}>
+                        <Feather name="check-circle" size={16} color="#38a169" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.waiverCardTitle, { color: colors.charcoal }]} numberOfLines={1}>
+                          {sig.waiverTitle}
+                        </Text>
+                        <Text style={[styles.waiverCardDate, { color: colors.sage }]}>
+                          Signed by{" "}
+                          <Text style={{ fontFamily: "Inter_600SemiBold", fontStyle: "italic" }}>
+                            {sig.signedName}
+                          </Text>
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: "flex-end", gap: 4 }}>
+                        <Text style={[styles.waiverCardDate, { color: colors.sage }]}>
+                          {new Date(sig.agreedAt).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </Text>
+                        <Feather
+                          name={isOpen ? "chevron-up" : "chevron-down"}
+                          size={14}
+                          color={colors.sage}
+                        />
+                      </View>
+                    </View>
+                    {isOpen && (
+                      <View style={[styles.expandedArea, { borderTopColor: colors.cream }]}>
+                        <View style={[styles.legalBadge, { backgroundColor: colors.blush }]}>
+                          <Feather name="shield" size={12} color={colors.deepIndigo} />
+                          <Text style={[styles.legalText, { color: colors.deepIndigo }]}>
+                            Digitally agreed and stored on{" "}
+                            {new Date(sig.agreedAt).toLocaleString("en-GB", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
                   </TouchableOpacity>
-                </View>
-                <Text style={[styles.waiverCardPreview, { color: colors.sage }]} numberOfLines={4}>
-                  {w.content}
-                </Text>
-              </View>
-            ))
+                );
+              })}
+              <View style={{ height: 40 }} />
+            </ScrollView>
           )}
-          <View style={{ height: 120 }} />
-        </ScrollView>
+        </>
       )}
-
-      {/* FAB */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.deepIndigo, bottom: bottomPad + 24 }]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          setShowCreate(true);
-        }}
-        activeOpacity={0.85}
-      >
-        <Feather name="plus" size={24} color="#fff" />
-      </TouchableOpacity>
 
       {/* Create Modal */}
       <Modal visible={showCreate} animationType="slide" transparent>
@@ -164,17 +319,28 @@ export default function PractitionerWaiversScreen() {
             <View style={[styles.sheetHeader, { borderBottomColor: colors.cream }]}>
               <Text style={[styles.sheetTitle, { color: colors.charcoal }]}>New Waiver</Text>
               <TouchableOpacity
-                onPress={() => { setShowCreate(false); setTitle(""); setContent(""); }}
+                onPress={() => {
+                  setShowCreate(false);
+                  setTitle("");
+                  setContent("");
+                }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Feather name="x" size={22} color={colors.sage} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.sheetBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.sheetBody}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <Text style={[styles.fieldLabel, { color: colors.sage }]}>Waiver Title</Text>
               <TextInput
-                style={[styles.input, { borderColor: colors.blush, color: colors.charcoal, backgroundColor: colors.cream }]}
+                style={[
+                  styles.input,
+                  { borderColor: colors.blush, color: colors.charcoal, backgroundColor: colors.cream },
+                ]}
                 placeholder="e.g. Client Consent & Liability Waiver"
                 placeholderTextColor={colors.sage}
                 value={title}
@@ -184,7 +350,10 @@ export default function PractitionerWaiversScreen() {
 
               <Text style={[styles.fieldLabel, { color: colors.sage }]}>Waiver Content</Text>
               <TextInput
-                style={[styles.textarea, { borderColor: colors.blush, color: colors.charcoal, backgroundColor: colors.cream }]}
+                style={[
+                  styles.textarea,
+                  { borderColor: colors.blush, color: colors.charcoal, backgroundColor: colors.cream },
+                ]}
                 placeholder="Write the full text of your waiver, including any disclaimers, liability clauses, and consent statements..."
                 placeholderTextColor={colors.sage}
                 value={content}
@@ -196,7 +365,8 @@ export default function PractitionerWaiversScreen() {
               <View style={[styles.tipBox, { backgroundColor: colors.blush }]}>
                 <Feather name="info" size={14} color={colors.deepIndigo} />
                 <Text style={[styles.tipText, { color: colors.deepIndigo }]}>
-                  Clients will be shown this waiver and must type their full name and check a consent box before their booking can be confirmed.
+                  Clients will be shown this waiver and must type their full name and check a consent box
+                  before their booking can be confirmed.
                 </Text>
               </View>
 
@@ -228,10 +398,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 8,
   },
   backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  tabRow: { paddingHorizontal: 16 },
+  tabPill: {
+    flexDirection: "row",
+    borderRadius: 12,
+    padding: 3,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  tabText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  badge: {
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    minWidth: 18,
+    alignItems: "center",
+  },
+  badgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
   list: { padding: 16 },
   emptyState: { alignItems: "center", paddingTop: 80, paddingHorizontal: 40 },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", marginTop: 16, marginBottom: 8 },
@@ -243,6 +438,20 @@ const styles = StyleSheet.create({
   waiverCardDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   deleteBtn: { padding: 4 },
   waiverCardPreview: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+  sigCard: { borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 10 },
+  sigCardRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  expandedArea: { marginTop: 14, paddingTop: 14, borderTopWidth: 1 },
+  legalBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  legalText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  countLabel: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 12 },
   fab: {
     position: "absolute",
     right: 20,
