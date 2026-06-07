@@ -265,7 +265,7 @@ export function subscribeVendorApplications(
       orderBy("submittedAt", "desc")
     ),
     (snap) => cb(snap.docs.map((d) => d.data() as FSVendorApplication)),
-    () => cb([])
+    (err) => { console.error("[Admin] vendorApplications error:", err.code, err.message); cb([]); }
   );
 }
 
