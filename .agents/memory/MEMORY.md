@@ -2,3 +2,5 @@
 - [React hooks ordering in practitioner screen](hooks-ordering.md) — useMemo/useCallback must precede any early returns; crash was hidden by mock data
 - [Firestore rules deploy](firestore-rules-deploy.md) — rules file is correct locally but must be deployed via Firebase Console or CLI; Firebase CLI needs interactive auth
 - [Retreat group chat data model](retreat-group-chat.md) — groupChats/{retreat_practId_serviceId} with memberUids array for access control; group-chat/[id] screen subscribes via subscribeGroupChats to find its own doc
+- [Firestore orderBy silent exclusion](firestore-orderby-missing-field.md) — orderBy drops docs missing that field silently; savePractitionerProfile never set createdAt so admin showed nothing
+- [Admin Firestore missing rules](admin-missing-firestore-rules.md) — services, waitlist, verificationApplications, admins, pushTokens had no rules and silently blocked all writes
