@@ -24,6 +24,12 @@ uri = "file://artifacts/mobile/assets/images/adaptive-icon.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "7ilSPNMD1qtjxVZ8ODUXl"
+uri = "file://artifacts/mobile/assets/images/feature-graphic-raw.png"
+type = "image"
+title = "soul remembrance feature graphic"
+
 [[outputs]]
 id = "MYyB6jTF0J5BePPhMd_L8"
 uri = "file://artifacts/mobile/assets/images/icon.png"
@@ -77,3 +83,9 @@ id = "hIfPw4B8-NRAIJmTSr2tK"
 uri = "file://artifacts/mobile/assets/images/icon-512.png"
 type = "image"
 title = "Play Store Icon (512×512)"
+
+[[outputs]]
+id = "BmK8ZAVxj70pHLyYD71XD"
+uri = "file://artifacts/mobile/assets/images/feature-graphic.png"
+type = "image"
+title = "Play Store Feature Graphic (1024×500)"
