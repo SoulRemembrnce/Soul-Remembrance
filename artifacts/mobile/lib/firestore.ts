@@ -1869,3 +1869,40 @@ export function subscribePeriodCycles(
   );
 }
 
+// ─── Good Things Today ─────────────────────────────────────────────────────────
+
+export interface FSGoodThingsEntry {
+  id: string;
+  dateKey: string;
+  items: string[];
+  createdAt: Timestamp;
+}
+
+export async function saveGoodThingsEntry(
+  userId: string,
+  dateKey: string,
+  items: string[]
+): Promise<void> {
+  const ref = doc(db, "goodThings", userId, "entries", dateKey);
+  await setDoc(ref, { id: dateKey, dateKey, items, createdAt: serverTimestamp() }, { merge: true });
+}
+
+export async function deleteGoodThingsEntry(userId: string, dateKey: string): Promise<void> {
+  await deleteDoc(doc(db, "goodThings", userId, "entries", dateKey));
+}
+
+export function subscribeGoodThingsEntries(
+  userId: string,
+  cb: (entries: FSGoodThingsEntry[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "goodThings", userId, "entries"),
+      orderBy("dateKey", "desc"),
+      limit(60)
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSGoodThingsEntry)),
+    () => cb([])
+  );
+}
+
