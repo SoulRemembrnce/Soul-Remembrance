@@ -30,6 +30,12 @@ uri = "file://artifacts/mobile/assets/images/feature-graphic-raw.png"
 type = "image"
 title = "soul remembrance feature graphic"
 
+[[generated]]
+id = "8DcUWiyA-xq_V_hSaQHhP"
+uri = "file://artifacts/mobile/assets/images/feature-graphic-raw2.png"
+type = "image"
+title = "soul remembrance feature graphic lotus right"
+
 [[outputs]]
 id = "MYyB6jTF0J5BePPhMd_L8"
 uri = "file://artifacts/mobile/assets/images/icon.png"
