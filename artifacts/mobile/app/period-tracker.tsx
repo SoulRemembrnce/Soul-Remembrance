@@ -130,7 +130,7 @@ export default function PeriodTrackerScreen() {
     try {
       const data = {
         startDate,
-        endDate: endDate || undefined,
+        endDate: endDate || null,
         flowLevel,
         symptoms: selectedSymptoms,
         notes,

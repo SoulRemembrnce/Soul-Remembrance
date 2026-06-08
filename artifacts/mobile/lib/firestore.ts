@@ -1827,7 +1827,7 @@ export async function createVendorApplicationWithTier(
 export interface FSPeriodCycle {
   id: string;
   startDate: string;
-  endDate?: string;
+  endDate?: string | null;
   symptoms: string[];
   notes: string;
   flowLevel: "light" | "medium" | "heavy" | "";
