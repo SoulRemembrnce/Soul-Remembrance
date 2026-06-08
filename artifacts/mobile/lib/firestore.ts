@@ -1822,3 +1822,50 @@ export async function createVendorApplicationWithTier(
   return ref.id;
 }
 
+// ─── Period Tracker ────────────────────────────────────────────────────────────
+
+export interface FSPeriodCycle {
+  id: string;
+  startDate: string;
+  endDate?: string;
+  symptoms: string[];
+  notes: string;
+  flowLevel: "light" | "medium" | "heavy" | "";
+  createdAt: Timestamp;
+}
+
+export async function addPeriodCycle(
+  userId: string,
+  data: Omit<FSPeriodCycle, "id" | "createdAt">
+): Promise<string> {
+  const ref = doc(collection(db, "periodTracker", userId, "cycles"));
+  await setDoc(ref, { ...data, id: ref.id, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function updatePeriodCycle(
+  userId: string,
+  cycleId: string,
+  data: Partial<Omit<FSPeriodCycle, "id" | "createdAt">>
+): Promise<void> {
+  await updateDoc(doc(db, "periodTracker", userId, "cycles", cycleId), data as Record<string, unknown>);
+}
+
+export async function deletePeriodCycle(userId: string, cycleId: string): Promise<void> {
+  await deleteDoc(doc(db, "periodTracker", userId, "cycles", cycleId));
+}
+
+export function subscribePeriodCycles(
+  userId: string,
+  cb: (cycles: FSPeriodCycle[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "periodTracker", userId, "cycles"),
+      orderBy("startDate", "desc")
+    ),
+    (snap) => cb(snap.docs.map((d) => d.data() as FSPeriodCycle)),
+    () => cb([])
+  );
+}
+
