@@ -296,4 +296,43 @@ router.get("/terms", (_req, res): void => {
   res.send(page("Terms of Service", body));
 });
 
+// ── GET /delete-account ────────────────────────────────────────────────────────
+router.get("/delete-account", (_req, res): void => {
+  const body = `
+  <div class="intro">You can delete your Soul Remembrance account at any time. Account deletion is permanent and cannot be undone.</div>
+
+  ${section(1, "Delete Account In-App (Recommended)", paras(
+    "The fastest way to delete your account is directly inside the app:",
+    "1. Open the <strong>Soul Remembrance</strong> app<br/>2. Tap <strong>Profile</strong> → <strong>Settings</strong><br/>3. Scroll to the bottom and tap <strong>Delete Account</strong><br/>4. Confirm deletion when prompted",
+    "Your account and all associated data will be permanently removed."
+  ))}
+
+  ${section(2, "Request Deletion by Email", paras(
+    `If you cannot access the app, email us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> with the subject line <strong>"Account Deletion Request"</strong> and include the email address associated with your account.`,
+    "We will process your request within 30 days."
+  ))}
+
+  ${section(3, "What Gets Deleted", list(
+    "Your account credentials and login access",
+    "Your profile, bio, photo, and all personal information",
+    "Your messages and conversation history",
+    "Your bookings and session records",
+    "Your practitioner or vendor listings (if applicable)",
+    "Any active subscriptions will be cancelled immediately"
+  ))}
+
+  ${section(4, "What We Retain", paras(
+    "To comply with legal and financial obligations, we retain:",
+    "• <strong>Financial transaction records</strong> — retained for 7 years as required by UK law.<br/>• <strong>Backup copies</strong> — may persist for up to 90 days before being purged from backups."
+  ))}
+
+  <div class="contact">
+    <p>Need help with account deletion?</p>
+    <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>
+  </div>`;
+
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(page("Delete Your Account", body));
+});
+
 export default router;
