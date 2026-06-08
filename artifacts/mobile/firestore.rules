@@ -104,6 +104,18 @@ service cloud.firestore {
         !request.auth.token.firebase.sign_in_provider.matches("anonymous");
     }
 
+    // Period Tracker — each user owns their own cycles
+    match /periodTracker/{userId}/cycles/{cycleId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == userId;
+    }
+
+    // Good Things Today — each user owns their own entries
+    match /goodThings/{userId}/entries/{entryId} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid == userId;
+    }
+
     // Waiver templates (practitioners create, clients read before booking)
     match /waiverTemplates/{templateId} {
       allow read: if true;
