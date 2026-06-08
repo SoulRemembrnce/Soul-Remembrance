@@ -71,3 +71,9 @@ id = "Fh6crgUcspus1Oi-Ph-nn"
 uri = "file://expo-qr.png"
 type = "image"
 title = "Expo Go QR Code — updated icons"
+
+[[outputs]]
+id = "hIfPw4B8-NRAIJmTSr2tK"
+uri = "file://artifacts/mobile/assets/images/icon-512.png"
+type = "image"
+title = "Play Store Icon (512×512)"
