@@ -36,6 +36,24 @@ uri = "file://artifacts/mobile/assets/images/feature-graphic-raw2.png"
 type = "image"
 title = "soul remembrance feature graphic lotus right"
 
+[[generated]]
+id = "v34JbOxWTIn69DFcWXPSk"
+uri = "file://artifacts/mobile/assets/images/feature-v1.png"
+type = "image"
+title = "feature graphic v1 dark cosmic"
+
+[[generated]]
+id = "jHMPaxJU5RAaOrQ3gfhFG"
+uri = "file://artifacts/mobile/assets/images/feature-v2.png"
+type = "image"
+title = "feature graphic v2 purple teal"
+
+[[generated]]
+id = "hJP2xBAzCajKs5mrE8ELr"
+uri = "file://artifacts/mobile/assets/images/feature-v3.png"
+type = "image"
+title = "feature graphic v3 dark stars"
+
 [[outputs]]
 id = "MYyB6jTF0J5BePPhMd_L8"
 uri = "file://artifacts/mobile/assets/images/icon.png"
@@ -95,3 +113,21 @@ id = "BmK8ZAVxj70pHLyYD71XD"
 uri = "file://artifacts/mobile/assets/images/feature-graphic.png"
 type = "image"
 title = "Feature Graphic (1024×500 PNG)"
+
+[[outputs]]
+id = "d2qrgX-GItqJpOWf64lJB"
+uri = "file://artifacts/mobile/assets/images/feature-v1.png"
+type = "image"
+title = "Option 1 — Dark Cosmic"
+
+[[outputs]]
+id = "YjT8N1boErhbPjBoG5snv"
+uri = "file://artifacts/mobile/assets/images/feature-v2.png"
+type = "image"
+title = "Option 2 — Purple Teal"
+
+[[outputs]]
+id = "F-l6fvu13H2nJPtQV1B3p"
+uri = "file://artifacts/mobile/assets/images/feature-v3.png"
+type = "image"
+title = "Option 3 — Dark Stars"
